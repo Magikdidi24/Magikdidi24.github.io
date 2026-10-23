@@ -1,0 +1,255 @@
+---
+/*
+  Score of each back-translation round in one demo run of the translation
+  chain (nlp2-project-2026, results/results.csv). One series, chrF on its
+  native 0 to 100 scale: a 2px line through ringed points, values labeled at
+  the points, languages on the x axis, no gridlines. The line is an SVG
+  stretched to the plot box with a non-scaling stroke; the points and labels
+  are HTML, so text keeps its CSS size at any width. The table under the
+  chart is the readable twin: every value and back-translation as text.
+*/
+import type { ProjectFigure } from '../../data/projects';
+import Digits from '../home/Digits.astro';
+
+type Drift = Extract<ProjectFigure, { kind: 'drift' }>;
+
+export interface Props {
+  figure: Drift;
+}
+
+const { figure } = Astro.props;
+const { rounds } = figure;
+const count = rounds.length;
+
+/* Band centers across the plot width, in percent. */
+const x = (i: number): number => ((i + 0.5) / count) * 100;
+const fmt = (value: number): string => value.toFixed(1);
+
+/* The SVG uses a 400 × 100 viewBox: x in percent × 4, y = 100 minus the score. */
+const points = rounds.map((r, i) => `${(x(i) * 4).toFixed(2)},${(100 - r.chrf).toFixed(2)}`).join(' ');
+
+const chartLabel = `Line chart of chrF by round, 0 to 100: ${rounds
+  .map((r) => `after ${r.language}, ${fmt(r.chrf)}`)
+  .join('; ')}.`;
+---
+<figure class="drift">
+  <div class="chart" role="img" aria-label={chartLabel}>
+    <p class="chart-title" aria-hidden="true">chrF of each back-translation against the original</p>
+    <div class="frame" aria-hidden="true">
+      <span class="tick tick--top num">100</span>
+      <span class="tick tick--zero num">0</span>
+      <svg class="line" viewBox="0 0 400 100" preserveAspectRatio="none" focusable="false">
+        <polyline points={points} vector-effect="non-scaling-stroke"></polyline>
+      </svg>
+      <ol class="points" role="list">
+        {rounds.map((r, i) => (
+          <li style={`--x: ${x(i)}%; --y: ${r.chrf}%`}>
+            <span class="dot"></span>
+            <span class="value"><Digits text={fmt(r.chrf)} /></span>
+          </li>
+        ))}
+      </ol>
+    </div>
+    <ol class="axis" role="list" aria-hidden="true">
+      {rounds.map((r, i) => (
+        <li style={`--x: ${x(i)}%`}>{r.language}</li>
+      ))}
+    </ol>
+  </div>
+
+  <table class="rounds">
+    <caption>Original: “{figure.original}” (verbatim from nlp.py)</caption>
+    <thead>
+      <tr>
+        <th scope="col">Language</th>
+        <th scope="col">Back to English</th>
+        <th scope="col" class="n">chrF</th>
+        <th scope="col" class="n">BLEU</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rounds.map((r) => (
+        <tr>
+          <th scope="row">{r.language}</th>
+          <td class="sentence">{r.backTranslation}</td>
+          <td class="n"><Digits text={fmt(r.chrf)} /></td>
+          <td class="n"><Digits text={fmt(r.bleu)} /></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <figcaption>
+    {figure.caption} Data from <a href={figure.source.href}>{figure.source.label}</a> in the repository.
+  </figcaption>
+</figure>
+
+<style>
+  .drift {
+    --tick-space: 2.25rem;
+    display: grid;
+    row-gap: var(--space-5);
+  }
+
+  .chart-title {
+    margin-bottom: var(--space-5);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  /* Plot box: the 0 baseline is a strong hairline, 100 a light one. */
+  .frame {
+    position: relative;
+    height: 9.5rem;
+    margin-left: var(--tick-space);
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  .tick {
+    position: absolute;
+    right: calc(100% + var(--space-2));
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1;
+    transform: translateY(-50%);
+  }
+
+  .tick--top {
+    top: 0;
+  }
+
+  .tick--zero {
+    top: 100%;
+  }
+
+  .line {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .line polyline {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .points {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .points li {
+    position: absolute;
+    left: var(--x);
+    bottom: var(--y);
+    width: 0;
+    height: 0;
+  }
+
+  /* 10px marker with a 2px ring in the paper color. */
+  .dot {
+    position: absolute;
+    left: -5px;
+    bottom: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    outline: 2px solid var(--paper);
+  }
+
+  .value {
+    position: absolute;
+    left: 0;
+    bottom: 0.75rem;
+    color: var(--ink);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  .axis {
+    position: relative;
+    height: 1.75rem;
+    margin: 0 0 0 var(--tick-space);
+    padding: 0;
+    list-style: none;
+  }
+
+  .axis li {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--x);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.2;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  /* Table twin of the chart. */
+  .rounds {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+
+  caption {
+    caption-side: top;
+    padding-bottom: var(--space-3);
+    color: var(--ink-3);
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: var(--space-2) var(--space-4) var(--space-2) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    padding-top: 0;
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  tbody th,
+  tbody td {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  tbody th {
+    font-weight: 400;
+    color: var(--ink-2);
+  }
+
+  .n {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 0;
+  }
+
+  figcaption {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

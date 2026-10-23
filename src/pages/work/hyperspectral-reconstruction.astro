@@ -1,0 +1,94 @@
+---
+/*
+  Case study: hyperspectral reconstruction at LRE. Facts come only from
+  `research` in site.ts; the rest are textbook explanations, written as such.
+  No lab code, report, figures, data or names (see FACTS.md).
+*/
+import CaseStudy from '../../layouts/CaseStudy.astro';
+import PhotonFigure from '../../components/PhotonFigure.astro';
+import CubeDiagram from '../../components/work/CubeDiagram.astro';
+import ProjectedGradientDiagram from '../../components/work/ProjectedGradientDiagram.astro';
+import GuidedSmoothingDiagram from '../../components/work/GuidedSmoothingDiagram.astro';
+import Table from '../../components/work/Table.astro';
+import { person, research, openSource } from '../../data/site';
+
+const { width, height, channels } = research.cube;
+const voxels = width * height * channels;
+const billions = (voxels / 1e9).toFixed(1); // 2.1
+const gigabytes = ((voxels * 4) / 1e9).toFixed(1); // 8.6, single precision
+
+const facts = [
+  { term: 'Role', detail: 'Student researcher' },
+  { term: 'Where', detail: research.org },
+  { term: 'When', detail: research.period },
+  { term: 'Stack', detail: 'Python, PyTorch on GPU, NumPy' },
+  { term: 'Output', detail: 'Technical report, talk at the EPITA SCIA seminar 2026' },
+];
+
+const results = research.results.map((r) => [r.metric, r.data, 'value' in r ? r.value : `${r.before} to ${r.after}`]);
+---
+<CaseStudy
+  title={research.title}
+  seoTitle={`${research.short}, ${person.name}`}
+  description="Reconstructing SEM-EDS hyperspectral cubes of meteorites, where most voxels hold zero or one photon, with a convex method guided by the electron image."
+  lede="SEM-EDS maps a meteorite section as a cube of X-ray spectra, one per pixel, and most of its voxels record zero or one photon. I reconstructed cubes from data this sparse, with the sharp electron image as a guide."
+  facts={facts}
+  next={{ href: `/work/${openSource.slug}/`, label: openSource.title }}
+>
+  <h2 id="measurement">The measurement</h2>
+  <p>A scanning electron microscope sweeps a focused electron beam across a polished section of the meteorite. Where the beam lands, it knocks electrons out of the inner shells of atoms, and the atoms answer with X-rays at energies that identify each element. An energy-dispersive spectrometer (EDS) counts these photons and sorts them by energy, so every beam position yields a spectrum.</p>
+  <p>The spectra of a whole scan form a hyperspectral cube, with two spatial axes and one energy axis. The chondrite cube I worked on has {width} × {height} pixels and {channels} energy channels: about {billions} billion voxels, or {gigabytes} GB in single precision.</p>
+
+  <CubeDiagram class="wide" />
+
+  <p>Most of those voxels hold zero or one photon. That is typical of EDS maps: the beam spends only a short time on each pixel, few of the electrons that hit the sample produce an X-ray that reaches the detector, and the few photons a pixel collects are spread over {channels} channels.</p>
+  <p>Two effects shape the data. Counts are whole numbers: a voxel whose expected count is 0.3 photons records 0 most of the time, sometimes 1, never 0.3. And photon arrivals are random: the count follows a Poisson distribution, whose standard deviation is the square root of its mean, so at about one photon the noise is as large as the signal. I framed the reconstruction as an inverse problem under this quantization and Poisson noise: recover the underlying cube from the counts.</p>
+
+  <h2 id="data-term">Why the usual data term fails here</h2>
+  <p>Many reconstruction methods minimize the sum of two terms:</p>
+  <p class="formula">minimize <var>D</var>(<var>x</var>, <var>y</var>) + <var>λ</var><var>R</var>(<var>x</var>)</p>
+  <p>Here <var>x</var> is a candidate cube and <var>y</var> the recorded counts. The data-fidelity term <var>D</var> measures how well <var>x</var> explains the counts, for example as a squared error or as the negative log-likelihood of the noise model. The regularizer <var>R</var> encodes what a plausible cube looks like, for example that neighboring spectra are similar. The trade-off weight <var>λ</var> sets the balance between them: too low and the noise passes through, too high and real detail is smoothed away. It has to be tuned, usually against a ground truth that real data does not have.</p>
+  <p>In this photon-starved regime, I showed that the classical data-fidelity term is degenerate, so I took it out of the objective.</p>
+
+  <h2 id="constraint">A constraint instead of a trade-off</h2>
+  <p>In its place, I put a hard box constraint on the unknowns: each value of the cube must stay between a lower and an upper bound consistent with the recorded counts. The problem becomes:</p>
+  <p class="formula">minimize <var>R</var>(<var>x</var>)<br />subject to <var>l</var> ≤ <var>x</var> ≤ <var>u</var></p>
+  <p>The regularizer is convex and so is the box, so the whole problem is convex: any local minimum is a global one. With a single term left in the objective, there is no trade-off weight to tune.</p>
+  <p>I solved it by projected gradient. Each iteration takes a gradient step on the regularizer, which may push some values out of the box, then projects back onto the box. For a box, the projection is clipping: a value above its upper bound is set to that bound, a value below its lower bound is set to the lower bound, and the rest stay as they are.</p>
+  <p class="formula"><var>x</var><sub><var>k</var>+1</sub> = clip(<var>x</var><sub><var>k</var></sub> − <var>τ</var>∇<var>R</var>(<var>x</var><sub><var>k</var></sub>), <var>l</var>, <var>u</var>)</p>
+
+  <ProjectedGradientDiagram />
+
+  <p>The step size <var>τ</var> affects how fast the iterations converge, not which problem they solve. Both steps only involve each voxel and its neighbors, which suits a GPU: I ran the method in PyTorch on the real chondrite cube.</p>
+
+  <h2 id="guide">Letting the electron image guide</h2>
+  <p>Along with the X-ray counts, the microscope records a backscattered-electron image of the same area. That signal is far stronger, so the image is sharp, and its gray level follows the mean atomic number of the material: mineral grains show up as regions of nearly even gray with clear edges.</p>
+  <p>I designed a bilateral regularizer guided by that image. It penalizes differences between the spectra of neighboring pixels, and weights each pair by how similar the two pixels look in the electron image. Neighbors with the same gray level, most likely in the same grain, are pulled together; neighbors across an edge are barely linked. Smoothing stays inside grains and stops at their boundaries.</p>
+
+  <GuidedSmoothingDiagram />
+
+  <PhotonFigure
+    variant="inline"
+    class="wide"
+    caption="Simulated data. A made-up section imaged one X-ray photon at a time: raw counts left of the line, and on the right a reconstruction guided by a simulated electron image. It illustrates the idea, not the lab's method or data."
+  />
+
+  <h2 id="results">Results</h2>
+  <p>PSNR and the spectral angle compare a reconstruction with a known answer, so they were measured on a synthetic cube with Poisson noise. Spectral dispersion between neighboring pixels was measured on the real cube, which has no ground truth.</p>
+
+  <Table caption="Results on real and synthetic data" head={['Metric', 'Data', 'Result']} align={['left', 'left', 'right']} nowrap={[false, true, true]} rows={results} />
+
+  <p>PSNR, the peak signal-to-noise ratio, compares the reconstruction with the ground truth through their mean squared error, on a logarithmic scale relative to the peak value: higher is better.</p>
+  <p>The spectral angle (SAM) treats each spectrum as a vector and measures its angle to the true spectrum, so it compares the shape of the spectrum regardless of its overall scale: lower is better.</p>
+  <p>Spectral dispersion between neighboring pixels measures how much the spectra of neighboring pixels differ from one another. Any smoothing lowers it, so on real data it shows how much noise was removed, while PSNR and the spectral angle on synthetic data measure accuracy.</p>
+
+  <h2 id="private">What stays private</h2>
+  <p>{research.note} I am happy to walk through the method in an interview.</p>
+</CaseStudy>
+
+<style>
+  sub {
+    font-size: 0.7em;
+    line-height: 0;
+  }
+</style>

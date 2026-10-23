@@ -1,0 +1,81 @@
+---
+/*
+  Contact: one sentence, the email address in large type as a mailto link,
+  a quiet "Copy email" button, and the LinkedIn and GitHub links.
+  The address is sized from its own column width (container query units)
+  so it stays on one line from 320px up; <wbr> allows a break at the @ in
+  browsers without container units.
+*/
+import Section from './Section.astro';
+import CopyEmail from './CopyEmail.astro';
+import { person } from '../../data/site';
+
+const [user, domain] = person.email.split('@');
+---
+<Section id="contact" title="Contact" intro="Email is the fastest way to reach me, and I reply in English or French.">
+  <div class="address">
+    <p class="email">
+      <a href={`mailto:${person.email}`}>{user}<wbr />@{domain}</a>
+    </p>
+  </div>
+  <div class="actions">
+    <CopyEmail email={person.email} />
+    <ul class="links" role="list">
+      <li><a class="link" href={person.links.linkedin}>LinkedIn</a></li>
+      <li><a class="link" href={person.links.github}>GitHub</a></li>
+    </ul>
+  </div>
+</Section>
+
+<style>
+  .address {
+    container-type: inline-size;
+  }
+
+  .email {
+    font-size: clamp(1.75rem, 0.9rem + 3.6vw, 3.5rem);
+    font-weight: 500;
+    line-height: var(--leading-heading);
+    letter-spacing: -0.02em;
+    overflow-wrap: break-word;
+  }
+
+  /* The address is about 14em wide at this weight and tracking. */
+  @supports (font-size: 1cqi) {
+    .email {
+      font-size: clamp(1.25rem, 6.9cqi, 3.5rem);
+    }
+  }
+
+  .email a {
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.16em;
+  }
+
+  .email a:hover {
+    text-decoration-thickness: 3px;
+  }
+
+  /* The two text links wrap together, below the button, on narrow screens. */
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-6);
+    row-gap: var(--space-2);
+    margin-top: var(--space-5);
+  }
+
+  .links {
+    display: flex;
+    column-gap: var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  .link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+</style>

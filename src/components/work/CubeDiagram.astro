@@ -1,0 +1,258 @@
+---
+/*
+  Diagram: the SEM-EDS data cube (x and y pixels, energy channels) and one
+  pixel's spectrum as a stem plot that is almost all zeros. Ink only, drawn
+  with currentColor so it follows the light and dark themes. The spectrum is
+  an illustration, not measured data; the caption says so.
+  Both panels render at the same scale (SCALE px per viewBox unit at most),
+  so their labels have the same size; they sit side by side on wide screens
+  and stack on phones.
+*/
+import { research } from '../../data/site';
+
+export interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+const { width, height, channels } = research.cube;
+
+const SCALE = 1.1;
+const r = (v: number) => Math.round(v * 10) / 10;
+
+/* Cube in oblique projection: the front face is the x-y image, depth is energy. */
+const cubeW = 310;
+const cubeH = 280;
+const s = 140; // front face side
+const fx = 32; // front face left
+const fy = 104; // front face top
+const dx = 100; // depth vector (energy axis), drawn longer than wide
+const dy = -70;
+const cells = 8;
+const step = s / cells;
+const p = (x: number, y: number) => `${x},${y}`;
+const front = [p(fx, fy), p(fx + s, fy), p(fx + s, fy + s), p(fx, fy + s)].join(' ');
+const top = [p(fx, fy), p(fx + dx, fy + dy), p(fx + s + dx, fy + dy), p(fx + s, fy)].join(' ');
+const right = [p(fx + s, fy), p(fx + s + dx, fy + dy), p(fx + s + dx, fy + s + dy), p(fx + s, fy + s)].join(' ');
+const inner = Array.from({ length: cells - 1 }, (_, i) => (i + 1) * step);
+
+/* The highlighted column: top row, sixth pixel from the left. */
+const col = 5;
+const cx0 = fx + col * step;
+const cx1 = cx0 + step;
+const strip = [p(cx0, fy), p(cx1, fy), p(cx1 + dx, fy + dy), p(cx0 + dx, fy + dy)].join(' ');
+const stripEnd = (cx0 + cx1) / 2 + dx;
+
+/* Energy label along the lower right receding edge, offset outward. */
+const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+const len = Math.hypot(dx, dy);
+const ex = fx + s + dx / 2 + (15 * -dy) / len;
+const ey = fy + s + dy / 2 + (15 * dx) / len;
+
+/* Spectrum: schematic channels along the baseline; a few hold one photon. */
+const specW = 330;
+const specH = 280;
+const x0 = 36; // first channel
+const x1 = 308; // last channel
+const axis = x0 - 10;
+const base = 226;
+const one = 146;
+const n = 70;
+const ones = new Set([8, 20, 21, 39, 46]);
+const stems = Array.from({ length: n }, (_, i) => ({ x: r(x0 + ((x1 - x0) * i) / (n - 1)), on: ones.has(i) }));
+const lastOne = Math.max(...stems.filter((st) => st.on).map((st) => st.x));
+---
+<figure class:list={['cube-figure', className]}>
+  <div class="panels" style={`--cube-w: ${r(cubeW * SCALE)}px; --spec-w: ${r(specW * SCALE)}px`}>
+    <svg viewBox={`0 0 ${cubeW} ${cubeH}`} class="cube" role="img" aria-labelledby="cube-title" aria-describedby="cube-desc">
+      <title id="cube-title">The hyperspectral cube</title>
+      <desc id="cube-desc">A cube with two spatial axes, x and y, of {width} pixels each, and an energy axis of {channels} channels. One column of the cube, running along the energy axis from a single pixel, is highlighted: that column is the pixel's spectrum.</desc>
+      <g class="faces">
+        <polygon points={front} class="face face--front" />
+        <polygon points={top} class="face face--top" />
+        <polygon points={right} class="face face--right" />
+      </g>
+      <g class="hidden-edges">
+        <line x1={fx} y1={fy + s} x2={fx + dx} y2={fy + s + dy} />
+        <line x1={fx + dx} y1={fy + s + dy} x2={fx + dx} y2={fy + dy} />
+        <line x1={fx + dx} y1={fy + s + dy} x2={fx + s + dx} y2={fy + s + dy} />
+      </g>
+      <g class="grid">
+        {inner.map((o) => <line x1={fx + o} y1={fy} x2={fx + o} y2={fy + s} />)}
+        {inner.map((o) => <line x1={fx} y1={fy + o} x2={fx + s} y2={fy + o} />)}
+        {inner.map((o) => <line x1={fx + o} y1={fy} x2={fx + o + dx} y2={fy + dy} />)}
+        {inner.map((o) => <line x1={fx + s} y1={fy + o} x2={fx + s + dx} y2={fy + o + dy} />)}
+      </g>
+      <g class="edges">
+        <polygon points={front} />
+        <polygon points={top} />
+        <polygon points={right} />
+      </g>
+      <polygon points={strip} class="strip" />
+      <rect x={cx0} y={fy} width={step} height={step} class="pixel" />
+      <line x1={r(stripEnd)} y1={fy + dy - 9} x2={r(stripEnd)} y2={fy + dy - 2} class="leader" />
+      <text x={r(stripEnd)} y={fy + dy - 14} text-anchor="middle" class="label label--strong">its spectrum</text>
+      <text x={fx + s / 2} y={fy + s + 24} text-anchor="middle" class="label">x: {width} pixels</text>
+      <text x={fx - 14} y={fy + s / 2} text-anchor="middle" transform={`rotate(-90 ${fx - 14} ${fy + s / 2})`} class="label">y: {height} pixels</text>
+      <text x={r(ex)} y={r(ey)} text-anchor="middle" dominant-baseline="hanging" transform={`rotate(${r(angle)} ${r(ex)} ${r(ey)})`} class="label">energy: {channels} channels</text>
+    </svg>
+
+    <svg viewBox={`0 0 ${specW} ${specH}`} class="spectrum" role="img" aria-labelledby="spectrum-title" aria-describedby="spectrum-desc">
+      <title id="spectrum-title">One pixel's spectrum</title>
+      <desc id="spectrum-desc">A stem plot of photon counts against energy channel, from channel 0 to {channels - 1}. Almost every channel holds 0 photons; a few channels hold 1 photon. Drawn for illustration.</desc>
+      <text x={axis} y="34" class="label label--strong">One pixel's spectrum</text>
+      <text x={axis} y="88" class="label label--meta">photons</text>
+      <line x1={axis} y1={base} x2={axis} y2="100" class="axis" />
+      <line x1={axis - 4} y1={one} x2={axis} y2={one} class="axis" />
+      <line x1={axis - 4} y1={base} x2={axis} y2={base} class="axis" />
+      <text x={axis - 10} y={one + 5} text-anchor="end" class="label label--meta">1</text>
+      <text x={axis - 10} y={base + 5} text-anchor="end" class="label label--meta">0</text>
+      <line x1={axis} y1={base} x2={x1 + 6} y2={base} class="baseline" />
+      {stems.map((st) =>
+        st.on ? (
+          <g class="stem">
+            <line x1={st.x} y1={base} x2={st.x} y2={one} />
+            <circle cx={st.x} cy={one} r="3.5" />
+          </g>
+        ) : (
+          <circle cx={st.x} cy={base} r="1.5" class="zero" />
+        ),
+      )}
+      <text x={r(lastOne + 9)} y={one + 5} class="label">1 photon</text>
+      <text x={x1 + 6} y={base - 12} text-anchor="end" class="label">0 photons</text>
+      <text x={x0} y={base + 22} text-anchor="middle" class="label label--meta">0</text>
+      <text x={x1} y={base + 22} text-anchor="middle" class="label label--meta">{channels - 1}</text>
+      <text x={(x0 + x1) / 2} y={base + 44} text-anchor="middle" class="label">energy channel</text>
+    </svg>
+  </div>
+  <figcaption>The cube and one of its columns. Each pixel holds a spectrum along the energy axis; with so few photons, it is almost all zeros with a few ones. Drawn for illustration, not measured data.</figcaption>
+</figure>
+
+<style>
+  .panels {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    color: var(--ink);
+    font-family: var(--font);
+    overflow: visible;
+  }
+
+  .cube {
+    max-width: var(--cube-w);
+  }
+
+  .spectrum {
+    max-width: var(--spec-w);
+  }
+
+  .face {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  .face--front {
+    fill-opacity: 0.04;
+  }
+
+  .face--top {
+    fill-opacity: 0.1;
+  }
+
+  .face--right {
+    fill-opacity: 0.17;
+  }
+
+  .hidden-edges line {
+    stroke: currentColor;
+    stroke-opacity: 0.4;
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+
+  .grid line {
+    stroke: currentColor;
+    stroke-opacity: 0.2;
+    stroke-width: 0.75;
+  }
+
+  .edges polygon {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.25;
+    stroke-linejoin: round;
+  }
+
+  .strip {
+    fill: currentColor;
+    fill-opacity: 0.55;
+    stroke: currentColor;
+    stroke-width: 1;
+    stroke-linejoin: round;
+  }
+
+  .pixel {
+    fill: currentColor;
+  }
+
+  .leader {
+    stroke: currentColor;
+    stroke-width: 1;
+  }
+
+  .label {
+    fill: var(--ink-2);
+    font-size: 14px;
+  }
+
+  .label--strong {
+    fill: var(--ink);
+    font-weight: 500;
+  }
+
+  .label--meta {
+    fill: var(--ink-3);
+  }
+
+  .axis {
+    stroke: var(--ink-3);
+    stroke-width: 1;
+  }
+
+  .baseline {
+    stroke: var(--rule-strong);
+    stroke-width: 1;
+  }
+
+  .zero {
+    fill: currentColor;
+  }
+
+  .stem line {
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .stem circle {
+    fill: currentColor;
+  }
+
+  figcaption {
+    margin-top: var(--space-4);
+    max-width: 62ch;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  @media (min-width: 46rem) {
+    .panels {
+      grid-template-columns: minmax(0, var(--cube-w)) minmax(0, var(--spec-w));
+      column-gap: var(--space-7);
+      align-items: end;
+    }
+  }
+</style>

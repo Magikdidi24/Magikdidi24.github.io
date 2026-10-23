@@ -1,0 +1,116 @@
+/*
+  Design tokens.
+  Color rule: the page itself is ink on paper. Saturated color only appears
+  where it encodes data (the element channels Mg, Si, Fe in the photon figure).
+*/
+
+:root {
+  color-scheme: light dark;
+
+  /* Paper and ink */
+  --paper: #f3f5f7;
+  --paper-2: #e7ebef; /* code blocks, subtle fills */
+  --ink: #17202a; /* 15.0:1 on paper */
+  --ink-2: #4e5b68; /* secondary text, 6.4:1 */
+  --ink-3: #5f6b77; /* captions and meta, 5.0:1 */
+  --rule: #d3d9df; /* hairlines between list items */
+  --rule-strong: #b8c1ca; /* table header rules, input tracks */
+
+  /* The detector: the photon figure always sits on vacuum, in both themes */
+  --vacuum: #0a0f14;
+  --vacuum-2: #141b22; /* the data bar under the figure */
+  --on-vacuum: #e3e9ef;
+  --on-vacuum-2: #a2aeba; /* 7.7:1 on vacuum-2 */
+
+  /* Data colors: X-ray lines of three elements. Use only for data. */
+  --mg: #3ddc97; /* magnesium */
+  --si: #7b93ff; /* silicon */
+  --fe: #ffa552; /* iron */
+
+  /* Charts on paper: "before" is muted ink, "after" is full ink */
+  --chart-before: var(--ink-3);
+  --chart-after: var(--ink);
+
+  --focus: var(--ink);
+  --selection: #c9d6e3;
+
+  /* Type */
+  --font: 'Schibsted Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Type scale (16px root). Classic progression: 15, 18, 21, 24, 36, 48, 92 */
+  --text-sm: 0.9375rem; /* 15px: captions, meta, footer */
+  --text-base: 1.0625rem; /* 17px on small screens, 18px from 48rem */
+  --text-md: 1.3125rem; /* 21px: lede on case studies, h4 */
+  --text-lg: 1.5rem; /* 24px: h3, item titles */
+  --text-xl: clamp(1.75rem, 1.2rem + 1.8vw, 2.25rem); /* 28 to 36px: h2 */
+  --text-2xl: clamp(2.25rem, 1.4rem + 3vw, 3rem); /* 36 to 48px: case study h1 */
+  --text-hero: clamp(2.75rem, 1rem + 6.4vw, 5.75rem); /* 44 to 92px: home h1 */
+  --lede: clamp(1.1875rem, 1rem + 0.7vw, 1.4375rem); /* 19 to 23px: home lede */
+
+  --leading-tight: 1.04;
+  --leading-heading: 1.15;
+  --leading-body: 1.6;
+
+  /* Space (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+  --space-10: 8rem;
+  --section-gap: clamp(4rem, 2.5rem + 6vw, 8rem); /* between home sections */
+
+  /* Layout */
+  --max: 77.5rem; /* 1240px content width */
+  --pad: clamp(1rem, 4vw, 3rem); /* side gutter: 16px on phones */
+  --measure: 66ch; /* long-form line length */
+
+  /* Shape */
+  --radius-figure: 6px;
+  --radius-code: 4px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur: 240ms;
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --text-base: 1.125rem;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #0f141a;
+    --paper-2: #19212a;
+    --ink: #e5eaef;
+    --ink-2: #a7b2bd;
+    --ink-3: #8b97a3;
+    --rule: #26303a;
+    --rule-strong: #3a4652;
+    --vacuum: #05080b;
+    --vacuum-2: #0d1319;
+    --selection: #2b3a4a;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #0f141a;
+  --paper-2: #19212a;
+  --ink: #e5eaef;
+  --ink-2: #a7b2bd;
+  --ink-3: #8b97a3;
+  --rule: #26303a;
+  --rule-strong: #3a4652;
+  --vacuum: #05080b;
+  --vacuum-2: #0d1319;
+  --selection: #2b3a4a;
+}

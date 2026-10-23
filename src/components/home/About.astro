@@ -1,0 +1,169 @@
+---
+/*
+  About: a short bio written only from site.ts, one chronological list of
+  experience and education (newest first, dates as the markers), then
+  languages and skills as definition lists.
+  Source order is bio, timeline, languages, skills. From 64rem they form two
+  rows of two (bio beside the timeline, languages beside skills), so the
+  short bio does not leave a long empty column.
+*/
+import Section from './Section.astro';
+import { education, experience, languages, person, skills, type Period } from '../../data/site';
+
+type Entry = { title: string; org: string; place: string; period: Period };
+
+/* "2024" sorts as the start of 2024; an entry with no end is ongoing. */
+const startKey = (p: Period): string => (p.start.length === 4 ? `${p.start}-00` : p.start);
+const endKey = (p: Period): string => (p.end ? (p.end.length === 4 ? `${p.end}-13` : p.end) : '9999-99');
+
+const timeline: Entry[] = [...experience, ...education]
+  .map((item): Entry => ({ title: item.title, org: item.org, place: item.place, period: item.period }))
+  .sort((a, b) => startKey(b.period).localeCompare(startKey(a.period)) || endKey(b.period).localeCompare(endKey(a.period)));
+
+const where = (e: Entry): string => [e.org, e.place].filter((part) => part.trim().length > 0).join(', ');
+
+/* The skills group "Languages" sits right after the spoken languages, so
+   it is shown as "Programming languages". */
+const groupLabel = (group: string): string => (group === 'Languages' ? 'Programming languages' : group);
+
+/* "6 months" becomes "6-month"; areas read "a, b, or c". */
+const { availability } = person;
+const durationAdjective = availability.duration.replace(/\s+months?$/, '-month');
+const areas = [...availability.areas];
+const areaList =
+  areas.length > 1 ? `${areas.slice(0, -1).join(', ')}, or ${areas[areas.length - 1]}` : (areas[0] ?? '');
+---
+<Section id="about" title="About">
+  <div class="about">
+    <div class="bio">
+      <p>
+        I came to computer science through the French classes préparatoires (MP2I, then MPI): two years of
+        intensive mathematics, physics and computer science. At EPITA I chose the artificial intelligence major.
+      </p>
+      <p>
+        Since {person.inTokyoSince} I have been in Tokyo for an exchange semester at Shibaura Institute of
+        Technology, and I am learning Japanese. I also write and review contest problems for Prologin, the
+        non-profit behind France's national programming contest for young people.
+      </p>
+      <p>
+        I am looking for a {durationAdjective} AI engineering internship in {availability.city} from {availability.start}, in {areaList}.
+      </p>
+    </div>
+
+    <div class="block timeline">
+      <h3 id="about-timeline">Experience and education</h3>
+      <ol class="list" role="list">
+        {timeline.map((e) => (
+          <li class="item">
+            <p class="key num">{e.period.label}</p>
+            <div>
+              <p>{e.title}</p>
+              <p class="where">{where(e)}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+
+    <div class="block languages">
+      <h3 id="about-languages">Languages</h3>
+      <dl class="list">
+        {languages.map((l) => (
+          <div class="item">
+            <dt class="key">{l.name}</dt>
+            <dd>{l.level}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+
+    <div class="block skills">
+      <h3 id="about-skills">Skills</h3>
+      <dl class="list">
+        {skills.map((s) => (
+          <div class="item">
+            <dt class="key">{groupLabel(s.group)}</dt>
+            <dd>{s.items.join(', ')}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </div>
+</Section>
+
+<style>
+  .about {
+    display: grid;
+    row-gap: var(--space-7);
+  }
+
+  .bio {
+    display: grid;
+    row-gap: 1.1em;
+    max-width: 60ch;
+  }
+
+  .block {
+    container-type: inline-size;
+  }
+
+  .block h3 {
+    margin-bottom: var(--space-4);
+  }
+
+  .list {
+    padding: 0;
+    list-style: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .item {
+    display: grid;
+    row-gap: var(--space-1);
+    padding-block: var(--space-3);
+    border-top: 1px solid var(--rule);
+  }
+
+  .key {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  .where {
+    color: var(--ink-2);
+  }
+
+  /* Wide enough: dates and labels form a column on the left. */
+  @container (min-width: 30rem) {
+    .item {
+      grid-template-columns: 10.5rem minmax(0, 1fr);
+      column-gap: var(--space-5);
+      align-items: baseline;
+    }
+  }
+
+  /* Two rows of two: bio and timeline, then languages and skills. */
+  @media (min-width: 64rem) {
+    .about {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--space-6);
+      row-gap: var(--space-8);
+      align-items: start;
+    }
+
+    .bio,
+    .languages {
+      grid-column: 1 / span 5;
+    }
+
+    .timeline,
+    .skills {
+      grid-column: 7 / -1;
+    }
+  }
+</style>

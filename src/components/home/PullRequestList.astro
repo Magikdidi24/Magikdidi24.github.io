@@ -1,0 +1,80 @@
+---
+/*
+  The pull requests from openSource.prs. Each item links to the pull
+  request: the topic first, then the reference and its status in meta ink.
+  The repository is named only when it differs from the one most pull
+  requests went to (RuboCop), which the row summary already names.
+*/
+import Digits from './Digits.astro';
+import { openSource } from '../../data/site';
+import { mainRepo, repoName } from './repos';
+
+const main = mainRepo(openSource.prs);
+const items = openSource.prs.map((pr) => ({
+  ...pr,
+  ref: pr.repo === main ? `#${pr.number}` : `${repoName(pr.repo)} #${pr.number}`,
+  state: pr.status === 'merged' ? pr.date : 'open, in review',
+}));
+---
+<ul class="prs" role="list">
+  {items.map((pr) => (
+    <li>
+      <a href={pr.url}>
+        <span class="topic">{pr.topic}</span>
+        <span class="ref"><Digits text={`${pr.ref}, ${pr.state}`} /></span>
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .prs {
+    max-width: 48rem;
+    padding: 0;
+    list-style: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  li {
+    border-top: 1px solid var(--rule);
+  }
+
+  a {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-1);
+    min-height: 2.75rem;
+    padding-block: var(--space-3);
+    text-decoration: none;
+  }
+
+  .topic {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: color-mix(in srgb, currentColor 55%, transparent);
+  }
+
+  a:hover .topic {
+    text-decoration-color: currentColor;
+    text-decoration-thickness: 2px;
+  }
+
+  .ref {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  @media (min-width: 40rem) {
+    a {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: var(--space-5);
+      align-items: baseline;
+    }
+
+    .ref {
+      text-align: right;
+      white-space: nowrap;
+    }
+  }
+</style>

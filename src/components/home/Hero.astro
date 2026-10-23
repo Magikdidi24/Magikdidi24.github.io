@@ -1,0 +1,109 @@
+---
+/*
+  Home hero: the name, the lede, the availability sentence with the only
+  solid button on the site, then the photon figure at full .wrap width.
+  The figure is owned by PhotonFigure.astro; this component only places it.
+*/
+import PhotonFigure from '../PhotonFigure.astro';
+import { person } from '../../data/site';
+
+const lede = `${person.intro} ${person.focus}`;
+---
+<div class="hero wrap">
+  <h1>{person.name}</h1>
+
+  <div class="intro">
+    <p class="lede">{lede}</p>
+    <div class="cta">
+      <p class="availability">{person.availability.sentence}</p>
+      <div class="actions">
+        <a class="button" href={`mailto:${person.email}`}>Email me</a>
+        <ul class="links" role="list">
+          <li><a class="link" href={person.links.linkedin}>LinkedIn</a></li>
+          <li><a class="link" href={person.links.github}>GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="figure">
+    <PhotonFigure variant="hero" />
+  </div>
+</div>
+
+<style>
+  .hero {
+    padding-top: clamp(var(--space-6), 1rem + 4.5vw, var(--space-9));
+  }
+
+  h1 {
+    font-size: var(--text-hero);
+    line-height: var(--leading-tight);
+    letter-spacing: -0.03em;
+  }
+
+  .intro {
+    display: grid;
+    row-gap: var(--space-5);
+    margin-top: clamp(var(--space-5), 0.5rem + 2.5vw, var(--space-7));
+  }
+
+  .lede {
+    max-width: 40ch;
+    font-size: var(--lede);
+    line-height: 1.45;
+    letter-spacing: -0.005em;
+  }
+
+  .cta {
+    display: grid;
+    row-gap: var(--space-3);
+  }
+
+  .availability {
+    max-width: 34ch;
+  }
+
+  /* The two text links wrap together, below the button, on narrow screens. */
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-6);
+    row-gap: var(--space-2);
+  }
+
+  .links {
+    display: flex;
+    column-gap: var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Text links get a 44px touch target without looking like buttons. */
+  .link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .figure {
+    margin-top: clamp(var(--space-6), 1rem + 3.5vw, var(--space-8));
+  }
+
+  @media (min-width: 64rem) {
+    .intro {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--space-6);
+      align-items: end;
+    }
+
+    .lede {
+      grid-column: 1 / span 7;
+    }
+
+    .cta {
+      grid-column: 8 / -1;
+    }
+  }
+</style>

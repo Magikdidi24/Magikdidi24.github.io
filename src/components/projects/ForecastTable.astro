@@ -1,0 +1,104 @@
+---
+/*
+  Forecasting results of tsa_absenteeism_at_work (main.ipynb): error of each
+  model on the 9 test months, best first. A plain table: ink header row over
+  a strong rule, rows separated by hairlines, numbers right aligned.
+*/
+import type { ProjectFigure } from '../../data/projects';
+import Digits from '../home/Digits.astro';
+
+type Forecast = Extract<ProjectFigure, { kind: 'forecast' }>;
+
+export interface Props {
+  figure: Forecast;
+}
+
+const { figure } = Astro.props;
+const rows = [...figure.rows].sort((a, b) => a.rmse - b.rmse);
+const fmt = (value: number): string => value.toFixed(1);
+---
+<figure class="forecast">
+  <table>
+    <caption>{figure.caption}</caption>
+    <thead>
+      <tr>
+        <th scope="col">Model</th>
+        <th scope="col" class="n">MAE</th>
+        <th scope="col" class="n">RMSE</th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr>
+          <th scope="row">{row.model}</th>
+          <td class="n"><Digits text={fmt(row.mae)} /></td>
+          <td class="n"><Digits text={fmt(row.rmse)} /></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <figcaption>
+    Data from <a href={figure.source.href}>{figure.source.label}</a> in the repository; the same values appear in the report.
+  </figcaption>
+</figure>
+
+<style>
+  .forecast {
+    display: grid;
+    row-gap: var(--space-4);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+
+  caption {
+    caption-side: top;
+    padding-bottom: var(--space-3);
+    color: var(--ink-3);
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  tbody th,
+  tbody td {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  tbody th {
+    font-weight: 400;
+  }
+
+  .n {
+    width: 5rem;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 0;
+  }
+
+  figcaption {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

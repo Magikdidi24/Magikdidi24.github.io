@@ -1,0 +1,110 @@
+---
+/*
+  Case study: open source contributions. Pull request URLs come from
+  openSource in site.ts. Merge dates, file counts, issues and behavior were
+  verified on GitHub (pull request pages, the RuboCop git history, CHANGELOG
+  and release notes) on Oct 20, 2026.
+*/
+import CaseStudy from '../../layouts/CaseStudy.astro';
+import Table from '../../components/work/Table.astro';
+import { person, research, openSource } from '../../data/site';
+
+/* Verified on GitHub: the date each pull request was merged. */
+const mergedOn: Record<number, string> = {
+  14633: 'Dec 2025',
+  14774: 'Jan 2026',
+  14814: 'Jan 2026',
+  14818: 'Jan 2026',
+};
+
+const change: Record<number, string> = {
+  14633: 'Push and pop directives',
+  14774: 'Push arguments no longer read as enable comments',
+  14814: 'Nested scopes and department names in push and pop',
+  14818: 'Indentation regression in RuboCop 1.84.0',
+};
+
+const repoName = (repo: string) => (repo === 'rubocop/rubocop' ? 'RuboCop' : repo.split('/').pop() ?? repo);
+const pr = (n: number) => openSource.prs.find((p) => p.number === n)!;
+
+const rows = openSource.prs.map((p) => [
+  { text: `${repoName(p.repo)} #${p.number}`, href: p.url },
+  change[p.number] ?? p.topic,
+  `Merged ${mergedOn[p.number]}`,
+]);
+
+const facts = [
+  { term: 'Projects', detail: 'RuboCop, tree-sitter-ruby' },
+  { term: 'Merged pull requests', detail: `${openSource.prs.length} (RuboCop)` },
+  { term: 'Merge dates', detail: 'Dec 2025 to Jan 2026' },
+  { term: 'Fork', detail: 'tree-sitter-ruby' },
+  { term: 'Languages', detail: 'Ruby, C, JavaScript' },
+];
+
+const docsUrl = 'https://docs.rubocop.org/rubocop/latest/usage/source_code_directives.html';
+const issueUrl = (n: number) => `https://github.com/rubocop/rubocop/issues/${n}`;
+
+/* From the RuboCop documentation, section "Scoped Disabling with Push/Pop Directives". */
+const example = `# rubocop:disable Style/For
+for x in [1, 2, 3]
+  puts x
+end
+# rubocop:push +Style/For -Style/GuardClause
+for y in [4, 5, 6]  # Style/For is re-enabled here
+  if y > 0
+    return y        # Style/GuardClause is disabled here
+  end
+end
+# rubocop:pop
+# Back to original state: Style/For disabled, Style/GuardClause enabled`;
+---
+<CaseStudy
+  title={openSource.title}
+  seoTitle={`${openSource.title}, ${person.name}`}
+  description="Four merged pull requests to RuboCop, push and pop directives and three fixes, and my maintained fork of tree-sitter-ruby, the Ruby grammar for tree-sitter."
+  lede="I added push and pop directives to RuboCop, the Ruby linter and formatter, then fixed two bugs in them and an indentation regression. All four pull requests are merged. I also maintain a fork of tree-sitter-ruby, the Ruby grammar for the tree-sitter parser generator."
+  facts={facts}
+  next={{ href: `/work/${research.slug}/`, label: research.short }}
+>
+  <Table caption="The four pull requests" head={['Pull request', 'Change', 'Status']} nowrap={[true, false, true]} rows={rows} />
+
+  <h2 id="push-pop">Push and pop directives</h2>
+  <p>RuboCop runs checks called cops, and comments switch them off and on for part of a file: <code># rubocop:disable Style/For</code>, then <code># rubocop:enable Style/For</code>. These comments are switches, not scopes. An <code>enable</code> turns the cop on whatever its state was before, so a pair placed inside a region where the cop is already off turns it back on too early, and every pair repeats the cop names. <a href={issueUrl(13854)}>Issue #13854</a>, “disable/enable is too imperative”, asked for a stack instead.</p>
+  <p>With push and pop, <code>push</code> saves the state of the cops and can change some of them on the same line, and <code>pop</code> restores whatever was saved. A <code>-</code> before a cop name disables it and a <code>+</code> enables it. This example is from the <a href={docsUrl}>RuboCop documentation</a>:</p>
+  <pre tabindex="0" role="region" aria-label="Ruby example of the push and pop directives"><code>{example}</code></pre>
+  <p><a href={pr(14633).url}>Pull request #14633</a> changed eight files:</p>
+  <ul>
+    <li>Added <code>push</code> and <code>pop</code> to the directive parser, with optional <code>+</code> and <code>-</code> arguments.</li>
+    <li>Made the analysis of directive comments keep a stack: <code>push</code> saves the state of every cop and applies its arguments, <code>pop</code> ends the scope and restores the saved state.</li>
+    <li>Kept <code>Lint/RedundantCopDisableDirective</code> from reporting push and pop comments, and added the new modes to the message of <code>Lint/CopDirectiveSyntax</code>.</li>
+    <li>Documented the directives, with nested examples.</li>
+    <li>Added specs for ten scenarios, from one disabled cop to nested scopes and inline arguments.</li>
+  </ul>
+  <p class="meta">Merged {mergedOn[14633]}. The RuboCop 1.84.0 release notes list it as a new feature.</p>
+
+  <h2 id="fixes">Three follow-up fixes</h2>
+  <p>Two fix push and pop themselves; the third fixes a regression in <code>Layout/IndentationWidth</code> that RuboCop 1.84.0 introduced.</p>
+
+  <h3>Push arguments read as enable comments</h3>
+  <p>After #14633, <code>Lint/RedundantCopEnableDirective</code> reported <code># rubocop:push -Style/GuardClause</code> as an unnecessary enabling of a cop named <code>-Style/GuardClause</code>. The method that collects enable comments did not skip push and pop, so the argument took the path of an <code>enable</code> directive. I added a guard that skips them, a regression test, and the changelog entry for #14633.</p>
+  <p class="meta"><a href={pr(14774).url}>Pull request #14774</a>, merged {mergedOn[14774]}. Three files changed.</p>
+
+  <h3>Nested scopes and department names</h3>
+  <p>My first implementation did not always restore the intermediate state of nested push and pop blocks, and department names such as <code>+Metrics</code> or <code>-Style</code> in push arguments did not work. I reworked the push and pop handling: department names now expand to every cop in the department, each push saves the cops it changes, and <code>pop</code> ends the scope on the line before it and resumes an earlier disabled state from its own line. I updated the specs to check the state of each cop line by line, including nested blocks and departments.</p>
+  <p class="meta"><a href={pr(14814).url}>Pull request #14814</a>, merged {mergedOn[14814]}, released in RuboCop 1.84.1. Two files changed.</p>
+
+  <h3>An indentation regression in RuboCop 1.84.0</h3>
+  <p>In RuboCop 1.84.0, <code>Layout/IndentationWidth</code> measured the body of a block that follows a multi-line method chain from the column of the closing brace or <code>end</code>, and reported correctly indented code (<a href={issueUrl(14805)}>issue #14805</a>). I changed the base back to the dot of the chain whenever that dot starts its own line, whatever the <code>EnforcedStyleAlignWith</code> setting, which brings back the indentation from before 1.84.0. I added specs for brace and <code>do</code> blocks after a multi-line chain and for a long receiver, and updated an autocorrect spec.</p>
+  <p class="meta"><a href={pr(14818).url}>Pull request #14818</a>, merged {mergedOn[14818]}, released in RuboCop 1.84.1. Four files changed.</p>
+
+  <h2 id="tree-sitter-ruby">My tree-sitter-ruby fork</h2>
+  <p>tree-sitter-ruby is the Ruby grammar for tree-sitter, a parser generator that editors use for syntax highlighting and code navigation. My fork, <a href={openSource.fork.url}>Magikdidi24/tree-sitter-ruby</a>, adds:</p>
+  <ul>
+    <li>Ruby 3.0+ syntax: endless methods whose body is a command call without parentheses, such as <code>def a1 = puts 1</code>, lambda parameters with block-local variables, as in <code>{'->(;a) { a = 1 }'}</code>, <code>return</code> followed by parenthesized values, and a range left open at the end of a line.</li>
+    <li>Fixes in the hand-written C scanner for heredocs, regular expressions, percent literals, unary arguments and comments inside ERB templates, several of them for issues reported on the original repository.</li>
+    <li>A differential check that parses the ruby/spec test suite with both tree-sitter and Prism, Ruby's own parser, and lists where they disagree.</li>
+    <li>Build and CI updated for the tree-sitter CLI 0.27.1, and 878 new lines of test cases in the grammar's corpus, which pair a Ruby snippet with the syntax tree the parser must produce.</li>
+  </ul>
+
+  <p slot="closing"><a href={openSource.rubocopPrsUrl}>All my RuboCop pull requests</a> are listed on GitHub.</p>
+</CaseStudy>

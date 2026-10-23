@@ -1,0 +1,127 @@
+---
+/*
+  Projects: rows of public projects from projects.ts, a link to /projects/,
+  then the EPITA projects whose code stays private (name and one line each,
+  no links). Renders whatever projects.ts contains; relies only on the
+  exported Project type.
+*/
+import Section from './Section.astro';
+import Row from './Row.astro';
+import { projects, type Project } from '../../data/projects';
+import { coursework } from '../../data/site';
+
+const metaLine = (p: Project): string => [p.context, p.year].filter((part) => part && part.trim()).join(', ');
+---
+<Section id="projects" title="Projects" intro="Course and personal projects with public code.">
+  <div class="rows">
+    {projects.map((p) => (
+      <Row title={p.name} titleId={`project-${p.slug}`} meta={[metaLine(p)]}>
+        <div class="text">
+          <p class="summary">{p.summary}</p>
+          {p.stack.length > 0 && <p class="stack">{p.stack.join(', ')}</p>}
+        </div>
+        <p class="links">
+          <a href={`/projects/#${p.slug}`}>Details<span class="visually-hidden">: {p.name}</span></a>{' '}
+          <a href={p.repo}>Code on GitHub<span class="visually-hidden">: {p.name}</span></a>
+        </p>
+      </Row>
+    ))}
+  </div>
+
+  <p class="more"><a href="/projects/">More detail on each project</a></p>
+
+  <div class="school">
+    <Row as="div" title="School projects, code kept private" titleId="school-projects">
+      <ul class="coursework" role="list">
+        {coursework.map((c) => (
+          <li>
+            <p><span class="cw-name">{c.name}</span> <span class="cw-stack">{c.stack.join(', ')}</span></p>
+            <p class="cw-summary">{c.summary}</p>
+          </li>
+        ))}
+      </ul>
+    </Row>
+  </div>
+</Section>
+
+<style>
+  .text {
+    display: grid;
+    row-gap: var(--space-2);
+  }
+
+  .summary {
+    max-width: 62ch;
+    color: var(--ink-2);
+  }
+
+  .stack,
+  .cw-stack {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-5);
+  }
+
+  .links a,
+  .more a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .more {
+    padding-top: var(--space-4);
+  }
+
+  .school {
+    margin-top: var(--space-8);
+  }
+
+  .coursework {
+    display: grid;
+    gap: var(--space-5) var(--space-6);
+    padding: 0;
+    list-style: none;
+  }
+
+  .cw-name {
+    margin-right: var(--space-2);
+    font-weight: 500;
+  }
+
+  .cw-summary {
+    margin-top: var(--space-1);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  @media (min-width: 40rem) {
+    .coursework {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .more {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--space-6);
+    }
+
+    .more a {
+      grid-column: 5 / -1;
+      justify-self: start;
+    }
+
+    .coursework {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+</style>

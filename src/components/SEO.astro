@@ -1,0 +1,101 @@
+---
+/*
+  Head metadata for every page: title, description, canonical URL, Open Graph,
+  Twitter card, icons, and on the home page a JSON-LD Person.
+  URLs are absolute, built from `site` in astro.config.mjs. Facts come from
+  src/data/site.ts; nothing about the person is written here.
+*/
+import { person, education, skills, research } from '../data/site';
+
+export interface Props {
+  title: string;
+  description: string;
+  image?: string; // absolute path under /public to a 1200 × 630 image, e.g. /og.png
+  type?: 'website' | 'article';
+  noindex?: boolean;
+}
+
+const { title, description, image, type = 'website', noindex = false } = Astro.props;
+
+const site = Astro.site ?? new URL(person.links.site);
+const home = new URL('/', site).href;
+// A noindex page (the 404) has no address of its own to declare: it gets no
+// canonical link and no og:url. Astro renders the 404 at "/404/", which is
+// not a URL that GitHub Pages serves.
+const canonical = noindex ? undefined : new URL(Astro.url.pathname, site).href;
+
+// Social preview image. The default card is generated into public/og.png.
+const OG_WIDTH = 1200;
+const OG_HEIGHT = 630;
+const ogImage = new URL(image ?? '/og.png', site).href;
+const ogImageAlt = image ? title : `${person.name}, ${person.intro} Beside it, simulated photon counts and their reconstruction.`;
+
+/*
+  JSON-LD Person, home page only. Schools come from `education`: a school
+  whose period has not ended at build time is an affiliation, one that has
+  ended goes to alumniOf. No degree is claimed.
+*/
+const isHome = Astro.url.pathname === '/';
+const now = new Date();
+// "2027-01" ends on 1 Feb 2027, "2027" on 1 Jan 2028 (Date.UTC months are 0-based).
+const hasEnded = (end?: string) => {
+  if (!end) return false;
+  const [year, month = 12] = end.split('-').map(Number);
+  return Date.UTC(year, month, 1) <= now.getTime();
+};
+const schoolType: Record<string, string> = {
+  epita: 'CollegeOrUniversity',
+  sit: 'CollegeOrUniversity',
+};
+const school = (entry: (typeof education)[number]) => ({
+  '@type': schoolType[entry.id] ?? 'EducationalOrganization',
+  name: entry.org,
+});
+const affiliation = education.filter((e) => !hasEnded(e.period.end)).map(school);
+const alumniOf = education.filter((e) => hasEnded(e.period.end)).map(school);
+const knowsAbout = [...new Set([...skills.flatMap((group) => group.items), research.short])];
+
+const personLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  '@id': `${home}#person`,
+  name: person.name,
+  url: home,
+  email: `mailto:${person.email}`,
+  jobTitle: person.role,
+  description: person.intro,
+  affiliation,
+  ...(alumniOf.length > 0 ? { alumniOf } : {}),
+  knowsAbout,
+  sameAs: [person.links.linkedin, person.links.github],
+};
+// Escape "<" so the JSON can never close the script element early.
+const personJson = JSON.stringify(personLd).replace(/</g, '\\u003c');
+---
+<title>{title}</title>
+<meta name="description" content={description} />
+<meta name="author" content={person.name} />
+{canonical && <link rel="canonical" href={canonical} />}
+{noindex && <meta name="robots" content="noindex" />}
+
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="sitemap" href="/sitemap-index.xml" />
+
+<meta property="og:type" content={type} />
+<meta property="og:site_name" content={person.name} />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+{canonical && <meta property="og:url" content={canonical} />}
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:width" content={String(OG_WIDTH)} />
+<meta property="og:image:height" content={String(OG_HEIGHT)} />
+<meta property="og:image:alt" content={ogImageAlt} />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+<meta name="twitter:image:alt" content={ogImageAlt} />
+
+{isHome && <script type="application/ld+json" is:inline set:html={personJson} />}

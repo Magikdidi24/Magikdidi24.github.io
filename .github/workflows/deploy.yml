@@ -1,0 +1,53 @@
+# Builds the site, checks the build, and publishes it to GitHub Pages.
+# One-time setup in the repository: Settings > Pages > Build and deployment >
+# Source: GitHub Actions.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only by default. Only the deploy job, which runs no project code, can
+# publish to Pages; the build job, which installs and runs npm packages, cannot.
+permissions:
+  contents: read
+
+# One deployment at a time. A newer run waits for the current one instead of
+# cancelling it halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # Installs dependencies from package-lock.json, runs build-cmd, then
+      # uploads dist/ as the Pages artifact. A failing check stops the run
+      # before the upload, so nothing is deployed.
+      - name: Install, build, check and upload the site
+        uses: withastro/action@v6
+        with:
+          # Astro 7 needs Node 22.22 or later; 24 is an LTS line.
+          node-version: 24
+          build-cmd: npm run build && npm run verify
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

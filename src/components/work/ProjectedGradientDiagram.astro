@@ -1,0 +1,158 @@
+---
+/*
+  Diagram: one iteration of projected gradient on a box, with two unknowns.
+  A gradient step on the regularizer leaves the box; the projection, which
+  for a box is clipping each coordinate to its bounds, brings it back.
+  Bounds are symbolic (l and u): the real bounds are not stated anywhere.
+*/
+export interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+
+const W = 384;
+const H = 300;
+const SCALE = 1.1;
+const origin = { x: 28, y: 262 };
+const box = { l1: 64, u1: 210, u2: 90, l2: 210 };
+const xk = { x: 150, y: 172 };
+const after = { x: 268, y: 122 }; // outside: x1 above its upper bound
+const next = { x: box.u1, y: after.y }; // x1 clipped, x2 unchanged
+const axisEnd = 380;
+---
+<figure class:list={['pg-figure', className]}>
+  <svg viewBox={`0 0 ${W} ${H}`} style={`max-width: ${W * SCALE}px`} role="img" aria-labelledby="pg-title" aria-describedby="pg-desc">
+    <title id="pg-title">One iteration of projected gradient on a box</title>
+    <desc id="pg-desc">Two unknowns, x1 and x2, drawn as a point in the plane. The box holds the values between the lower bounds l1, l2 and the upper bounds u1, u2. From the current point x k inside the box, a gradient step on the regularizer lands outside the box, past the upper bound of x1. Clipping sets x1 back to its upper bound and leaves x2 unchanged, which gives the next point x k plus 1 on the edge of the box.</desc>
+
+    <g class="axes">
+      <line x1={origin.x} y1={origin.y} x2={axisEnd} y2={origin.y} />
+      <line x1={origin.x} y1={origin.y} x2={origin.x} y2="30" />
+      <line x1={box.l1} y1={origin.y} x2={box.l1} y2={origin.y + 6} />
+      <line x1={box.u1} y1={origin.y} x2={box.u1} y2={origin.y + 6} />
+      <line x1={origin.x - 6} y1={box.l2} x2={origin.x} y2={box.l2} />
+      <line x1={origin.x - 6} y1={box.u2} x2={origin.x} y2={box.u2} />
+    </g>
+    <g class="guides">
+      <line x1={box.l1} y1={box.l2} x2={box.l1} y2={origin.y} />
+      <line x1={box.u1} y1={box.l2} x2={box.u1} y2={origin.y} />
+      <line x1={origin.x} y1={box.l2} x2={box.l1} y2={box.l2} />
+      <line x1={origin.x} y1={box.u2} x2={box.l1} y2={box.u2} />
+    </g>
+
+    <text x={axisEnd} y="288" text-anchor="end" class="label label--math">x<tspan class="sub" dy="4">1</tspan></text>
+    <text x={origin.x + 8} y="36" class="label label--math">x<tspan class="sub" dy="4">2</tspan></text>
+    <text x={box.l1} y="288" text-anchor="middle" class="label label--meta label--math">l<tspan class="sub" dy="4">1</tspan></text>
+    <text x={box.u1} y="288" text-anchor="middle" class="label label--meta label--math">u<tspan class="sub" dy="4">1</tspan></text>
+    <text x={origin.x - 12} y={box.l2 + 4} text-anchor="end" class="label label--meta label--math">l<tspan class="sub" dy="4">2</tspan></text>
+    <text x={origin.x - 12} y={box.u2 + 4} text-anchor="end" class="label label--meta label--math">u<tspan class="sub" dy="4">2</tspan></text>
+
+    <rect x={box.l1} y={box.u2} width={box.u1 - box.l1} height={box.l2 - box.u2} class="box" />
+    <text x={box.l1 + 12} y={box.u2 + 22} class="label">the box</text>
+
+    <line x1={xk.x} y1={xk.y} x2={after.x} y2={after.y} class="step" />
+    <line x1={after.x} y1={after.y} x2={next.x} y2={next.y} class="clip" />
+
+    <circle cx={xk.x} cy={xk.y} r="4.5" class="point" />
+    <circle cx={after.x} cy={after.y} r="4.5" class="point point--open" />
+    <circle cx={next.x} cy={next.y} r="4.5" class="point" />
+
+    <text x={xk.x - 10} y={xk.y + 18} text-anchor="end" class="label label--strong label--math">x<tspan class="sub" dy="4">k</tspan></text>
+    <text x={next.x - 10} y={next.y - 6} text-anchor="end" class="label label--strong label--math">x<tspan class="sub" dy="4">k+1</tspan></text>
+    <text x={after.x + 12} y={after.y + 5} class="label">after the step</text>
+    <text x={(next.x + after.x) / 2} y={after.y - 9} text-anchor="middle" class="label">clip</text>
+    <text x={box.u1 + 12} y="162" class="label">gradient step</text>
+    <text x={box.u1 + 12} y="180" class="label">on the regularizer</text>
+  </svg>
+  <figcaption>Projected gradient with two of the unknowns. A gradient step on the regularizer can leave the box; clipping brings each coordinate that left back to its nearest bound and leaves the others as they are. Illustration.</figcaption>
+</figure>
+
+<style>
+  svg {
+    width: 100%;
+    height: auto;
+    color: var(--ink);
+    font-family: var(--font);
+    overflow: visible;
+  }
+
+  .axes line {
+    stroke: var(--ink-3);
+    stroke-width: 1;
+  }
+
+  .guides line {
+    stroke: var(--ink-3);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+
+  .box {
+    fill: currentColor;
+    fill-opacity: 0.06;
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+
+  .step {
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+  }
+
+  .clip {
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-dasharray: 4 4;
+  }
+
+  .point {
+    fill: currentColor;
+  }
+
+  .point--open {
+    fill: var(--paper);
+    stroke: currentColor;
+    stroke-width: 1.75;
+  }
+
+  .label {
+    fill: var(--ink-2);
+    font-size: 14px;
+  }
+
+  .label--strong {
+    fill: var(--ink);
+  }
+
+  .label--math {
+    font-style: italic;
+  }
+
+  .label--meta {
+    fill: var(--ink-3);
+  }
+
+  .sub {
+    font-size: 10px;
+  }
+
+  /* The SVG scales down on phones; keep its labels readable. */
+  @media (max-width: 26rem) {
+    .label {
+      font-size: 17px;
+    }
+
+    .sub {
+      font-size: 12px;
+    }
+  }
+
+  figcaption {
+    margin-top: var(--space-4);
+    max-width: 62ch;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

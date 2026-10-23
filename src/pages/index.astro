@@ -1,0 +1,37 @@
+---
+/*
+  Home page. Sections in order: hero with the photon figure, selected work,
+  projects, about, contact. The gap between sections is set here once;
+  the footer brings its own top margin.
+*/
+import Base from '../layouts/Base.astro';
+import Hero from '../components/home/Hero.astro';
+import SelectedWork from '../components/home/SelectedWork.astro';
+import Projects from '../components/home/Projects.astro';
+import About from '../components/home/About.astro';
+import Contact from '../components/home/Contact.astro';
+import { person } from '../data/site';
+
+const title = 'Samuel Berthelot, AI engineering student in Tokyo';
+const description = `${person.intro} ${person.availability.sentence}`;
+if (description.length > 160) {
+  throw new Error(`Home meta description is ${description.length} characters; keep it under 160.`);
+}
+---
+<Base title={title} description={description}>
+  <div class="home">
+    <Hero />
+    <SelectedWork />
+    <Projects />
+    <About />
+    <Contact />
+  </div>
+</Base>
+
+<style>
+  .home {
+    display: flex;
+    flex-direction: column;
+    row-gap: var(--section-gap);
+  }
+</style>

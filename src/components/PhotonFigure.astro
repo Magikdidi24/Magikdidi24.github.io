@@ -1,0 +1,816 @@
+---
+/*
+  The photon figure: a simulated SEM-EDS map of a meteorite section, imaged
+  one X-ray photon at a time. Left of the divider: raw counts. Right: a
+  reconstruction guided by a simulated electron image of the same area.
+  Simulated data, written for this site. The simulation lives in
+  src/lib/photon (pure TypeScript); this file is the DOM around it.
+*/
+import { DEFAULT_EXPOSURE, EXPOSURE_STOPS } from '../lib/photon/index.ts';
+import { uniqueId } from '../lib/photon/ids.ts';
+
+export interface Props {
+  variant?: 'hero' | 'inline';
+  /** Replaces the default caption. The interaction hint is appended when JavaScript runs. */
+  caption?: string;
+  class?: string;
+}
+const { variant = 'hero', caption, class: className } = Astro.props;
+
+const defaultCaption =
+  'Simulated data. A made-up meteorite section, imaged one X-ray photon at a time. Left of the line: raw counts. Right: a reconstruction guided by a sharp electron image of the same area, the idea behind my research at LRE.';
+const hint = 'Drag the line or change the exposure.';
+const label =
+  'Simulated X-ray element map of a meteorite section: magnesium in green, silicon in blue, iron in orange. Left of the line, raw photon counts appear as sparse colored dots. Right of it, the reconstruction shows round chondrules and mineral grains with sharp edges.';
+
+const id = uniqueId('photon');
+const stop = EXPOSURE_STOPS.indexOf(DEFAULT_EXPOSURE);
+const last = EXPOSURE_STOPS.length - 1;
+const [whole, fraction] = DEFAULT_EXPOSURE.toFixed(2).split('.');
+const poster =
+  variant === 'hero'
+    ? { src: '/photon/poster-12x5.png', width: 310, height: 130 }
+    : { src: '/photon/poster-16x9.png', width: 256, height: 144 };
+---
+<figure class:list={['photon', `photon--${variant}`, className]} data-photon data-variant={variant}>
+  <div class="frame">
+    <div class="stage" style="--split: 0.5">
+      <canvas role="img" aria-label={label}></canvas>
+      <noscript>
+        <picture>
+          <source media="(min-width: 48rem)" srcset={poster.src} width={poster.width} height={poster.height} />
+          <img class="poster" src="/photon/poster-4x3.png" width="120" height="90" alt="" />
+        </picture>
+      </noscript>
+      <div class="side side--raw" aria-hidden="true"><span class="chip">Raw counts</span></div>
+      <div class="side side--recon" aria-hidden="true"><span class="chip">Reconstruction</span></div>
+      <div class="sim" aria-hidden="true"><span class="chip">Simulated data</span></div>
+      <div class="divider" aria-hidden="true"></div>
+      <div
+        class="handle"
+        role="slider"
+        tabindex="0"
+        aria-label="Compare raw counts and reconstruction"
+        aria-orientation="horizontal"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="50"
+        aria-valuetext="50% raw counts"
+      >
+      </div>
+    </div>
+    <div class="bar">
+      <p class="note">Simulated data</p>
+      <div class="exposure">
+        <label for={`${id}-exposure`}>Exposure</label>
+        <input
+          id={`${id}-exposure`}
+          type="range"
+          min="0"
+          max={last}
+          step="1"
+          value={stop}
+          aria-valuetext={`${DEFAULT_EXPOSURE.toFixed(2)} photons per pixel`}
+          style={`--fill: ${((stop / last) * 100).toFixed(2)}%`}
+        />
+        <output for={`${id}-exposure`} aria-live="off"><span class="value"><span class="digits">{whole}</span>.<span class="digits">{fraction}</span></span> photons per pixel</output>
+      </div>
+      <ul class="legend" aria-label="Element channels">
+        <li title="Magnesium"><span class="swatch swatch--mg"></span>Mg<span class="visually-hidden"> (magnesium)</span></li>
+        <li title="Silicon"><span class="swatch swatch--si"></span>Si<span class="visually-hidden"> (silicon)</span></li>
+        <li title="Iron"><span class="swatch swatch--fe"></span>Fe<span class="visually-hidden"> (iron)</span></li>
+      </ul>
+    </div>
+  </div>
+  <figcaption>{caption ?? defaultCaption}<span class="hint"> {hint}</span></figcaption>
+</figure>
+
+<style>
+  .photon {
+    width: 100%;
+    container-type: inline-size;
+  }
+
+  .frame {
+    border-radius: var(--radius-figure);
+    background: var(--vacuum);
+  }
+
+  .stage {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    background: var(--vacuum);
+    border-radius: var(--radius-figure) var(--radius-figure) 0 0;
+    touch-action: pan-y;
+    cursor: ew-resize;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 48rem) {
+    .photon--hero .stage {
+      aspect-ratio: 12 / 5;
+    }
+
+    .photon--inline .stage {
+      aspect-ratio: 16 / 9;
+    }
+  }
+
+  canvas,
+  .poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    image-rendering: pixelated;
+  }
+
+  .poster {
+    object-fit: cover;
+    object-position: left top;
+  }
+
+  .side {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    padding: var(--space-3);
+    pointer-events: none;
+  }
+
+  .side--raw {
+    justify-content: flex-start;
+    clip-path: inset(0 calc(100% - var(--split) * 100%) 0 0);
+  }
+
+  .side--recon {
+    justify-content: flex-end;
+    clip-path: inset(0 0 0 calc(var(--split) * 100%));
+  }
+
+  /* "Simulated data" on the image itself: bottom left on small figures,
+     top center on wide ones, so it shows in the first screen on laptops. */
+  .sim {
+    position: absolute;
+    z-index: 1; /* above the divider line */
+    left: var(--space-3);
+    bottom: var(--space-3);
+    pointer-events: none;
+  }
+
+  @container (min-width: 48rem) {
+    .sim {
+      left: 50%;
+      top: var(--space-3);
+      bottom: auto;
+      transform: translateX(-50%);
+    }
+  }
+
+  .chip {
+    padding: 0.125rem 0.5rem;
+    background: color-mix(in srgb, var(--vacuum) 78%, transparent);
+    color: var(--on-vacuum);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--split) * 100%);
+    width: 2px;
+    margin-left: -1px;
+    background: var(--on-vacuum);
+    pointer-events: none;
+  }
+
+  .handle {
+    position: absolute;
+    top: 50%;
+    left: calc(var(--split) * 100%);
+    width: 2.75rem;
+    height: 2.75rem;
+    transform: translate(-50%, -50%);
+    cursor: ew-resize;
+    touch-action: none;
+  }
+
+  .handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0.625rem;
+    height: 2rem;
+    transform: translate(-50%, -50%);
+    background: var(--on-vacuum);
+    box-shadow: 0 0 0 2px var(--vacuum);
+  }
+
+  .handle:focus-visible {
+    outline: none;
+  }
+
+  .handle:focus-visible::before {
+    outline: 2px solid var(--on-vacuum);
+    outline-offset: 4px;
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 var(--space-5);
+    padding: var(--space-1) var(--space-4);
+    background: var(--vacuum-2);
+    color: var(--on-vacuum-2);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+    border-radius: 0 0 var(--radius-figure) var(--radius-figure);
+  }
+
+  .note {
+    color: var(--on-vacuum);
+    font-weight: 500;
+  }
+
+  .exposure {
+    display: grid;
+    flex: 1 1 26rem;
+    grid-template-columns: auto minmax(6rem, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-3);
+  }
+
+  output {
+    color: var(--on-vacuum);
+    white-space: nowrap;
+  }
+
+  /* Tabular digits on the digit runs only: in this face they also widen the
+     period. The box is right aligned and fixed, so nothing moves. */
+  .value {
+    display: inline-block;
+    min-width: 2.85em;
+    text-align: end;
+  }
+
+  .digits {
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type='range'] {
+    --track: color-mix(in srgb, var(--on-vacuum-2) 60%, transparent);
+    width: 100%;
+    height: 2.75rem;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 2px;
+    background: linear-gradient(to right, var(--on-vacuum) var(--fill), var(--track) var(--fill));
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    width: 0.625rem;
+    height: 1.25rem;
+    margin-top: calc(1px - 0.625rem);
+    border: 0;
+    border-radius: 0;
+    background: var(--on-vacuum);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type='range']::-moz-range-track {
+    height: 2px;
+    background: var(--track);
+  }
+
+  input[type='range']::-moz-range-progress {
+    height: 2px;
+    background: var(--on-vacuum);
+  }
+
+  input[type='range']::-moz-range-thumb {
+    width: 0.625rem;
+    height: 1.25rem;
+    border: 0;
+    border-radius: 0;
+    background: var(--on-vacuum);
+  }
+
+  input[type='range']:focus-visible {
+    outline: none;
+  }
+
+  input[type='range']:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid var(--on-vacuum);
+    outline-offset: 3px;
+  }
+
+  input[type='range']:focus-visible::-moz-range-thumb {
+    outline: 2px solid var(--on-vacuum);
+    outline-offset: 3px;
+  }
+
+  .legend {
+    display: flex;
+    gap: var(--space-4);
+    margin: 0 0 0 auto;
+    padding: 0;
+    list-style: none;
+  }
+
+  .legend li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .swatch {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  .swatch--mg {
+    background: var(--mg);
+  }
+
+  .swatch--si {
+    background: var(--si);
+  }
+
+  .swatch--fe {
+    background: var(--fe);
+  }
+
+  figcaption {
+    max-width: 70ch;
+    margin-top: var(--space-3);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  /* Medium figures: the note and legend share the first row, the exposure
+     control takes the second. */
+  @container (max-width: 49.99rem) {
+    .bar {
+      padding-top: var(--space-2);
+    }
+
+    .legend {
+      order: 1;
+    }
+
+    .exposure {
+      order: 2;
+      flex-basis: 100%;
+    }
+  }
+
+  /* Phones: the slider gets a row of its own under its label and readout. */
+  @container (max-width: 29.99rem) {
+    .bar {
+      column-gap: var(--space-3);
+    }
+
+    .legend {
+      gap: var(--space-3);
+    }
+
+    .exposure {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        'label output'
+        'input input';
+      margin-top: var(--space-1);
+    }
+
+    .exposure label {
+      grid-area: label;
+    }
+
+    .exposure output {
+      grid-area: output;
+    }
+
+    .exposure input {
+      grid-area: input;
+    }
+  }
+
+  /* Without JavaScript the poster stands in and the controls would do nothing. */
+  @media (scripting: none) {
+    .handle,
+    .exposure,
+    .hint {
+      display: none;
+    }
+
+    .stage {
+      cursor: auto;
+    }
+  }
+</style>
+
+<script>
+  import {
+    createCompositor,
+    createSimulation,
+    DEFAULT_EXPOSURE,
+    DEFAULT_PALETTE,
+    EXPOSURE_STOPS,
+    type Compositor,
+    type Palette,
+    type RGB,
+    type Simulation,
+  } from '../lib/photon/index.ts';
+
+  /** Length of the load accumulation, and how often it refreshes the reconstruction. */
+  const ANIMATION_MS = 2500;
+  const RECON_EVERY = 3;
+  const DEBOUNCE_MS = 60;
+  /** Cell size in CSS pixels: 4 from 48rem up, 3 below. Capped in cells for huge figures. */
+  const MAX_CELLS = 64000;
+
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const wide = matchMedia('(min-width: 48rem)');
+  const KEY_STEPS: Record<string, number> = { ArrowLeft: -2, ArrowDown: -2, ArrowRight: 2, ArrowUp: 2, PageDown: -10, PageUp: 10 };
+
+  const nextFrame = () => new Promise<number>((resolve) => requestAnimationFrame(resolve));
+
+  function readPalette(el: Element): Palette {
+    const style = getComputedStyle(el);
+    const read = (name: string, fallback: RGB): RGB => {
+      const hex = /^#([0-9a-f]{6})$/i.exec(style.getPropertyValue(name).trim());
+      if (!hex) return fallback;
+      const n = parseInt(hex[1], 16);
+      return [n >> 16, (n >> 8) & 255, n & 255];
+    };
+    return {
+      mg: read('--mg', DEFAULT_PALETTE.mg),
+      si: read('--si', DEFAULT_PALETTE.si),
+      fe: read('--fe', DEFAULT_PALETTE.fe),
+      vacuum: read('--vacuum', DEFAULT_PALETTE.vacuum),
+    };
+  }
+
+  interface Metrics {
+    width: number;
+    height: number;
+    /** Device pixels per cell. */
+    scale: number;
+    cols: number;
+    rows: number;
+  }
+
+  interface Layer {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    image: ImageData;
+  }
+
+  class PhotonFigure {
+    private readonly root: HTMLElement;
+    private readonly stage: HTMLElement;
+    private readonly canvas: HTMLCanvasElement;
+    private readonly ctx: CanvasRenderingContext2D;
+    private readonly handle: HTMLElement;
+    private readonly input: HTMLInputElement;
+    private readonly digits: HTMLElement[];
+    private readonly animate: boolean;
+    private compositor: Compositor;
+    private sim: Simulation | null = null;
+    private raw: Layer | null = null;
+    private recon: Layer | null = null;
+    private metrics: Metrics | null = null;
+    private split = 0.5;
+    private target = DEFAULT_EXPOSURE;
+    private reconScale = 0;
+    private started = false;
+    private touched = false;
+    private playing = false;
+    private drawQueued = false;
+    private reconTimer = 0;
+    private resizeTimer = 0;
+    private drag: { id: number; x: number; y: number; active: boolean } | null = null;
+
+    constructor(root: HTMLElement, ctx: CanvasRenderingContext2D) {
+      this.root = root;
+      this.ctx = ctx;
+      this.canvas = ctx.canvas;
+      this.stage = root.querySelector<HTMLElement>('.stage')!;
+      this.handle = root.querySelector<HTMLElement>('.handle')!;
+      this.input = root.querySelector<HTMLInputElement>('input[type="range"]')!;
+      this.digits = [...root.querySelectorAll<HTMLElement>('.digits')];
+      this.animate = root.dataset.variant === 'hero' && !reducedMotion.matches;
+      this.compositor = createCompositor(readPalette(root));
+
+      this.input.addEventListener('input', () => this.onExposure());
+      this.handle.addEventListener('keydown', (e) => this.onKey(e));
+      this.stage.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+      this.stage.addEventListener('pointermove', (e) => this.onPointerMove(e));
+      this.stage.addEventListener('pointerup', (e) => this.onPointerUp(e));
+      this.stage.addEventListener('pointercancel', () => (this.drag = null));
+
+      const refresh = () => {
+        this.compositor = createCompositor(readPalette(root));
+        this.recompose();
+      };
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', refresh);
+      new MutationObserver(refresh).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+      new ResizeObserver(() => {
+        clearTimeout(this.resizeTimer);
+        this.resizeTimer = window.setTimeout(() => this.onResize(), this.sim ? 150 : 0);
+      }).observe(this.stage);
+
+      const io = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          io.disconnect();
+          this.whenTabVisible(() => void this.start());
+        },
+        this.animate ? { threshold: 0.25 } : { rootMargin: '200px 0px' },
+      );
+      io.observe(this.stage);
+    }
+
+    private whenTabVisible(run: () => void): void {
+      if (document.visibilityState === 'visible') return run();
+      const wait = () => {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', wait);
+        run();
+      };
+      document.addEventListener('visibilitychange', wait);
+    }
+
+    private measure(): Metrics {
+      const rect = this.stage.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.round(rect.width * dpr));
+      const height = Math.max(1, Math.round(rect.height * dpr));
+      let scale = Math.max(1, Math.round((wide.matches ? 4 : 3) * dpr));
+      while (Math.ceil(width / scale) * Math.ceil(height / scale) > MAX_CELLS) scale++;
+      return { width, height, scale, cols: Math.ceil(width / scale), rows: Math.ceil(height / scale) };
+    }
+
+    /** Build the simulation for a grid, or keep the current one if the grid moved less than 10%. */
+    private ensureGrid(m: Metrics): boolean {
+      const sim = this.sim;
+      if (sim && Math.abs(m.cols - sim.cols) <= 0.1 * sim.cols && Math.abs(m.rows - sim.rows) <= 0.1 * sim.rows) return false;
+      this.sim = createSimulation(m.cols, m.rows);
+      this.raw = this.layer(m.cols, m.rows);
+      this.recon = this.layer(m.cols, m.rows);
+      return true;
+    }
+
+    private layer(cols: number, rows: number): Layer {
+      const canvas = document.createElement('canvas');
+      canvas.width = cols;
+      canvas.height = rows;
+      const ctx = canvas.getContext('2d')!;
+      return { canvas, ctx, image: ctx.createImageData(cols, rows) };
+    }
+
+    private size(m: Metrics): void {
+      this.metrics = m;
+      if (this.canvas.width !== m.width) this.canvas.width = m.width;
+      if (this.canvas.height !== m.height) this.canvas.height = m.height;
+    }
+
+    private async start(): Promise<void> {
+      if (this.started) return;
+      this.started = true;
+      /* Heavy setup in separate frames so no single task blocks for long. */
+      const m = this.measure();
+      this.size(m);
+      this.ensureGrid(m);
+      await nextFrame();
+      const sim = this.sim!;
+      sim.expose(this.target);
+      sim.reconstruct(this.target);
+      this.reconScale = sim.scale;
+      if (this.animate && !this.touched) {
+        /* The accumulation passes through wider filters at low exposure; prepare them now. */
+        await nextFrame();
+        sim.prepare(0.2);
+        sim.prepare(0.05);
+        this.play();
+      } else {
+        this.readout(this.target);
+        this.recompose();
+      }
+    }
+
+    private play(): void {
+      this.playing = true;
+      let elapsed = 0;
+      let last = -1;
+      let frame = 0;
+      const step = (now: number) => {
+        if (!this.playing) return;
+        /* Clamp long gaps (hidden tab, slow frame) so the accumulation never jumps. */
+        if (last >= 0) elapsed += Math.min(now - last, 50);
+        last = now;
+        const done = elapsed >= ANIMATION_MS;
+        /* Ease out: photons pour in at first, then the image settles. */
+        const u = 1 - elapsed / ANIMATION_MS;
+        const exposure = done ? this.target : this.target * (1 - u * u);
+        this.show(exposure, done || frame++ % RECON_EVERY === 0);
+        if (done) this.playing = false;
+        else requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+
+    /** Expose to `exposure`, recomposite raw counts (and the reconstruction), draw. */
+    private show(exposure: number, withRecon: boolean): void {
+      const sim = this.sim;
+      if (!sim || !this.raw || !this.recon) return;
+      sim.expose(exposure);
+      this.paint(this.raw, sim.counts, sim.scale);
+      if (withRecon) {
+        sim.reconstruct();
+        this.reconScale = sim.scale;
+        this.paint(this.recon, sim.filtered, this.reconScale);
+      }
+      this.readout(exposure);
+      this.draw();
+    }
+
+    private paint(layer: Layer, values: Uint8Array | Float32Array, scale: number): void {
+      this.compositor.draw(values, scale, layer.image.data);
+      layer.ctx.putImageData(layer.image, 0, 0);
+    }
+
+    private recompose(): void {
+      const sim = this.sim;
+      if (!sim || !this.raw || !this.recon) return;
+      this.paint(this.raw, sim.counts, sim.scale);
+      this.paint(this.recon, sim.filtered, this.reconScale);
+      this.draw();
+    }
+
+    private draw(): void {
+      const sim = this.sim;
+      const m = this.metrics;
+      if (!sim || !m || !this.raw || !this.recon) return;
+      const { width, height } = this.canvas;
+      /* Whole device pixels per cell when the grid fits this size, so cells stay crisp. */
+      const exact = sim.cols === m.cols && sim.rows === m.rows;
+      const w = exact ? sim.cols * m.scale : width;
+      const h = exact ? sim.rows * m.scale : height;
+      const x = Math.round(this.split * width);
+      const ctx = this.ctx;
+      ctx.imageSmoothingEnabled = false;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, x, height);
+      ctx.clip();
+      ctx.drawImage(this.raw.canvas, 0, 0, w, h);
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, 0, width - x, height);
+      ctx.clip();
+      ctx.drawImage(this.recon.canvas, 0, 0, w, h);
+      ctx.restore();
+    }
+
+    private queueDraw(): void {
+      if (this.drawQueued) return;
+      this.drawQueued = true;
+      requestAnimationFrame(() => {
+        this.drawQueued = false;
+        this.draw();
+      });
+    }
+
+    private readout(exposure: number): void {
+      exposure.toFixed(2)
+        .split('.')
+        .forEach((text, k) => {
+          if (this.digits[k] && this.digits[k].textContent !== text) this.digits[k].textContent = text;
+        });
+    }
+
+    private onExposure(): void {
+      this.touched = true;
+      this.playing = false;
+      const index = Number(this.input.value);
+      this.target = EXPOSURE_STOPS[index] ?? DEFAULT_EXPOSURE;
+      const text = `${this.target.toFixed(2)} photons per pixel`;
+      this.input.setAttribute('aria-valuetext', text);
+      this.input.style.setProperty('--fill', `${(index / (EXPOSURE_STOPS.length - 1)) * 100}%`);
+      this.readout(this.target);
+      if (!this.sim) return;
+      /* Raw counts on the next frame, the reconstruction once the input settles. */
+      const target = this.target;
+      requestAnimationFrame(() => this.show(target, false));
+      clearTimeout(this.reconTimer);
+      this.reconTimer = window.setTimeout(() => requestAnimationFrame(() => this.show(this.target, true)), DEBOUNCE_MS);
+    }
+
+    private setSplit(value: number): void {
+      this.split = Math.min(1, Math.max(0, value));
+      const percent = Math.round(this.split * 100);
+      this.stage.style.setProperty('--split', String(this.split));
+      this.handle.setAttribute('aria-valuenow', String(percent));
+      this.handle.setAttribute('aria-valuetext', `${percent}% raw counts`);
+      this.queueDraw();
+    }
+
+    private splitAt(e: PointerEvent): void {
+      const rect = this.stage.getBoundingClientRect();
+      this.setSplit((e.clientX - rect.left) / rect.width);
+    }
+
+    private onKey(e: KeyboardEvent): void {
+      let percent = Math.round(this.split * 100);
+      if (e.key in KEY_STEPS) percent += KEY_STEPS[e.key];
+      else if (e.key === 'Home') percent = 0;
+      else if (e.key === 'End') percent = 100;
+      else return;
+      e.preventDefault();
+      this.setSplit(Math.min(100, Math.max(0, percent)) / 100);
+    }
+
+    /*
+      Mouse and pen: pointerdown moves the line and starts a drag. Touch on the
+      stage waits to see a horizontal move or a tap, so a vertical swipe still
+      scrolls the page without moving the line. Touch on the handle drags at once.
+    */
+    private onPointerDown(e: PointerEvent): void {
+      if (e.button !== 0) return;
+      const immediate = e.pointerType !== 'touch' || this.handle.contains(e.target as Node);
+      this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, active: immediate };
+      if (!immediate) return;
+      e.preventDefault();
+      this.stage.setPointerCapture(e.pointerId);
+      this.handle.focus({ preventScroll: true });
+      this.splitAt(e);
+    }
+
+    private onPointerMove(e: PointerEvent): void {
+      const drag = this.drag;
+      if (!drag || drag.id !== e.pointerId) return;
+      if (e.pointerType !== 'touch' && !(e.buttons & 1)) {
+        this.drag = null;
+        return;
+      }
+      if (!drag.active) {
+        const dx = Math.abs(e.clientX - drag.x);
+        if (dx < 6 || dx < Math.abs(e.clientY - drag.y)) return;
+        drag.active = true;
+        this.stage.setPointerCapture(e.pointerId);
+      }
+      this.splitAt(e);
+    }
+
+    private onPointerUp(e: PointerEvent): void {
+      const drag = this.drag;
+      if (!drag || drag.id !== e.pointerId) return;
+      /* A touch tap without movement moves the line too. */
+      if (!drag.active && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 10) this.splitAt(e);
+      this.drag = null;
+    }
+
+    private onResize(): void {
+      if (!this.started) return;
+      const m = this.measure();
+      const rebuilt = this.ensureGrid(m);
+      this.size(m);
+      if (rebuilt) {
+        const sim = this.sim!;
+        sim.expose(this.target);
+        sim.reconstruct(this.target);
+        this.reconScale = sim.scale;
+        if (!this.playing) this.recompose();
+      } else {
+        this.draw();
+      }
+    }
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-photon]')) {
+    const ctx = root.querySelector('canvas')?.getContext('2d');
+    if (ctx) new PhotonFigure(root, ctx);
+  }
+</script>

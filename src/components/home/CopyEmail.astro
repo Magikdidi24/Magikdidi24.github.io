@@ -1,0 +1,82 @@
+---
+/*
+  "Copy email" button. The control is rendered hidden; the script shows it
+  only when the Clipboard API exists, so without JavaScript or clipboard
+  support the page simply offers the mailto link. After a copy the label
+  reads "Copied" for 2 s and a polite live region announces it. Both labels
+  share one grid cell so the button keeps its width.
+*/
+export interface Props {
+  email: string;
+}
+const { email } = Astro.props;
+---
+<span class="copy-email" hidden>
+  <button type="button" class="button button--quiet copy" data-copy-email={email}>
+    <span class="idle">Copy email</span>
+    <span class="done">Copied</span>
+  </button>
+  <span class="visually-hidden" aria-live="polite" data-copy-status></span>
+</span>
+
+<script>
+  const RESET_MS = 2000;
+
+  for (const root of document.querySelectorAll<HTMLElement>('.copy-email')) {
+    const button = root.querySelector<HTMLButtonElement>('button[data-copy-email]');
+    const status = root.querySelector<HTMLElement>('[data-copy-status]');
+    if (!button || !status || typeof navigator.clipboard?.writeText !== 'function') continue;
+
+    root.hidden = false;
+    let timer: number | undefined;
+
+    button.addEventListener('click', async () => {
+      window.clearTimeout(timer);
+      try {
+        await navigator.clipboard.writeText(button.dataset.copyEmail ?? '');
+        button.dataset.state = 'copied';
+        status.textContent = 'Email address copied';
+      } catch {
+        button.dataset.state = '';
+        status.textContent = 'Could not copy. Select the address to copy it.';
+      }
+      timer = window.setTimeout(() => {
+        button.dataset.state = '';
+        status.textContent = '';
+      }, RESET_MS);
+    });
+  }
+</script>
+
+<style>
+  .copy-email[hidden] {
+    display: none;
+  }
+
+  .copy {
+    display: inline-grid;
+    grid-template-areas: 'label';
+    place-items: center;
+  }
+
+  .idle,
+  .done {
+    grid-area: label;
+    transition: opacity var(--dur-fast) var(--ease);
+  }
+
+  .done {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .copy[data-state='copied'] .idle {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .copy[data-state='copied'] .done {
+    visibility: visible;
+    opacity: 1;
+  }
+</style>

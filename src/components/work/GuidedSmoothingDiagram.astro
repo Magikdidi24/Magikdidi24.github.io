@@ -1,0 +1,135 @@
+---
+/*
+  Diagram: how the electron image guides the smoothing. A small patch of
+  pixels shaded with two gray levels (two mineral grains); links between
+  neighboring pixels are thick inside a grain and thin across the boundary.
+  Ink only: the two gray levels are tints of currentColor, so the patch keeps
+  its contrast in both themes.
+*/
+export interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+
+const SCALE = 1.1;
+const cols = 7;
+const rows = 5;
+const cell = 40;
+const gx = 1; // grid left
+const gy = 44; // grid top
+const gap = 8; // space between a node and the start of its links
+const W = gx + cols * cell + 3;
+const H = gy + rows * cell + 52;
+/* First column of the second grain in each row: a staircase boundary. */
+const boundary = [5, 4, 4, 3, 2];
+const grain = (c: number, r: number) => (c >= boundary[r] ? 1 : 0);
+const center = (c: number, r: number) => ({ x: gx + cell * c + cell / 2, y: gy + cell * r + cell / 2 });
+
+/* One path per grain region, so the two gray levels read as flat areas. */
+const regions = [0, 1].map((g) =>
+  Array.from({ length: rows }, (_, r) =>
+    Array.from({ length: cols }, (_, c) => c)
+      .filter((c) => grain(c, r) === g)
+      .map((c) => `M${gx + cell * c},${gy + cell * r}h${cell}v${cell}h-${cell}z`)
+      .join(''),
+  ).join(''),
+);
+
+type Link = { x1: number; y1: number; x2: number; y2: number; strong: boolean };
+const links: Link[] = [];
+for (let r = 0; r < rows; r++) {
+  for (let c = 0; c < cols; c++) {
+    const a = center(c, r);
+    if (c + 1 < cols) {
+      const b = center(c + 1, r);
+      links.push({ x1: a.x + gap, y1: a.y, x2: b.x - gap, y2: b.y, strong: grain(c, r) === grain(c + 1, r) });
+    }
+    if (r + 1 < rows) {
+      const b = center(c, r + 1);
+      links.push({ x1: a.x, y1: a.y + gap, x2: b.x, y2: b.y - gap, strong: grain(c, r) === grain(c, r + 1) });
+    }
+  }
+}
+const nodes = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => center(c, r))).flat();
+
+/* Label targets: a strong link in the top left corner, a weak one on the bottom row. */
+const strongAt = center(0, 0).x + cell / 2; // between columns 0 and 1, first row
+const weakAt = center(boundary[rows - 1] - 1, rows - 1).x + cell / 2; // across the boundary, last row
+const gridBottom = gy + rows * cell;
+---
+<figure class:list={['gs-figure', className]}>
+  <svg viewBox={`0 0 ${W} ${H}`} style={`max-width: ${W * SCALE}px`} role="img" aria-labelledby="gs-title" aria-describedby="gs-desc">
+    <title id="gs-title">Neighbor links guided by the electron image</title>
+    <desc id="gs-desc">A grid of {cols} by {rows} pixels shaded with two gray levels from the electron image, one per mineral grain, separated by a staircase boundary. Each pixel is linked to its neighbors. Links between pixels of the same gray level are thick: they are smoothed together. Links that cross the boundary are thin: smoothing barely acts across them, so the edge stays sharp.</desc>
+
+    <path d={regions[0]} class="region region--a" />
+    <path d={regions[1]} class="region region--b" />
+    {links.map((l) => <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} class:list={['link', l.strong ? 'link--strong' : 'link--weak']} />)}
+    {nodes.map((n) => <circle cx={n.x} cy={n.y} r="3" class="node" />)}
+
+    <text x={gx} y="22" class="label">strong link: similar gray levels</text>
+    <line x1={strongAt} y1="30" x2={strongAt} y2={center(0, 0).y - 6} class="leader" />
+    <line x1={weakAt} y1={center(0, rows - 1).y + 6} x2={weakAt} y2={gridBottom + 26} class="leader" />
+    <text x={gx} y={gridBottom + 44} class="label">weak link: across a grain boundary</text>
+  </svg>
+  <figcaption>A patch of pixels shaded by the electron image, with two grains. Inside a grain, neighbors look alike and their link is strong, so their spectra are smoothed together; across the boundary the link is weak, so the edge stays sharp. Illustration.</figcaption>
+</figure>
+
+<style>
+  svg {
+    width: 100%;
+    height: auto;
+    color: var(--ink);
+    font-family: var(--font);
+    overflow: visible;
+  }
+
+  .region {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  .region--a {
+    fill-opacity: 0.07;
+  }
+
+  .region--b {
+    fill-opacity: 0.28;
+  }
+
+  .link {
+    stroke: currentColor;
+  }
+
+  .link--strong {
+    stroke-width: 3.5;
+    stroke-linecap: round;
+  }
+
+  .link--weak {
+    stroke-width: 1.5;
+    stroke-dasharray: 2 3;
+  }
+
+  .node {
+    fill: currentColor;
+  }
+
+  .leader {
+    stroke: currentColor;
+    stroke-width: 1;
+  }
+
+  .label {
+    fill: var(--ink);
+    font-size: 14px;
+  }
+
+  figcaption {
+    margin-top: var(--space-4);
+    max-width: 62ch;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

@@ -1,0 +1,108 @@
+---
+/*
+  Smaller public repositories: one line each, linked, as rows separated by
+  hairlines. From 64rem the name sits in a 4-column label column and the
+  line in the 8 columns beside it, like the rows on the home page.
+*/
+import type { SmallProject } from '../../data/projects';
+
+export interface Props {
+  items: SmallProject[];
+}
+
+const { items } = Astro.props;
+---
+<section class="smaller" aria-labelledby="smaller-projects">
+  <h2 id="smaller-projects">Smaller projects</h2>
+  <ul class="list" role="list">
+    {items.map((item) => (
+      <li class="item">
+        <p class="name">
+          <a href={item.repo}>{item.name}</a>
+        </p>
+        <div class="body">
+          <p class="summary">{item.summary}</p>
+          <p class="meta">{[...item.stack, item.year].join(', ')}</p>
+        </div>
+      </li>
+    ))}
+  </ul>
+  <p class="closing">
+    For research and compiler work, see <a href="/#work">selected work</a> on the home page. School projects whose code
+    stays private are listed with the <a href="/#projects">projects</a> there.
+  </p>
+</section>
+
+<style>
+  .smaller {
+    margin-top: var(--section-gap);
+  }
+
+  h2 {
+    margin-bottom: var(--space-5);
+  }
+
+  .list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .item {
+    display: grid;
+    row-gap: var(--space-2);
+    padding-block: var(--space-4) var(--space-5);
+    border-top: 1px solid var(--rule);
+  }
+
+  .item:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .name {
+    font-weight: 500;
+  }
+
+  .name a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .summary {
+    max-width: 62ch;
+    color: var(--ink-2);
+  }
+
+  .meta {
+    margin-top: var(--space-1);
+  }
+
+  .closing {
+    max-width: 62ch;
+    margin-top: var(--space-6);
+    color: var(--ink-2);
+  }
+
+  @media (min-width: 48rem) {
+    h2 {
+      margin-bottom: var(--space-6);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .item {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--space-6);
+      align-items: baseline;
+    }
+
+    .name {
+      grid-column: 1 / span 4;
+    }
+
+    .body {
+      grid-column: 5 / -1;
+    }
+  }
+</style>

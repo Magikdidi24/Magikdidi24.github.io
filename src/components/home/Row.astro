@@ -1,0 +1,74 @@
+---
+/*
+  One row of a home list: a label column (h3 and meta lines) and a content
+  column. Rows are separated by a 1px rule; the last row of a group closes
+  with one. From 64rem the row sits on the 12-column grid, 4 columns of
+  label and 8 of content. The parent styles whatever it puts in the slot.
+*/
+export interface Props {
+  title: string;
+  titleId: string;
+  meta?: string[];
+  as?: 'article' | 'div';
+}
+const { title, titleId, meta = [], as: Tag = 'article' } = Astro.props;
+const lines = meta.filter((line) => line.trim().length > 0);
+---
+<Tag class="row" aria-labelledby={Tag === 'article' ? titleId : undefined}>
+  <div class="label">
+    <h3 id={titleId}>{title}</h3>
+    {lines.length > 0 && (
+      <div class="meta">
+        {lines.map((line) => <p>{line}</p>)}
+      </div>
+    )}
+  </div>
+  <div class="body">
+    <slot />
+  </div>
+</Tag>
+
+<style>
+  .row {
+    display: grid;
+    row-gap: var(--space-4);
+    padding-block: var(--space-5) var(--space-6);
+    border-top: 1px solid var(--rule);
+  }
+
+  .row:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .meta {
+    margin-top: var(--space-2);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    min-width: 0;
+  }
+
+  @media (min-width: 64rem) {
+    .row {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--space-6);
+      align-items: baseline;
+      padding-block: var(--space-6) var(--space-7);
+    }
+
+    .label {
+      grid-column: 1 / span 4;
+      padding-right: var(--space-5);
+    }
+
+    .body {
+      grid-column: 5 / -1;
+    }
+  }
+</style>

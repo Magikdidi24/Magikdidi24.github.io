@@ -1,0 +1,89 @@
+---
+/*
+  Selected work: three rows (research, compiler, open source), each with a
+  short summary and one piece of evidence. Facts come from site.ts only.
+*/
+import Section from './Section.astro';
+import Row from './Row.astro';
+import ResultsTable from './ResultsTable.astro';
+import PipelineChart from './PipelineChart.astro';
+import PullRequestList from './PullRequestList.astro';
+import Digits from './Digits.astro';
+import { compiler, openSource, research } from '../../data/site';
+import { repoName, uniqueRepos } from './repos';
+
+const { width, height, channels } = research.cube;
+const { before, after } = compiler.pipelineMinutes;
+const saved = Math.round(((before - after) / before) * 100);
+
+const merged = openSource.prs.filter((pr) => pr.status === 'merged').length;
+const open = openSource.prs.length - merged;
+const openSourceMeta = [
+  `${uniqueRepos(openSource.prs).map(repoName).join(', ')}: ${merged} merged pull requests${open > 0 ? `, ${open} open` : ''}`,
+  `${openSource.fork.name}: maintained fork`,
+];
+---
+<Section id="work" title="Selected work">
+  <div class="rows">
+    <Row title={research.short} titleId="work-research" meta={[research.org, research.period]}>
+      <p class="summary">
+        I reconstructed hyperspectral cubes from SEM-EDS images of meteorites, where most voxels hold zero or one
+        photon. I showed that the usual data-fidelity term is degenerate at these counts and replaced it with a hard
+        box constraint, which makes the problem convex with no trade-off weight. A regularizer guided by the electron
+        image keeps grain boundaries sharp. I ran it in PyTorch on a GPU, on a real chondrite cube of
+        <span class="num">{width} × {height}</span> pixels × <span class="num">{channels}</span> energy channels.
+      </p>
+      <ResultsTable />
+      <p><a class="go" href={`/work/${research.slug}/`}>Read the case study</a></p>
+    </Row>
+
+    <Row
+      title={compiler.title}
+      titleId="work-compiler"
+      meta={[`${compiler.org}, ${compiler.place}`, ...compiler.periods]}
+    >
+      <p class="summary">
+        {compiler.summary} I fixed bugs in it and optimized it, cutting pipeline time from <span class="num">{before}</span> to <span class="num">{after}</span> minutes (<span class="num">{saved}</span>% less).
+      </p>
+      <PipelineChart />
+      <ul class="points">
+        {compiler.points.map((point) => <li><Digits text={point} /></li>)}
+      </ul>
+      <p class="note">{compiler.note}</p>
+    </Row>
+
+    <Row title="Open source" titleId="work-open-source" meta={openSourceMeta}>
+      <p class="summary">{openSource.summary}</p>
+      <PullRequestList />
+      <p class="summary">{openSource.fork.summary} <a href={openSource.fork.url}>The fork on GitHub</a>.</p>
+      <p><a class="go" href={`/work/${openSource.slug}/`}>Read about the contributions</a></p>
+    </Row>
+  </div>
+</Section>
+
+<style>
+  .go {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .summary,
+  .note,
+  .points {
+    max-width: 62ch;
+    color: var(--ink-2);
+  }
+
+  .points {
+    padding-left: 1.25em;
+  }
+
+  .points li + li {
+    margin-top: var(--space-2);
+  }
+
+  .points li::marker {
+    color: var(--ink-3);
+  }
+</style>

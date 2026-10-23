@@ -1,0 +1,99 @@
+---
+/*
+  A two-column results table for a project (label, value), with the source
+  file linked under it. Same style as the forecast table: ink header row
+  over a strong rule, hairlines between rows, values right aligned.
+*/
+import type { ProjectFigure } from '../../data/projects';
+import Digits from '../home/Digits.astro';
+
+type Results = Extract<ProjectFigure, { kind: 'results' }>;
+
+export interface Props {
+  figure: Results;
+}
+
+const { figure } = Astro.props;
+---
+<figure class="results">
+  <table>
+    <caption>{figure.caption}</caption>
+    <thead>
+      <tr>
+        <th scope="col">{figure.head[0]}</th>
+        <th scope="col" class="n">{figure.head[1]}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {figure.rows.map((row) => (
+        <tr>
+          <th scope="row">{row.label}</th>
+          <td class="n"><Digits text={row.value} /></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <figcaption>
+    Data from <a href={figure.source.href}>{figure.source.label}</a> in the repository.
+  </figcaption>
+</figure>
+
+<style>
+  .results {
+    display: grid;
+    row-gap: var(--space-4);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+
+  caption {
+    caption-side: top;
+    padding-bottom: var(--space-3);
+    color: var(--ink-3);
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  tbody th,
+  tbody td {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  tbody th {
+    font-weight: 400;
+  }
+
+  .n {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 0;
+  }
+
+  figcaption {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

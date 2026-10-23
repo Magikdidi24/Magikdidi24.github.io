@@ -1,0 +1,218 @@
+---
+/*
+  Case study layout: back link, title, lede, a facts row, the body, and a
+  closing block with the next case study and the email address.
+  The body is long-form prose: every direct child keeps the reading measure,
+  except elements with the class "wide" (figures), which may run wider.
+  Named slot "closing" goes above the Next link.
+*/
+import Base from './Base.astro';
+import { person } from '../data/site';
+
+export interface Fact {
+  term: string;
+  detail: string;
+}
+
+export interface Props {
+  /** The h1. */
+  title: string;
+  /** Document title, for example "Open source contributions, Samuel Berthelot". */
+  seoTitle: string;
+  /** Meta description, under 160 characters. */
+  description: string;
+  lede: string;
+  facts: Fact[];
+  next: { href: string; label: string };
+}
+
+const { title, seoTitle, description, lede, facts, next } = Astro.props;
+---
+<Base title={seoTitle} description={description} type="article">
+  <article class="case wrap" aria-labelledby="case-title">
+    <a class="back" href="/#work">Back to selected work</a>
+
+    <header class="head">
+      <h1 id="case-title">{title}</h1>
+      <p class="lede">{lede}</p>
+    </header>
+
+    <dl class="facts" style={`--count: ${facts.length}`}>
+      {facts.map((fact) => (
+        <div class="fact">
+          <dt>{fact.term}</dt>
+          <dd>{fact.detail}</dd>
+        </div>
+      ))}
+    </dl>
+
+    <div class="body prose">
+      <slot />
+    </div>
+
+    <footer class="close">
+      <slot name="closing" />
+      <p class="next">Next: <a href={next.href}>{next.label}</a></p>
+      <p class="mail">Questions about this work? Email me at <a href={`mailto:${person.email}`}>{person.email}</a>.</p>
+    </footer>
+  </article>
+</Base>
+
+<style>
+  .case {
+    padding-top: var(--space-2);
+  }
+
+  .back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  .head {
+    margin-top: var(--space-5);
+  }
+
+  h1 {
+    max-width: 18em;
+    font-size: var(--text-2xl);
+  }
+
+  .lede {
+    max-width: 60ch;
+    margin-top: var(--space-4);
+    color: var(--ink-2);
+    font-size: var(--text-md);
+    line-height: 1.5;
+  }
+
+  /* Facts: label and value rows on phones, one row of columns on wide screens. */
+  .facts {
+    margin-top: var(--space-7);
+    border-top: 1px solid var(--rule);
+  }
+
+  .fact {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    column-gap: var(--space-4);
+    padding-block: var(--space-3);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  dt {
+    padding-top: 0.15em;
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  dd {
+    margin: 0;
+  }
+
+  @media (min-width: 52rem) {
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+      column-gap: var(--space-6);
+      padding-top: var(--space-4);
+    }
+
+    .fact {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    dd {
+      margin-top: var(--space-1);
+    }
+  }
+
+  /* Body: long-form text at the reading measure; figures may opt into more room. */
+  .body {
+    margin-top: var(--space-8);
+  }
+
+  .body.prose {
+    max-width: none;
+  }
+
+  .body > :global(*) {
+    max-width: var(--measure);
+  }
+
+  .body > :global(.wide) {
+    max-width: 54rem;
+  }
+
+  /* 66ch in the smaller monospace font is narrower than the text: let code
+     blocks hug their content instead, and scroll only when the screen is narrow. */
+  .body > :global(pre) {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .body > :global(figure),
+  .body > :global(table),
+  .body > :global(pre),
+  .body > :global(figure + *),
+  .body > :global(table + *),
+  .body > :global(pre + *) {
+    margin-top: 2em;
+  }
+
+  .body > :global(h2) {
+    margin-top: 2.4em;
+  }
+
+  .body > :global(h2 + *),
+  .body > :global(h3 + *) {
+    margin-top: 0.6em;
+  }
+
+  .body > :global(p.meta) {
+    margin-top: 0.6em;
+  }
+
+  .body :global(var) {
+    font-style: italic;
+  }
+
+  /* Display formulas: indented, upright operators, italic variables. */
+  .body > :global(.formula) {
+    padding-left: var(--space-5);
+    font-size: var(--text-md);
+    line-height: 1.5;
+  }
+
+  /* Closing: separated by space, not by a rule. */
+  .close {
+    max-width: var(--measure);
+    margin-top: var(--space-9);
+  }
+
+  .close > :global(p:not(.next):not(.mail)) {
+    margin-bottom: var(--space-6);
+  }
+
+  .next a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .next {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: var(--leading-heading);
+  }
+
+  .mail {
+    margin-top: var(--space-4);
+    color: var(--ink-2);
+  }
+</style>

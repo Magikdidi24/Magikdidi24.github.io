@@ -1,0 +1,61 @@
+---
+/*
+  Race recording from py-allumette-optimize (race_mlmpc.mp4), cropped to the
+  track and re-encoded without audio, as H.264 and VP9. It never autoplays:
+  the poster frame shows until the visitor presses play, and nothing
+  downloads before that (preload="none").
+*/
+import type { ProjectFigure } from '../../data/projects';
+
+type Video = Extract<ProjectFigure, { kind: 'video' }>;
+
+export interface Props {
+  figure: Video;
+}
+
+const { figure } = Astro.props;
+const captionId = 'race-video-caption';
+---
+<figure class="race">
+  <video
+    controls
+    muted
+    loop
+    playsinline
+    preload="none"
+    poster={figure.poster.src}
+    width={figure.width}
+    height={figure.height}
+    style={`aspect-ratio: ${figure.width} / ${figure.height}`}
+    aria-label="Race video: one lap by the learned controller"
+    aria-describedby={captionId}
+  >
+    {figure.sources.map((file) => <source src={file.src} type={file.type} />)}
+    <p>
+      Your browser cannot play this video. <a href={figure.source.href}>Watch it on GitHub</a>.
+    </p>
+  </video>
+  <figcaption id={captionId}>
+    {figure.caption} Recording cropped from <a href={figure.source.href}>{figure.source.label}</a> in the repository.
+  </figcaption>
+</figure>
+
+<style>
+  .race {
+    display: grid;
+    row-gap: var(--space-3);
+  }
+
+  video {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-figure);
+    background: var(--paper-2);
+  }
+
+  figcaption {
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

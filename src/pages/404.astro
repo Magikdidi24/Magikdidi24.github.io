@@ -1,0 +1,71 @@
+---
+/*
+  Not-found page. GitHub Pages serves dist/404.html for every unknown path,
+  at any depth, so every link here is root-relative.
+*/
+import Base from '../layouts/Base.astro';
+import { person } from '../data/site';
+
+const links = [
+  { href: '/', label: 'Home page' },
+  { href: '/#work', label: 'Selected work' },
+  { href: '/projects/', label: 'Projects' },
+];
+---
+<Base
+  title={`Page not found, ${person.name}`}
+  description="This page does not exist. The home page has my selected work, my projects and how to contact me."
+  noindex
+>
+  <div class="wrap not-found">
+    <h1>This page does not exist</h1>
+    <p class="lede">The address may have a typo, or the page may have moved.</p>
+    <nav aria-label="Suggested pages">
+      <ul>
+        {links.map((link) => (
+          <li><a href={link.href}>{link.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</Base>
+
+<style>
+  .not-found {
+    padding-top: clamp(var(--space-7), 2rem + 4vw, var(--space-9));
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .lede {
+    margin-top: var(--space-4);
+    max-width: 60ch;
+    color: var(--ink-2);
+    font-size: var(--text-md);
+    line-height: 1.45;
+  }
+
+  nav {
+    margin-top: var(--space-7);
+    max-width: 30rem;
+  }
+
+  ul {
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    border-top: 1px solid var(--rule);
+  }
+
+  li a {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding-block: var(--space-3);
+    font-size: var(--text-md);
+  }
+</style>

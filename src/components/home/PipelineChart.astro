@@ -1,0 +1,107 @@
+---
+/*
+  Before/after chart of the compiler pipeline time: two horizontal bars on
+  paper, lengths proportional to the minutes, direct labels, no axis.
+  The labels are real text in a list, so the figure reads the same with a
+  screen reader ("Before: 17 min", "After: 9 min"); the bars are hidden
+  from assistive tech. Labels sit at the bar tips, or above the bars when
+  the figure is narrow.
+*/
+import { compiler } from '../../data/site';
+
+const { before, after } = compiler.pipelineMinutes;
+const longest = Math.max(before, after);
+const bars = [
+  { key: 'before', label: 'Before', minutes: before },
+  { key: 'after', label: 'After', minutes: after },
+];
+---
+<figure class="chart">
+  <figcaption>Pipeline time</figcaption>
+  <ul class="bars" role="list">
+    {bars.map((bar) => (
+      <li class:list={['bar-row', `bar-row--${bar.key}`]} style={`--share: ${(bar.minutes / longest).toFixed(4)}`}>
+        <span class="bar" aria-hidden="true"></span>
+        <span class="label">
+          {bar.label}: <span class="num">{bar.minutes}</span> min
+        </span>
+      </li>
+    ))}
+  </ul>
+</figure>
+
+<style>
+  .chart {
+    --label-space: 8.5rem;
+    max-width: 38rem;
+    container-type: inline-size;
+  }
+
+  figcaption {
+    margin-bottom: var(--space-3);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+
+  .bars {
+    display: grid;
+    row-gap: var(--space-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    column-gap: var(--space-3);
+  }
+
+  .bar {
+    flex: none;
+    width: calc((100% - var(--label-space)) * var(--share));
+    height: 1.25rem;
+    background: var(--chart-before);
+  }
+
+  .bar-row--after .bar {
+    background: var(--chart-after);
+  }
+
+  .label {
+    white-space: nowrap;
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .bar-row--after .label {
+    color: var(--ink);
+  }
+
+  /* Narrow figure: label above each bar, bars use the full width. */
+  @container (max-width: 26rem) {
+    .bar-row {
+      flex-direction: column-reverse;
+      align-items: flex-start;
+      row-gap: var(--space-1);
+    }
+
+    .bar {
+      width: calc(100% * var(--share));
+    }
+
+    .bars {
+      row-gap: var(--space-3);
+    }
+  }
+
+  @media (forced-colors: active) {
+    .bar {
+      forced-color-adjust: none;
+      background: GrayText;
+    }
+
+    .bar-row--after .bar {
+      background: CanvasText;
+    }
+  }
+</style>

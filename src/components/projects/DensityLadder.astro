@@ -1,0 +1,159 @@
+---
+/*
+  Density ladder for Fluid_Simulation: the 20 liquids of main.c sorted from
+  lightest (top) to densest (bottom), like a column of liquids at rest. Each
+  row gives the name and the density as text and a dot on a log scale where
+  every tick doubles (0.5 to 16), so mercury fits on the same axis as the
+  oils. A hairline marks water (1). The list itself is the readable twin;
+  the dots and the axis are hidden from assistive tech.
+*/
+import type { ProjectFigure } from '../../data/projects';
+import Digits from '../home/Digits.astro';
+
+type Liquids = Extract<ProjectFigure, { kind: 'liquids' }>;
+
+export interface Props {
+  figure: Liquids;
+}
+
+const { figure } = Astro.props;
+
+/* Stable sort keeps the code order for equal densities. */
+const liquids = [...figure.liquids].sort((a, b) => a.density - b.density);
+
+const low = 0.5;
+const high = 16;
+const position = (density: number): number => (Math.log2(density / low) / Math.log2(high / low)) * 100;
+const ticks = [0.5, 1, 2, 4, 8, 16];
+const reference = 1;
+---
+<figure class="ladder" style={`--ref: ${position(reference)}%`}>
+  <ol class="rows" role="list">
+    {liquids.map((liquid) => (
+      <li class:list={['row', { 'row--ref': liquid.density === reference }]} style={`--p: ${position(liquid.density).toFixed(2)}%`}>
+        <span class="name">{liquid.name}</span>
+        <span class="track" aria-hidden="true">
+          <span class="dot"></span>
+        </span>
+        <span class="value"><span class="visually-hidden">density </span><Digits text={liquid.density.toFixed(2)} /></span>
+      </li>
+    ))}
+  </ol>
+  <div class="axis" aria-hidden="true">
+    <span></span>
+    <span class="axis-track">
+      {ticks.map((tick) => (
+        <span class="tick" style={`--p: ${position(tick)}%`}><Digits text={tick} /></span>
+      ))}
+    </span>
+    <span></span>
+  </div>
+  <figcaption>
+    {figure.caption} Data from <a href={figure.source.href}>{figure.source.label}</a> in the repository.
+  </figcaption>
+</figure>
+
+<style>
+  .ladder {
+    --name-col: 7.25rem;
+    --value-col: 3rem;
+    display: grid;
+    row-gap: var(--space-2);
+    max-width: 36rem;
+  }
+
+  .rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .row,
+  .axis {
+    display: grid;
+    grid-template-columns: var(--name-col) minmax(0, 1fr) var(--value-col);
+    column-gap: var(--space-4);
+  }
+
+  .row {
+    align-items: center;
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+
+  .name {
+    color: var(--ink-2);
+  }
+
+  .value {
+    color: var(--ink-2);
+    text-align: right;
+  }
+
+  .row--ref .name,
+  .row--ref .value {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* Rows touch, so the per-row segments of the water line read as one line. */
+  .track {
+    position: relative;
+    align-self: stretch;
+  }
+
+  .track::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--ref);
+    width: 1px;
+    background: var(--rule-strong);
+  }
+
+  .dot {
+    position: absolute;
+    top: 50%;
+    left: var(--p);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    outline: 2px solid var(--paper);
+    transform: translate(-50%, -50%);
+  }
+
+  .axis-track {
+    position: relative;
+    height: 1.75rem;
+    border-top: 1px solid var(--rule-strong);
+  }
+
+  .tick {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--p);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1;
+    transform: translateX(-50%);
+  }
+
+  .tick::before {
+    content: '';
+    position: absolute;
+    top: calc(-1 * var(--space-2) - 1px);
+    left: 50%;
+    width: 1px;
+    height: 0.3125rem;
+    background: var(--rule-strong);
+  }
+
+  figcaption {
+    margin-top: var(--space-3);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+</style>

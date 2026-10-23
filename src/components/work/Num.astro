@@ -1,0 +1,16 @@
+---
+/*
+  Renders text with each run of digits in a .num span, so digits get tabular
+  figures while punctuation keeps its normal width (in Schibsted Grotesk the
+  tnum feature also widens "." and "%", which would split "22.3" apart).
+  Same behavior as src/components/home/Digits.astro, kept local so the case
+  studies do not depend on a file owned by another part of the site.
+*/
+export interface Props {
+  text: string | number;
+}
+const parts = String(Astro.props.text)
+  .split(/(\d+)/)
+  .filter((part) => part.length > 0);
+---
+{parts.map((part) => (/^\d+$/.test(part) ? <span class="num">{part}</span> : part))}

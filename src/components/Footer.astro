@@ -1,0 +1,64 @@
+---
+import { person } from '../data/site';
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <p>
+      {person.name}, {person.home.split(',')[0]}.{' '}
+      <a href={`mailto:${person.email}`}>{person.email}</a>
+    </p>
+    <ul>
+      <li><a href={person.links.linkedin}>LinkedIn</a></li>
+      <li><a href={person.links.github}>GitHub</a></li>
+    </ul>
+    <p class="colophon">
+      © {year} {person.name}. Built with Astro, hosted on GitHub Pages.{' '}
+      <a href={person.links.source}>Source code</a>.
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: var(--section-gap);
+    padding-block: var(--space-7) var(--space-8);
+    border-top: 1px solid var(--rule);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+
+  .footer-inner {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  ul a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .colophon {
+    color: var(--ink-3);
+  }
+
+  @media (min-width: 48rem) {
+    .footer-inner {
+      grid-template-columns: 1fr auto;
+      align-items: baseline;
+    }
+
+    .colophon {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

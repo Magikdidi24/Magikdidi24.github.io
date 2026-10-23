@@ -1,0 +1,71 @@
+---
+/*
+  /projects/: every public project from projects.ts, one section each with
+  id={slug} (the home page links here), then the smaller repositories.
+*/
+import Base from '../../layouts/Base.astro';
+import ProjectEntry from '../../components/projects/ProjectEntry.astro';
+import SmallerProjects from '../../components/projects/SmallerProjects.astro';
+import { projects, smallerProjects } from '../../data/projects';
+
+const description =
+  'Public projects by Samuel Berthelot: NLLB-200 translation drift, learned MPC, a genetic algorithm for Snake, time series forecasting, C and Rust programs.';
+---
+<Base title="Projects, Samuel Berthelot" description={description} type="website">
+  <div class="wrap page">
+    <header class="page-head">
+      <p class="back"><a href="/#projects">Back to the home page</a></p>
+      <h1>Projects</h1>
+      <p class="lede">Public repositories from my GitHub: course projects at EPITA, my TIPE from classes préparatoires, and personal projects.</p>
+    </header>
+
+    <div class="projects">
+      {projects.map((project) => <ProjectEntry project={project} />)}
+    </div>
+
+    <SmallerProjects items={smallerProjects} />
+  </div>
+</Base>
+
+<style>
+  .page {
+    padding-top: var(--space-6);
+  }
+
+  .back {
+    font-size: var(--text-sm);
+  }
+
+  .back a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  h1 {
+    margin-top: var(--space-5);
+    font-size: var(--text-2xl);
+  }
+
+  .lede {
+    max-width: 60ch;
+    margin-top: var(--space-4);
+    color: var(--ink-2);
+    font-size: var(--text-md);
+    line-height: 1.45;
+  }
+
+  .projects {
+    margin-top: var(--space-8);
+  }
+
+  @media (min-width: 64rem) {
+    .page {
+      padding-top: var(--space-7);
+    }
+
+    .projects {
+      margin-top: var(--space-9);
+    }
+  }
+</style>

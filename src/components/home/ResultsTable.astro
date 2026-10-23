@@ -1,0 +1,130 @@
+---
+/*
+  Compact results table for the research row, built from research.results.
+  Three columns from 40rem; below that each row stacks (metric, data,
+  result). Explicit ARIA roles keep the table semantics when the stacked
+  layout changes the display of the table parts.
+*/
+import Digits from './Digits.astro';
+import { research } from '../../data/site';
+
+type Result = (typeof research.results)[number];
+
+const resultText = (r: Result): string => ('value' in r ? r.value : `${r.before} to ${r.after}`);
+---
+<table class="results" role="table">
+  <caption>Results on real and synthetic data</caption>
+  <thead role="rowgroup">
+    <tr role="row">
+      <th scope="col" role="columnheader">Metric</th>
+      <th scope="col" role="columnheader">Data</th>
+      <th scope="col" role="columnheader" class="result">Result</th>
+    </tr>
+  </thead>
+  <tbody role="rowgroup">
+    {research.results.map((r) => (
+      <tr role="row">
+        <th scope="row" role="rowheader">{r.metric}</th>
+        <td role="cell" class="data">{r.data}</td>
+        <td role="cell" class="result"><Digits text={resultText(r)} /></td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+<style>
+  .results {
+    width: 100%;
+    max-width: 48rem;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+
+  caption {
+    caption-side: top;
+    padding-bottom: var(--space-3);
+    color: var(--ink-3);
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  tbody th,
+  tbody td {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  tbody th {
+    font-weight: 400;
+  }
+
+  .data {
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+
+  .result {
+    padding-right: 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Phones: one block per result, nothing squeezed into narrow columns. */
+  @media (max-width: 39.99rem) {
+    .results,
+    caption,
+    tbody,
+    tr,
+    th,
+    td {
+      display: block;
+    }
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    tbody {
+      border-top: 1px solid var(--rule-strong);
+    }
+
+    tbody tr {
+      padding-block: var(--space-3);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    tbody th,
+    tbody td {
+      padding: 0;
+      border: 0;
+    }
+
+    .data {
+      white-space: normal;
+    }
+
+    .result {
+      margin-top: var(--space-1);
+      text-align: left;
+      white-space: normal;
+    }
+  }
+</style>

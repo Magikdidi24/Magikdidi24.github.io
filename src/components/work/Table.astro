@@ -1,0 +1,175 @@
+---
+/*
+  A plain data table for the case studies: caption above in meta ink, a full
+  ink header row over a strong rule, rows separated by hairlines. The first
+  cell of each row is its header. Columns marked 'right' are right aligned
+  (numbers). Below 40rem each row stacks into one block, so nothing gets
+  squeezed into narrow columns; the explicit ARIA roles keep the table
+  semantics when the display of the table parts changes.
+*/
+import Num from './Num.astro';
+
+export type Cell = string | { text: string; href?: string };
+
+export interface Props {
+  caption: string;
+  head: string[];
+  rows: Cell[][];
+  align?: ('left' | 'right')[];
+  /** Columns that never wrap on wide screens (short values such as dates). */
+  nowrap?: boolean[];
+  class?: string;
+}
+
+const { caption, head, rows, align = [], nowrap = [], class: className } = Astro.props;
+
+const cells = rows.map((row) =>
+  row.map((cell, index) => ({
+    text: typeof cell === 'string' ? cell : cell.text,
+    href: typeof cell === 'string' ? undefined : cell.href,
+    right: align[index] === 'right',
+    nowrap: nowrap[index] === true,
+  })),
+);
+---
+<table class:list={['table', className]} role="table">
+  <caption>{caption}</caption>
+  <thead role="rowgroup">
+    <tr role="row">
+      {head.map((label, index) => (
+        <th scope="col" role="columnheader" class:list={[align[index] === 'right' && 'right']}>{label}</th>
+      ))}
+    </tr>
+  </thead>
+  <tbody role="rowgroup">
+    {cells.map((row) => (
+      <tr role="row">
+        {row.map((cell, index) =>
+          index === 0 ? (
+            <th scope="row" role="rowheader" class:list={[cell.nowrap && 'nowrap']}>{cell.href ? <a href={cell.href}><Num text={cell.text} /></a> : <Num text={cell.text} />}</th>
+          ) : (
+            <td role="cell" class:list={[cell.right && 'right', cell.nowrap && 'nowrap']}>{cell.href ? <a href={cell.href}><Num text={cell.text} /></a> : <Num text={cell.text} />}</td>
+          ),
+        )}
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+<style>
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    line-height: 1.45;
+  }
+
+  caption {
+    caption-side: top;
+    padding-bottom: var(--space-3);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: var(--space-3) var(--space-5) var(--space-3) 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 0;
+  }
+
+  thead th {
+    padding-top: 0;
+    padding-bottom: var(--space-2);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+
+  tbody th,
+  tbody td {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  tbody th {
+    font-weight: 400;
+  }
+
+  /* A 44px tap target for links in cells, without changing the row height. */
+  th a,
+  td a {
+    display: inline-block;
+    padding-block: 0.625rem;
+    margin-block: -0.625rem;
+  }
+
+  tbody td {
+    color: var(--ink-2);
+  }
+
+  .right {
+    text-align: right;
+  }
+
+  tbody td.right {
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .nowrap {
+    white-space: nowrap;
+  }
+
+  /* Phones: one block per row. */
+  @media (max-width: 39.99rem) {
+    .table,
+    caption,
+    tbody,
+    tr,
+    th,
+    td {
+      display: block;
+    }
+
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+    }
+
+    tbody {
+      border-top: 1px solid var(--rule-strong);
+    }
+
+    tbody tr {
+      padding-block: var(--space-3);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    tbody th,
+    tbody td {
+      padding: 0;
+      border: 0;
+    }
+
+    tbody td {
+      margin-top: var(--space-1);
+    }
+
+    .right,
+    tbody td.right,
+    .nowrap {
+      text-align: left;
+      white-space: normal;
+    }
+  }
+</style>

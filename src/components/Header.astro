@@ -1,0 +1,72 @@
+---
+import { person } from '../data/site';
+
+const nav = [
+  { href: '/#work', label: 'Work' },
+  { href: '/#projects', label: 'Projects' },
+  { href: '/#about', label: 'About' },
+  { href: '/#contact', label: 'Contact' },
+];
+---
+<header class="site-header wrap">
+  <a class="site-name" href="/">{person.name}</a>
+  <nav aria-label="Main">
+    <ul>
+      {nav.map((item) => (
+        <li><a href={item.href}>{item.label}</a></li>
+      ))}
+    </ul>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    column-gap: var(--space-6);
+    row-gap: var(--space-2);
+    padding-block: var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .site-name {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: -0.005em;
+  }
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    text-decoration-color: transparent;
+  }
+
+  nav a:hover {
+    text-decoration-color: currentColor;
+  }
+
+  @media (min-width: 48rem) {
+    .site-header {
+      font-size: 1rem;
+      padding-block: var(--space-4) var(--space-3);
+    }
+
+    ul {
+      gap: var(--space-6);
+    }
+  }
+</style>

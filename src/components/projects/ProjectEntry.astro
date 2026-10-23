@@ -1,0 +1,163 @@
+---
+/*
+  One project on /projects/: name, meta line, summary, highlights, stack and
+  links on the left; the figure (if any) on the right from 64rem, below the
+  text on narrower screens. Projects are separated by a 1px rule.
+*/
+import type { Project } from '../../data/projects';
+import TranslationDrift from './TranslationDrift.astro';
+import RaceVideo from './RaceVideo.astro';
+import ForecastTable from './ForecastTable.astro';
+import DensityLadder from './DensityLadder.astro';
+import ResultsTable from './ResultsTable.astro';
+
+export interface Props {
+  project: Project;
+}
+
+const { project: p } = Astro.props;
+const titleId = `${p.slug}-title`;
+const meta = [p.context, p.year].filter((part) => part && part.trim()).join(', ');
+const figure = p.figure;
+---
+<section class:list={['project', { 'project--figure': figure }]} id={p.slug} aria-labelledby={titleId}>
+  <div class="text">
+    <h2 id={titleId}>{p.name}</h2>
+    {meta && <p class="meta">{meta}</p>}
+    <p class="summary">{p.summary}</p>
+    {p.highlights.length > 0 && (
+      <ul class="highlights" role="list">
+        {p.highlights.map((highlight) => <li>{highlight}</li>)}
+      </ul>
+    )}
+    {p.stack.length > 0 && (
+      <p class="stack">
+        <span class="stack-label">Stack:</span> {p.stack.join(', ')}
+      </p>
+    )}
+    <ul class="links" role="list">
+      <li>
+        <a href={p.repo}>Code on GitHub<span class="visually-hidden">: {p.name}</span></a>
+      </li>
+      {p.links?.map((link) => (
+        <li>
+          <a href={link.href}>{link.label}</a>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  {figure && (
+    <div class="figure">
+      {figure.kind === 'drift' && <TranslationDrift figure={figure} />}
+      {figure.kind === 'video' && <RaceVideo figure={figure} />}
+      {figure.kind === 'forecast' && <ForecastTable figure={figure} />}
+      {figure.kind === 'liquids' && <DensityLadder figure={figure} />}
+      {figure.kind === 'results' && <ResultsTable figure={figure} />}
+    </div>
+  )}
+</section>
+
+<style>
+  .project {
+    display: grid;
+    row-gap: var(--space-7);
+    padding-block: var(--space-7) var(--space-8);
+    border-top: 1px solid var(--rule);
+  }
+
+  .project:last-of-type {
+    padding-bottom: 0;
+  }
+
+  .text {
+    min-width: 0;
+    max-width: 62ch;
+  }
+
+  .meta {
+    margin-top: var(--space-2);
+  }
+
+  /* Lede size (19px) on phones, 21px from 64rem. */
+  .summary {
+    margin-top: var(--space-5);
+    font-size: var(--lede);
+    line-height: 1.45;
+    color: var(--ink-2);
+  }
+
+  .highlights {
+    margin-top: var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  .highlights li {
+    padding-block: var(--space-3);
+    border-top: 1px solid var(--rule);
+  }
+
+  .highlights li:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .stack {
+    margin-top: var(--space-5);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  .stack-label {
+    color: var(--ink-3);
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-6);
+    margin-top: var(--space-2);
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Standalone links get a 44px tall hit area. */
+  .links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .figure {
+    min-width: 0;
+  }
+
+  @media (min-width: 64rem) {
+    .project {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: var(--space-6);
+      align-items: start;
+      padding-block: var(--space-8) var(--space-9);
+    }
+
+    .text {
+      grid-column: 1 / span 6;
+      padding-right: var(--space-5);
+    }
+
+    .summary {
+      font-size: var(--text-md);
+    }
+
+    .project:not(.project--figure) .text {
+      grid-column: 1 / span 8;
+    }
+
+    .figure {
+      grid-column: 7 / -1;
+      /* Line the figure up with the summary, below the title and meta. */
+      padding-top: var(--space-2);
+    }
+  }
+</style>

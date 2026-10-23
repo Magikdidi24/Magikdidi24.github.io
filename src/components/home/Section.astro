@@ -1,0 +1,39 @@
+---
+/*
+  A home page section: an h2 with the id the header nav points to, an
+  optional one-line intro, then the content. Spacing between sections is
+  set once by the page (flex gap), so sections carry no outer margins.
+*/
+export interface Props {
+  id: string;
+  title: string;
+  intro?: string;
+}
+const { id, title, intro } = Astro.props;
+---
+<section class="wrap" aria-labelledby={id}>
+  <div class="head">
+    <h2 id={id}>{title}</h2>
+    {intro && <p class="intro">{intro}</p>}
+  </div>
+  <slot />
+</section>
+
+<style>
+  .head {
+    display: grid;
+    row-gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .intro {
+    max-width: 60ch;
+    color: var(--ink-2);
+  }
+
+  @media (min-width: 48rem) {
+    .head {
+      margin-bottom: var(--space-6);
+    }
+  }
+</style>
