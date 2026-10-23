@@ -1,16 +1,8 @@
 /*
-  Public projects on github.com/Magikdidi24, verified on 20 Oct 2026 against
-  each repository: README, code, results files, reports and git log. Every
-  number below comes from the repository file named in the comment next to it.
-  Years come from commit dates, except for the time series project (dates of
-  its report and slides) and the TIPE (dates in its slides, oral in 2024).
-  TIPE and ChessBoard were updated in their repositories on 21 Oct 2026 and
-  re-verified the same day against their README, code and tests. Every other
-  entry was re-checked on 21 Oct 2026; the time series notebook was re-run
-  from scratch on the UCI data and reproduced every number used here.
-
+  Projects shown on the site, all public on github.com/Magikdidi24.
   The home page renders name, summary, stack, context, year, repo and slug.
-  The /projects/ page also renders highlights, links and figure.
+  The /projects/ page also renders highlights, links and figure, then the
+  smallerProjects list.
 */
 
 export type ProjectImage = {
@@ -41,10 +33,10 @@ export type ForecastRow = {
   rmse: number; // hours of absence per month
 };
 
-/** One row of a two-column results table (label, value), values as displayed. */
+/** One row of a results table: the row label, then one value per value column, as displayed. */
 export type ResultRow = {
   label: string;
-  value: string;
+  values: string[];
 };
 
 /** One liquid of the simulator (Fluid_Simulation, main.c). */
@@ -88,7 +80,7 @@ export type ProjectFigure =
       kind: 'results';
       caption: string;
       source: ProjectLink;
-      head: [string, string];
+      head: string[]; // the label column first, then one header per value column
       rows: ResultRow[];
     };
 
@@ -132,27 +124,136 @@ const racePoster: ProjectImage = {
 
 export const projects: Project[] = [
   {
+    slug: 'small-language-model',
+    name: 'Small Llama-style language model',
+    repoName: 'llama-from-scratch',
+    repo: `${github}/llama-from-scratch`,
+    summary:
+      'Pretrains a small Llama-style language model, written from scratch in PyTorch, on the TinyStories dataset, then uses it to fit a scaling law and to try the Muon optimizer and a mixture of experts.',
+    context: 'Personal project',
+    year: '2026', // commit of 23 Oct 2026
+    stack: ['Python', 'PyTorch', 'Hugging Face Tokenizers', 'NumPy', 'Matplotlib'],
+    highlights: [
+      // model.py: Block (nn.RMSNorm), rope_cache and apply_rope, Attention (n_kv_heads, enable_gqa), FeedForward (SwiGLU), Llama.generate (KV cache); ModelConfig (top_k 2) and Block (MoE(c, hidden // c.top_k)); README, intro (--n_experts 8)
+      'Built the model from the usual Llama parts (RMSNorm, rotary embeddings, grouped-query attention, SwiGLU, a KV cache for sampling), with a flag that turns each feed-forward layer into a Mixtral-style mixture of 8 half-width experts, 2 per token.',
+      // README, "Main model": 9.7M params without the embeddings, 164M tokens, val loss 1.40, "the stories don't always make sense and it sometimes repeats itself"; 5.5 min as printed by train.py, the run log has clock jumps and gives about 5.7 min without them
+      'Pretrained a model with 9.7M parameters, not counting embeddings, on 164M tokens in under 6 minutes on an RTX 5070 Ti. It ends at a validation loss of 1.40; its stories have mostly correct grammar but do not always make sense and sometimes repeat themselves.',
+      // README, "Scaling law": 5 dense models, 0.10M to 9.74M, same 65.5M tokens, L = 7.89 * N^-0.104, one seed and no lr tuning per size, biggest model above the line at ~7 tokens per param
+      'Trained five dense models from 0.1M to 9.7M non-embedding parameters on the same 65.5M tokens, with one seed each and no learning-rate tuning per size, and fitted a power law with exponent -0.104 to their validation losses. The largest model sits above the fit, probably short of data at about 7 tokens per parameter.',
+      // README, "Muon and MoE": val loss and training time per run, "almost 8x longer", "probably because of my plain Python loop over the experts"; without the clock jumps in the log the MoE run is about 7.3x the AdamW one
+      'Compared Muon and the mixture of experts with an AdamW baseline that has as many active parameters: both end with a lower validation loss but train slower, the mixture of experts 7 to 8 times slower, probably because of my plain Python loop over the experts.',
+    ],
+    figure: {
+      kind: 'results',
+      caption:
+        'Three runs on the same 65.5M tokens, one seed each, with their final validation loss. Parameters exclude the embeddings; the mixture of experts has 14.2M, but only 4.4M are used for each token. Lower loss is better.',
+      source: { label: 'README.md', href: `${github}/llama-from-scratch/blob/main/README.md` },
+      head: ['Run', 'Parameters', 'Loss'],
+      // README, "Muon and MoE": table, "14.2M params in total but still 4.4M active per token"
+      rows: [
+        { label: 'Dense + AdamW', values: ['4.4M', '1.586'] },
+        { label: 'Dense + Muon', values: ['4.4M', '1.552'] },
+        { label: 'MoE (8 experts, top-2) + AdamW', values: ['14.2M', '1.533'] },
+      ],
+    },
+  },
+  {
+    slug: 'zero-shot-forecasting',
+    name: 'Zero-shot time series forecasting',
+    repoName: 'tiny-chronos',
+    repo: `${github}/tiny-chronos`,
+    summary:
+      'Treats forecasting as language modeling, like the Chronos paper: a small transformer trained only on synthetic series predicts each next value as a token, and is tested on two real datasets it has never seen, ETTh1 and ETTm1.',
+    context: 'Personal project',
+    year: '2026', // commit of 23 Oct 2026
+    stack: ['Python', 'PyTorch', 'NumPy', 'Matplotlib'],
+    highlights: [
+      // synth.py: kernel_bank (24 kernels, test_tiny_chronos.py test_kernel_synth), random_kernel (1 to 5, random + or *), kernel_synth (cuda, batches of 128); README, "How it works": 100k series of 512 points in about 20 s
+      'Reimplemented KernelSynth, the data generator from the Chronos paper, on the GPU, where it makes 100,000 series of 512 points in about 20 seconds. Each series is a Gaussian-process sample whose kernel combines 1 to 5 kernels from a bank of 24 by random sums and products.',
+      // model.py: mean_scale, encode (N_BINS 1024, LIMIT 15), ModelConfig (5,345,280 params, printed as 5.35M by train.py); README, "How it works": 6 layers, width 256, 408M tokens, about 7 min on an RTX 5070 Ti
+      'Tokenized each window by dividing it by the mean absolute value of its context and cutting [-15, 15] into 1024 uniform bins. The model is a 5.35M-parameter decoder-only transformer (6 layers, width 256), trained on 408M synthetic tokens in about 7 minutes on an RTX 5070 Ti.',
+      // README, "Results" table and paragraph: rel. MASE 1.257 and 1.220, rel. WQL 1.006 and 0.962, mean WQL 0.345 vs 0.335 and 0.333 vs 0.316, naive rel. 1.558 and 1.469
+      'Found that the model does not beat seasonal naive (repeat the last day): its point forecasts are 22 to 26% worse on MASE, and its average WQL is 3 to 5% worse, though the window-by-window WQL ratio is about even. It does beat naive (repeat the last value) on both datasets.',
+      // README, paragraph under the ETTh1 plot; assets/forecast_etth1.png, HUFL and MUFL panels
+      'Plotted example forecasts on ETTh1: for two of the load series, HUFL and MUFL, the model predicts a nearly flat line and the sharp daily dips fall outside its 10 to 90% band, while seasonal naive copies them from the day before.',
+    ],
+    links: [{ label: 'The Chronos paper', href: 'https://arxiv.org/abs/2403.07815' }],
+    figure: {
+      kind: 'results',
+      // evaluate.py, main: the baselines use their point forecast for every quantile, so their WQL is a WAPE (test_tiny_chronos.py, test_wql) and naive's two ratios are equal
+      caption:
+        'Error relative to seasonal naive, as a geometric mean over 10 windows per series, 64 steps ahead. Lower is better, and 1 means as good as seasonal naive. Like seasonal naive, naive gives only a point forecast, so its two ratios are equal.',
+      source: { label: 'README.md', href: `${github}/tiny-chronos/blob/main/README.md` },
+      head: ['Dataset and relative error', 'tiny-chronos', 'Naive'],
+      // README, "Results" table, columns rel. MASE and rel. WQL (seasonal naive is 1.000 by definition)
+      rows: [
+        { label: 'ETTh1, MASE', values: ['1.257', '1.558'] },
+        { label: 'ETTh1, WQL', values: ['1.006', '1.558'] },
+        { label: 'ETTm1, MASE', values: ['1.220', '1.469'] },
+        { label: 'ETTm1, WQL', values: ['0.962', '1.469'] },
+      ],
+    },
+  },
+  {
+    slug: 'breast-ultrasound',
+    name: 'Breast ultrasound classification and segmentation',
+    repoName: 'breast-ultrasound-cnn',
+    repo: `${github}/breast-ultrasound-cnn`,
+    summary:
+      'Classifies breast ultrasound images as normal, benign or malignant with a ResNet-34 and segments the lesion with a U-Net, then tests both models on a dataset from another hospital that they never see in training.',
+    context: 'Personal project', // notebook intro: "Research / learning project"
+    year: '2026', // commits of Oct 2026
+    stack: ['Python', 'PyTorch', 'torchvision', 'scikit-learn', 'SciPy', 'Jupyter'],
+    highlights: [
+      // breast_cancer_detection_segmentation.ipynb: intro, "155 of the images are duplicates (Pawłowska et al., 2023)"; section 1, DUP_THRESHOLD = 0.9; section 3, "18 pairs above the threshold", "Cropped or zoomed copies won't be caught by this", "kept 760 / 780"; section 9, references: "Letter to the Editor", Data in Brief 48 (2023)
+      'Checked the BUSI dataset for copies before splitting it, since a copy in both train and test inflates the scores. Correlating the fine texture of the images found 18 pairs of copies and left 760 of the 780 images. The check misses cropped or zoomed copies, and a 2023 letter to the editor counts 155 copies in BUSI, so most of them are probably still there.',
+      // same notebook, section 5: ImageNet weights, class weights because benign is more than half of BUSI; test table: 114 images, accuracy 0.886, malignant sensitivity 0.806 [0.667, 0.938]
+      'Fine-tuned an ImageNet-pretrained ResNet-34 as the classifier, with class weights, since more than half of BUSI is benign. On the 114 test images it reached 88.6% accuracy and a malignant sensitivity of 0.806 (95% CI 0.667 to 0.938).',
+      // same notebook, section 6: UNet builds its own resnet34_backbone(), normal images train with empty masks; test table: 95 lesions 0.806, benign 0.851, malignant 0.715; normal test images with a predicted lesion 4/19
+      'Built a U-Net with its own ImageNet-pretrained ResNet-34 as encoder and also trained it on the normal images, with empty masks. Its mean Dice on the 95 test lesions was 0.806 (0.851 benign, 0.715 malignant), but it still predicted a lesion on 4 of the 19 normal test images.',
+      // same notebook: intro, "1875 images from 1064 patients in Brazil, all biopsy-proven"; section 8: ROC-AUC 0.970 vs 0.706, 95% CI [0.674, 0.735] resampling patients, malignant sensitivity 0.806 vs 0.473
+      'Tested both models on BUS-BRA, 1,875 biopsy-proven images from 1,064 patients in Brazil. The ROC-AUC for malignant versus benign fell from 0.970 on the BUSI test lesions to 0.706 (95% CI 0.674 to 0.735), and the malignant sensitivity from 0.806 to 0.473.',
+    ],
+    figure: {
+      kind: 'results',
+      caption: 'Lesions only, since BUS-BRA has no normal images: 95 in the BUSI test split and 1,875 in BUS-BRA. Higher is better.',
+      source: {
+        label: 'breast_cancer_detection_segmentation.ipynb',
+        href: `${github}/breast-ultrasound-cnn/blob/main/breast_cancer_detection_segmentation.ipynb`,
+      },
+      head: ['Metric', 'BUSI test', 'BUS-BRA'],
+      // same notebook, section 8, table "BUSI test (95 lesions)" vs "BUS-BRA (1875 lesions)"; the README "Results" table has the same values
+      rows: [
+        { label: 'ROC-AUC, malignant vs benign', values: ['0.970', '0.706'] },
+        { label: 'Malignant sensitivity', values: ['0.806', '0.473'] },
+        { label: 'Benign specificity', values: ['0.938', '0.811'] },
+        { label: 'Mean Dice', values: ['0.806', '0.699'] },
+      ],
+    },
+  },
+  {
     slug: 'translation-drift',
     name: 'Meaning drift in machine translation',
     repoName: 'nlp2-project-2026',
     repo: `${github}/nlp2-project-2026`,
     summary:
       'Passes an English sentence through a chain of NLLB-200 translations, translates each step back to English and measures how far the meaning drifts, like a game of telephone.',
-    context: 'EPITA NLP course project', // README: "Projet du cours de Traitement du Langage Naturel (EPITA)"
+    context: 'EPITA NLP course project', // README: "Project for the NLP course at EPITA."
     year: '2026', // commit of 30 Sep 2026, repository named nlp2-project-2026
     stack: ['Python', 'PyTorch', 'Hugging Face Transformers', 'sacreBLEU', 'NLTK', 'scikit-learn'],
     highlights: [
       // nlp.py, class MTA: cuda when available, num_beams=4, forced_bos_token_id
       'Wrapped NLLB-200 in a translation class that runs on the GPU when available, decodes with beam search over 4 beams and forces the target language as the first token.',
-      // nlp.py, run_MTA; README, table of metrics
+      // nlp.py, run_MTA; README, list of metrics
       'Scored every back-translation against the original sentence with six metrics: BLEU, chrF, METEOR, BERTScore F1, a character-level similarity and TF-IDF cosine.',
       // nlp.py, BENCHMARK_MODELS and run_benchmark; download_flores.py (default split devtest)
       'Wrote a benchmark mode that runs two model sizes, NLLB-200 distilled 600M and 1.3B, over English sentences from FLORES-200 devtest and aggregates the scores per model.',
     ],
     figure: {
       kind: 'drift',
+      // README, "Results": "The meaning never really changes, only the wording", bertscore_f1 in results/results.csv: 0.972, 0.967, 0.961, 0.972
       caption:
-        'One demo run: the sentence goes from English to French, German, Italian, then Spanish, and each translation is translated back to English and scored against the original.',
+        'One demo run: the sentence goes from English to French, German, Italian, then Spanish, and each translation is translated back to English and scored against the original. Only the wording changes: BERTScore F1 stays between 0.961 and 0.972.',
       source: { label: 'results/results.csv', href: `${github}/nlp2-project-2026/blob/main/results/results.csv` },
       // nlp.py, INITIAL_SENTENCE
       original: "Our NLP's teacher is the best teacher at EPITA !",
@@ -172,7 +273,7 @@ export const projects: Project[] = [
     repo: `${github}/py-allumette-optimize`,
     summary:
       "Races a simulated car with model predictive control, then corrects the controller's imperfect car model with a neural network trained on its prediction errors, all on an autodiff engine written from scratch in NumPy.",
-    context: 'EPITA course project', // course scaffold py-allumette-2526 (docs/course.md, "EPITA colors" in the provided visualizer)
+    context: 'EPITA course project', // README: "School project at EPITA (SAE Py-Allumette, 2025-26)"
     year: '2026', // commit of 30 Sep 2026, school year 2025 to 2026
     stack: ['Python', 'NumPy'],
     highlights: [
@@ -182,6 +283,8 @@ export const projects: Project[] = [
       'Built the controller as gradient descent through the car model: Adam tunes the next 15 actions by differentiating a dynamic bicycle model over the horizon, against a racing cost with soft track limits and anti-spin penalties.',
       // student/ml, main_collect_data.py, main_train_model.py, MLMPCController
       "Trained a 3-layer MLP, with my own layers and Adam optimizer, on one noisy run of the nominal controller to predict its model's one-step error; the learned controller adds this correction to every prediction.",
+      // README, "Results": one lap each, all 4 finish without leaving the track; MPC 14.00 s and learned MPC 14.20 s with the bad params, 14.00 s and 14.40 s with the good ones, which the MLP was not trained against
+      'Timed one lap for each controller, once with wrong car parameters in its model and once with the right ones, and all four laps stay on the track. Plain MPC is faster both times: 14.0 s against 14.2 s for the learned controller with the wrong parameters, and 14.0 s against 14.4 s with the right ones, which the network was not trained for.',
     ],
     image: racePoster,
     figure: {
@@ -208,18 +311,18 @@ export const projects: Project[] = [
     summary:
       'Evolves neural networks that learn to play Snake with a genetic algorithm. It started as my TIPE, the research project presented at the end of French classes préparatoires; the 2026 version adds tests and measured results.',
     context: 'TIPE, classes préparatoires', // TIPE.pdf, slide 1: "Algorithmes génétiques"
-    // TIPE.pdf: June 2023 research, oral in 2024; README and code updated on 21 Oct 2026
+    // TIPE in the second year of prépa (2022 to 2024, site.ts education), oral in 2024; code and README reworked in Oct 2026 (git log)
     year: '2023 to 2024, updated in 2026',
     stack: ['Python', 'NumPy', 'pygame', 'pytest'],
     highlights: [
-      // README, "Le réseau de neurones": 49 + 4 inputs, 2 hidden layers of 8, tanh, 4 outputs, 8x54 + 8x9 + 4x9 = 540 weights
+      // README, "How it works": 49 + 4 inputs, 2 hidden layers of 8, tanh, 4 outputs, 540 weights (NeuralNetwork.py: 8x54 + 8x9 + 4x9)
       'Each snake is a neural network whose 540 weights are its genes: a 7 × 7 view around the head and the direction of the apple (53 inputs), two hidden layers of 8 tanh neurons and 4 outputs, one per direction.',
-      // README, "L'algorithme génétique": population 200, top 25%, uniform crossover, mutation, 10% random, fitness moves x 2^apples over 5 games
+      // README, "How it works": population 200, top 25%, uniform crossover, mutation, 10% random, fitness moves x 2^apples over 5 games
       'Each generation of 200 keeps the best 25%, then adds children from uniform crossover and mutation, mutated copies and 10% random newcomers. Fitness is the number of moves times 2 to the power of the apples eaten, averaged over 5 games.',
-      // README, "Résultats": 300 generations, 8 min on 14 cores, saved snake 38.1 apples per game on 100 new games, random 0.08
+      // README, "Results": 300 generations, about 8 min on 14 cores; saved snake 38.1 and random moves 0.08 apples per game, on the same 100 new games
       'After 300 generations, 8 minutes on 14 cores, the saved snake eats 38.1 apples per game on 100 games never used for selection, against 0.08 for random moves.',
-      // README, "Expérience : vision seule": 0.12 apples after 150 generations without the apple direction, 12.3 with it
-      'An ablation shows why the apple direction matters: with the 7 × 7 view alone, the best snake eats 0.12 apples per game after 150 generations, no better than chance, against 12.3 with it.',
+      // README, "Results": with the 7x7 window alone, 0.12 apples after 150 generations, "about the same as random"; 12.3 with the apple direction
+      'In an ablation with the 7 × 7 view alone, the best snake eats 0.12 apples per game after 150 generations, about as many as random moves; with the apple direction it eats 12.3.',
     ],
     links: [{ label: 'Slides (PDF, in French)', href: `${github}/TIPE/blob/main/TIPE.pdf` }],
     figure: {
@@ -227,12 +330,12 @@ export const projects: Project[] = [
       caption: 'Apples eaten per game. The saved snake is the final choice, tested on 100 new games.',
       source: { label: 'README.md', href: `${github}/TIPE/blob/main/README.md` },
       head: ['Player', 'Apples per game'],
-      // README, "Résultats" table (decimal commas converted to points)
+      // README, "Results" table
       rows: [
-        { label: 'Random moves, on the same 100 games', value: '0.08' },
-        { label: 'Generation 0, population average', value: '0.03' },
-        { label: 'Generation 299, population average', value: '20.1' },
-        { label: 'Saved snake, 100 new games', value: '38.1' },
+        { label: 'Random moves, on the same 100 games', values: ['0.08'] },
+        { label: 'Generation 0, population average', values: ['0.03'] },
+        { label: 'Generation 299, population average', values: ['20.1'] },
+        { label: 'Saved snake, 100 new games', values: ['38.1'] },
       ],
     },
   },
@@ -284,9 +387,9 @@ export const projects: Project[] = [
     highlights: [
       // main.c: 900 × 900 window, CELL_SIZE 20; mouse and key handling in main()
       'Simulates a 45 × 45 grid: the left mouse button draws the selected liquid or walls, the right button erases, and each liquid has its own key.',
-      // main.c: simulation_step, mix_step and density_step, five times per frame
-      'Runs five rounds of three passes per frame: flow (down, sideways, then up under pressure, with slight compression), mixing of neighboring liquids, and density sorting.',
-      // main.c: pression_calcul and gradient_blue; SDLK_P toggles the view (README, controls)
+      // main.c: simulation_step, mix_step and density_step, five times per frame; MIX_THRESHOLD 10 (README, last paragraph)
+      'Runs five rounds of three passes per frame: flow (down, sideways, then up under pressure, with slight compression), mixing of neighboring liquids, and density sorting. By default, two liquids mix when their densities differ by at most 10, so every pair mixes except those with mercury, which is the only liquid that sinks through the others.',
+      // main.c: pression_calcul and gradient_blue; SDLK_P toggles the view (README: "`P` switches to the pressure view")
       'A pressure view, toggled with P, shades each cell by the pressure of the liquid column above it.',
       // main.c, first line: link to the tutorial, which simulates a single liquid
       'Follows the flow rules of a single-liquid cellular-automaton tutorial for Unity, rewritten in C; the 20 liquids, mixing and density sorting are my additions.',
@@ -332,31 +435,52 @@ export const projects: Project[] = [
     summary:
       'A chess game in Rust with its own engine and no chess library: negamax search with alpha-beta pruning behind a macroquad interface.',
     context: 'Personal project',
-    year: '2026', // first commits May 2026, engine and tests added by 21 Oct 2026
+    year: '2026', // first commits May 2026, engine and tests added in Oct 2026 (git log)
     stack: ['Rust', 'macroquad'],
     highlights: [
-      // README, "Tests" and "Organisation du code": src/moves.rs game_status
+      // README, intro and "Tests"; src/moves.rs, game_status and its tests
       'Implements the full rules on a plain 64-square board: legal moves, castling, en passant, the four promotions, checkmate, stalemate, the 50-move rule, insufficient material and threefold repetition.',
-      // README, "Fonctionnement du moteur": material + piece-square tables, negamax alpha-beta, MVV-LVA, quiescence, iterative deepening; ENGINE_TIME ~1 s in a thread
+      // README, "Engine": material + piece-square tables, negamax alpha-beta, MVV-LVA, quiescence, iterative deepening; src/main.rs, ENGINE_TIME 1 s, search in its own thread
       'The engine scores material and piece-square tables, searches with negamax and alpha-beta pruning, orders captures by MVV-LVA, extends leaves with a quiescence search and deepens iteratively for about 1 second per move, in its own thread.',
-      // README: depth 6 in 1 s from the start position, about 1 million nodes per second (release; bench test, 1.03-1.08 M nodes/s over 4 runs)
+      // README, "Engine": depth 6 in 1 s from the start position, about 1 million nodes per second in release; src/engine.rs, test start_position_speed prints both
       'Reaches depth 6 in 1 second from the start position, about 1 million nodes per second in release mode.',
-      // README, "Tests": perft table and engine tests
+      // README, "Tests"; perft tests in src/moves.rs; finds_mate_in_one, finds_mate_in_two and avoids_a_repetition_when_ahead in src/engine.rs
       'Tested with perft against the reference node counts, and with rule and engine tests such as mate in 1 and 2 and avoiding a repetition when ahead.',
     ],
     figure: {
       kind: 'results',
       caption: 'Perft counts the leaf positions of the tree of legal moves. Each count matches the published reference value.',
-      source: { label: 'README.md', href: `${github}/ChessBoard/blob/master/README.md` },
+      source: { label: 'src/moves.rs', href: `${github}/ChessBoard/blob/master/src/moves.rs` },
       head: ['Position and depth', 'Nodes'],
-      // README, perft table (all verified by cargo test)
+      // src/moves.rs, tests perft_start_position_depth_5, perft_kiwipete, perft_position_3 and perft_position_4
       rows: [
-        { label: 'Start position, depth 5', value: '4,865,609' },
-        { label: 'Kiwipete, depth 3', value: '97,862' },
-        { label: 'Position 3, depth 4', value: '43,238' },
-        { label: 'Position 4, depth 3', value: '9,467' },
+        { label: 'Start position, depth 5', values: ['4,865,609'] },
+        { label: 'Kiwipete, depth 3', values: ['97,862'] },
+        { label: 'Position 3, depth 4', values: ['43,238'] },
+        { label: 'Position 4, depth 3', values: ['9,467'] },
       ],
     },
+  },
+  {
+    slug: 'ruby-playground',
+    name: 'Sandboxed Ruby playground',
+    repoName: 'playground_ruby',
+    repo: `${github}/playground_ruby`,
+    summary:
+      'Runs Ruby code from a browser editor on the local machine, starting a new Docker or Podman container with the chosen Ruby version for each run and deleting it afterwards.',
+    context: 'Personal project',
+    year: '2025, updated in 2026', // first commits 15 Oct 2025, sandbox rework in Oct 2026 (git log)
+    stack: ['JavaScript', 'React', 'Monaco Editor', 'Node.js', 'Express', 'Docker'],
+    highlights: [
+      // frontend/src/App.js, Editor, examples and version select; backend/server.js, RUBY_VERSIONS and GET /api/versions; backend/sandbox.js, parseVersions and hasImage; version_langage/ruby_versions.txt (97 images, 2.2.5-alpine to 3.4.7)
+      'Built a React interface around the Monaco editor, with five example programs and a Ruby version menu. The backend reads a list of 97 Docker images, Ruby 2.2.5 to 3.4.7, and the menu shows only the ones pulled on the machine, newest first.',
+      // backend/server.js, POST /api/execute: createContainer (User 65534, NetworkMode none, CapDrop ALL, ReadonlyRootfs, tmpfs /tmp 16m, Memory = MemorySwap = 256 MiB, NanoCpus 5e8, PidsLimit 64), MAX_OUTPUT 64 KB, 15000 ms timeout, destroy() in finally
+      'Locked down each run: the code runs as user nobody in a new container with no network, no capabilities and a read-only root filesystem with a 16 MB /tmp. The container is limited to 256 MB of memory, half a CPU and 64 processes and threads, and is killed after 15 seconds or 64 KB of output.',
+      // backend/server.js, Host check (403), MAX_RUNNING = 2 (429), app.listen on 127.0.0.1; backend/sandbox.js, isLocalHost (localhost, 127.0.0.1, [::1]); frontend/.env.development, HOST=127.0.0.1; README, "Security"
+      'Kept it on the local machine, since the containers share the host kernel: both servers listen on 127.0.0.1, and the backend rejects requests whose Host header is not localhost, 127.0.0.1 or [::1], which blocks DNS rebinding. At most 2 programs run at once.',
+      // backend/fileManager.js, resolveInWorkspace (400); backend/server.js, /api/workspace routes (.rb only); frontend/src/App.js, file explorer
+      'Stored the code as .rb files in a workspace folder, with a sidebar to create, import, open and delete them. File names and workspace ids that would leave the folder, such as ../x.rb, are rejected.',
+    ],
   },
 ];
 

@@ -1,8 +1,9 @@
 ---
 /*
-  A two-column results table for a project (label, value), with the source
-  file linked under it. Same style as the forecast table: ink header row
-  over a strong rule, hairlines between rows, values right aligned.
+  A results table for a project: a label column, then one or more value
+  columns, with the source file linked under it. Same style as the forecast
+  table: ink header row over a strong rule, hairlines between rows, values
+  right aligned.
 */
 import type { ProjectFigure } from '../../data/projects';
 import Digits from '../home/Digits.astro';
@@ -14,25 +15,33 @@ export interface Props {
 }
 
 const { figure } = Astro.props;
+const [labelHead, ...valueHeads] = figure.head;
+// The type cannot tie the lengths together, so a ragged table fails the build.
+const ragged = figure.rows.find((row) => row.values.length !== valueHeads.length);
+if (ragged) {
+  throw new Error(`ResultsTable: "${ragged.label}" has ${ragged.values.length} values for ${valueHeads.length} value columns`);
+}
 ---
 <figure class="results">
-  <table>
-    <caption>{figure.caption}</caption>
-    <thead>
-      <tr>
-        <th scope="col">{figure.head[0]}</th>
-        <th scope="col" class="n">{figure.head[1]}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {figure.rows.map((row) => (
+  <div class="scroll">
+    <table>
+      <caption>{figure.caption}</caption>
+      <thead>
         <tr>
-          <th scope="row">{row.label}</th>
-          <td class="n"><Digits text={row.value} /></td>
+          <th scope="col">{labelHead}</th>
+          {valueHeads.map((head) => <th scope="col" class="n">{head}</th>)}
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {figure.rows.map((row) => (
+          <tr>
+            <th scope="row">{row.label}</th>
+            {row.values.map((value) => <td class="n"><Digits text={value} /></td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
   <figcaption>
     Data from <a href={figure.source.href}>{figure.source.label}</a> in the repository.
   </figcaption>
@@ -44,6 +53,13 @@ const { figure } = Astro.props;
     row-gap: var(--space-4);
   }
 
+  /* A wide table scrolls inside the figure instead of widening the page. */
+  .scroll {
+    min-width: 0;
+    overflow-x: auto;
+    container-type: inline-size;
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;
@@ -51,7 +67,9 @@ const { figure } = Astro.props;
     line-height: 1.45;
   }
 
+  /* The caption wraps to the visible width when the table scrolls. */
   caption {
+    max-width: 100cqi;
     caption-side: top;
     padding-bottom: var(--space-3);
     color: var(--ink-3);
@@ -95,5 +113,10 @@ const { figure } = Astro.props;
     color: var(--ink-3);
     font-size: var(--text-sm);
     line-height: 1.5;
+  }
+
+  /* Long file names in the source link break instead of overflowing. */
+  figcaption a {
+    overflow-wrap: anywhere;
   }
 </style>
