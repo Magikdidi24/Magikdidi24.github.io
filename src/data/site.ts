@@ -144,7 +144,7 @@ export const compiler = {
   /* The home page sentence after the summary covers the bug fixes and the
      pipeline time; these points are listed under the pipeline chart. */
   points: [
-    'Made compilation in the Roslyn-based C# engine 200% faster.',
+    'Made compilation in the Roslyn-based C# engine 3x faster.',
     'Worked on switching from the whitequark parser gem to Prism, which made Ruby parsing 20% faster.',
     'Made the pretty-printer smarter, along with the system that decides where parentheses go in the generated code.',
     'Moved the generated code from Node.js to Deno for its native TypeScript, strict type checking and built-in tooling (formatter, linter, test runner), which meant making the compiler emit much stricter TypeScript.',
