@@ -163,34 +163,34 @@ export const projects: Project[] = [
     repoName: 'tiny-chronos',
     repo: `${github}/tiny-chronos`,
     summary:
-      'Treats forecasting as language modeling, like the Chronos paper: a small transformer trained only on synthetic series predicts each next value as a token, and is tested on two real datasets it has never seen, ETTh1 and ETTm1.',
+      'Treats forecasting as language modeling, like the Chronos paper: a small transformer trained on real and synthetic series predicts each next value as a token, and is tested on two real datasets it has never seen, ETTh1 and ETTm1.',
     context: 'Personal project',
-    year: '2026', // commit of 23 Oct 2026
+    year: '2026', // commits of Oct 2026
     stack: ['Python', 'PyTorch', 'NumPy', 'Matplotlib'],
     highlights: [
-      // synth.py: kernel_bank (24 kernels, test_tiny_chronos.py test_kernel_synth), random_kernel (1 to 5, random + or *), kernel_synth (cuda, batches of 128); README, "How it works": 100k series of 512 points in about 20 s
-      'Reimplemented KernelSynth, the data generator from the Chronos paper, on the GPU, where it makes 100,000 series of 512 points in about 20 seconds. Each series is a Gaussian-process sample whose kernel combines 1 to 5 kernels from a bank of 24 by random sums and products.',
-      // model.py: mean_scale, encode (N_BINS 1024, LIMIT 15), ModelConfig (5,345,280 params, printed as 5.35M by train.py); README, "How it works": 6 layers, width 256, 408M tokens, about 7 min on an RTX 5070 Ti
-      'Tokenized each window by dividing it by the mean absolute value of its context and cutting [-15, 15] into 1024 uniform bins. The model is a 5.35M-parameter decoder-only transformer (6 layers, width 256), trained on 408M synthetic tokens in about 7 minutes on an RTX 5070 Ti.',
-      // README, "Results" table and paragraph: rel. MASE 1.257 and 1.220, rel. WQL 1.006 and 0.962, mean WQL 0.345 vs 0.335 and 0.333 vs 0.316, naive rel. 1.558 and 1.469
-      'Found that the model does not beat seasonal naive (repeat the last day): its point forecasts are 22 to 26% worse on MASE, and its average WQL is 3 to 5% worse, though the window-by-window WQL ratio is about even. It does beat naive (repeat the last value) on both datasets.',
-      // README, paragraph under the ETTh1 plot; assets/forecast_etth1.png, HUFL and MUFL panels
-      'Plotted example forecasts on ETTh1: for two of the load series, HUFL and MUFL, the model predicts a nearly flat line and the sharp daily dips fall outside its 10 to 90% band, while seasonal naive copies them from the day before.',
+      // real.py, DATASETS (5 Monash datasets, none of them ETT); train.py, sample_windows, tsmixup and synth_share = 0.1; synth.py, kernel_synth; README, "How it works"
+      'Trained it on five public datasets from the Monash archive (electricity, traffic, Australian power demand, pedestrian counts, solar), none of them ETT, mixed with TSMixup like in Chronos, plus 10% synthetic series from my reimplementation of KernelSynth.',
+      // model.py: mean_scale, encode (N_BINS 4096, LIMIT 15), ModelConfig (8 layers, width 384, max_len 576); out/train.log: "17.56M params", "1104.0M training tokens", "(38.0 min)"
+      'Tokenized each window by dividing it by the mean absolute value of its context and cutting [-15, 15] into 4096 uniform bins. The model is a 17.6M-parameter decoder-only transformer (8 layers, width 384, 512 context points), trained on 1.1B tokens in 38 minutes on an RTX 5070 Ti.',
+      // README, "Results": rel. WQL 1.006 -> 0.937 (ETTh1) and 0.962 -> 0.917 (ETTm1), rel. MASE 1.173 and 1.127; plain WQL on ETTm1 0.337 vs 0.316 for seasonal naive (out/eval.json)
+      'Measured a gain over a first version trained only on synthetic data: relative WQL went from 1.01 to 0.94 on ETTh1 and from 0.96 to 0.92 on ETTm1, so in geometric mean it now beats seasonal naive (repeat the last day). On ETTm1 its plain average WQL is still higher, and its point forecasts still lose, with MASE 13 to 17% worse.',
+      // README, paragraphs under the v2 plots; assets/forecast_etth1.png (LUFL, HUFL, MUFL) and assets/forecast_ettm1.png (MUFL), v1 plots in assets/v1/
+      'Plotted example forecasts: it now follows the daily cycle of the LUFL load series on ETTh1 and gets the level of MUFL on ETTm1 right, where the first version predicted -10 instead of 10, but it still smooths over the sharp daily dips of HUFL and MUFL on ETTh1.',
     ],
     links: [{ label: 'The Chronos paper', href: 'https://arxiv.org/abs/2403.07815' }],
     figure: {
       kind: 'results',
       // evaluate.py, main: the baselines use their point forecast for every quantile, so their WQL is a WAPE (test_tiny_chronos.py, test_wql) and naive's two ratios are equal
       caption:
-        'Error relative to seasonal naive, as a geometric mean over 10 windows per series, 64 steps ahead. Lower is better, and 1 means as good as seasonal naive. Like seasonal naive, naive gives only a point forecast, so its two ratios are equal.',
+        'Error relative to seasonal naive, as a geometric mean over 10 windows per series, 64 steps ahead. Lower is better, and 1 means as good as seasonal naive. v1 was trained only on synthetic data. Like seasonal naive, naive gives only a point forecast, so its two ratios are equal.',
       source: { label: 'README.md', href: `${github}/tiny-chronos/blob/main/README.md` },
-      head: ['Dataset and relative error', 'tiny-chronos', 'Naive'],
-      // README, "Results" table, columns rel. MASE and rel. WQL (seasonal naive is 1.000 by definition)
+      head: ['Dataset and relative error', 'v1', 'v2', 'Naive'],
+      // README, "Results" table, columns rel. MASE and rel. WQL (seasonal naive is 1.000 by definition); v2 also in out/eval.json
       rows: [
-        { label: 'ETTh1, MASE', values: ['1.257', '1.558'] },
-        { label: 'ETTh1, WQL', values: ['1.006', '1.558'] },
-        { label: 'ETTm1, MASE', values: ['1.220', '1.469'] },
-        { label: 'ETTm1, WQL', values: ['0.962', '1.469'] },
+        { label: 'ETTh1, MASE', values: ['1.257', '1.173', '1.558'] },
+        { label: 'ETTh1, WQL', values: ['1.006', '0.937', '1.558'] },
+        { label: 'ETTm1, MASE', values: ['1.220', '1.127', '1.469'] },
+        { label: 'ETTm1, WQL', values: ['0.962', '0.917', '1.469'] },
       ],
     },
   },
@@ -205,29 +205,30 @@ export const projects: Project[] = [
     year: '2026', // commits of Oct 2026
     stack: ['Python', 'PyTorch', 'torchvision', 'scikit-learn', 'SciPy', 'Jupyter'],
     highlights: [
-      // breast_cancer_detection_segmentation.ipynb: intro, "155 of the images are duplicates (Pawłowska et al., 2023)"; section 1, DUP_THRESHOLD = 0.9; section 3, "18 pairs above the threshold", "Cropped or zoomed copies won't be caught by this", "kept 760 / 780"; section 9, references: "Letter to the Editor", Data in Brief 48 (2023)
-      'Checked the BUSI dataset for copies before splitting it, since a copy in both train and test inflates the scores. Correlating the fine texture of the images found 18 pairs of copies and left 760 of the 780 images. The check misses cropped or zoomed copies, and a 2023 letter to the editor counts 155 copies in BUSI, so most of them are probably still there.',
-      // same notebook, section 5: ImageNet weights, class weights because benign is more than half of BUSI; test table: 114 images, accuracy 0.886, malignant sensitivity 0.806 [0.667, 0.938]
-      'Fine-tuned an ImageNet-pretrained ResNet-34 as the classifier, with class weights, since more than half of BUSI is benign. On the 114 test images it reached 88.6% accuracy and a malignant sensitivity of 0.806 (95% CI 0.667 to 0.938).',
-      // same notebook, section 6: UNet builds its own resnet34_backbone(), normal images train with empty masks; test table: 95 lesions 0.806, benign 0.851, malignant 0.715; normal test images with a predicted lesion 4/19
-      'Built a U-Net with its own ImageNet-pretrained ResNet-34 as encoder and also trained it on the normal images, with empty masks. Its mean Dice on the 95 test lesions was 0.806 (0.851 benign, 0.715 malignant), but it still predicted a lesion on 4 of the 19 normal test images.',
-      // same notebook: intro, "1875 images from 1064 patients in Brazil, all biopsy-proven"; section 8: ROC-AUC 0.970 vs 0.706, 95% CI [0.674, 0.735] resampling patients, malignant sensitivity 0.806 vs 0.473
-      'Tested both models on BUS-BRA, 1,875 biopsy-proven images from 1,064 patients in Brazil. The ROC-AUC for malignant versus benign fell from 0.970 on the BUSI test lesions to 0.706 (95% CI 0.674 to 0.735), and the malignant sensitivity from 0.806 to 0.473.',
+      // README, intro: "155 are copies, and my own check only caught 18 pairs"; breast_cancer_detection_segmentation.ipynb, section 2: Curated BUSI (Aumente-Maestro et al.), "450 images"
+      'Switched from the original BUSI, where 155 of the 780 images are copies and my own check only found 18 pairs, to the Curated BUSI of Aumente-Maestro et al.: 450 images, with the duplicates and problematic cases removed by an automatic search and a manual review.',
+      // same notebook, sections 3 and 5: StratifiedKFold(5), out-of-fold table: accuracy 0.829 [0.793, 0.860], ROC-AUC 0.939; section 6: all lesions (386) mean Dice 0.738
+      'Evaluated with 5-fold cross-validation, so all 450 images get a prediction from a model that never trained on them: 82.9% accuracy (95% CI 79.3 to 86.0) and a ROC-AUC of 0.939 for the ResNet-34 classifier, and a mean Dice of 0.738 on the 386 lesions for the U-Net.',
+      // same notebook, section 4: augment (RandomZoomOut, RandomResizedCrop, gamma_and_noise, GaussianBlur); section 5: predict_probs averages the models and a horizontal flip; section 8: 5 fold models on BUS-BRA
+      'Added augmentation aimed at what changes between hospitals (crops with aspect changes, zoom out into a black frame, gamma, blur, speckle-like noise), flip test-time augmentation, and an average of the 5 fold models for the external test.',
+      // same notebook: intro, "1875 images from 1064 patients in Brazil, all biopsy-proven"; section 8: ROC-AUC 0.805, 95% CI [0.777, 0.831] resampling patients, lesions predicted normal 0.259; v1: 0.706 and 0.175
+      'On BUS-BRA, 1,875 biopsy-proven images from 1,064 patients in Brazil, the malignant-versus-benign ROC-AUC rose from 0.706 in the first version to 0.805 (95% CI 0.777 to 0.831), but 26% of its lesions are now classified as normal, against 17.5% before.',
     ],
     figure: {
       kind: 'results',
-      caption: 'Lesions only, since BUS-BRA has no normal images: 95 in the BUSI test split and 1,875 in BUS-BRA. Higher is better.',
+      caption:
+        'Lesions only, since BUS-BRA has no normal images: the 386 curated BUSI lesions, each predicted by a model that never trained on it, and the 1,875 BUS-BRA lesions with the 5 fold models averaged. Higher is better.',
       source: {
         label: 'breast_cancer_detection_segmentation.ipynb',
         href: `${github}/breast-ultrasound-cnn/blob/main/breast_cancer_detection_segmentation.ipynb`,
       },
-      head: ['Metric', 'BUSI test', 'BUS-BRA'],
-      // same notebook, section 8, table "BUSI test (95 lesions)" vs "BUS-BRA (1875 lesions)"; the README "Results" table has the same values
+      head: ['Metric', 'Curated BUSI', 'BUS-BRA'],
+      // same notebook, section 8, table "curated BUSI, out of fold (386 lesions)" vs "BUS-BRA, 5 models (1875 lesions)"
       rows: [
-        { label: 'ROC-AUC, malignant vs benign', values: ['0.970', '0.706'] },
-        { label: 'Malignant sensitivity', values: ['0.806', '0.473'] },
-        { label: 'Benign specificity', values: ['0.938', '0.811'] },
-        { label: 'Mean Dice', values: ['0.806', '0.699'] },
+        { label: 'ROC-AUC, malignant vs benign', values: ['0.932', '0.805'] },
+        { label: 'Malignant sensitivity', values: ['0.823', '0.590'] },
+        { label: 'Benign specificity', values: ['0.892', '0.845'] },
+        { label: 'Mean Dice', values: ['0.738', '0.670'] },
       ],
     },
   },
