@@ -31,10 +31,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects } from './objects/index.ts';
+import { WHITEBOARD_SURFACE } from './objects/walls.ts';
 import { WINDOW } from './objects/window.ts';
 import { COLOR_ONLY } from './render/outline.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { CITY, cityView, codeScreen, desktopScreen } from './voxel/paint.ts';
+import { CITY, cityView, codeScreen, desktopScreen, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
@@ -62,6 +63,9 @@ const LAMPS = [
   { at: [2.7, 1.2, 0.9], color: '#bcd0ff', power: 1.6 }, // the two screens
 ] as const;
 
+/** The lamp of the desk, at full power: warm, and near enough to the wall to draw a pool of light on it. */
+const DESK_LAMP = { color: PALETTE.amber, power: 1.4, off: 0.3 };
+
 /** The outside view is painted on two walls of a box behind the window: one pixel of it is 2 cm. */
 const CITY_PIXEL = 0.02;
 const CITY_BACK = -1.4; // z of the wall that faces the room
@@ -70,7 +74,12 @@ const CITY_SIDE = -1.6; // x of the wall that runs back from the room
 export interface RoomScene {
   readonly scene: Scene;
   readonly night: boolean;
+  /** Whether the lamp of the desk is on. */
+  readonly lamp: boolean;
+  /** The name of each object, by its id in the outline pass: names[id - 1]. */
+  readonly names: readonly string[];
   setNight(night: boolean): void;
+  setLamp(on: boolean): void;
   dispose(): void;
 }
 
@@ -141,7 +150,7 @@ export function createScene(): RoomScene {
 
   solid(new Mesh(mergeGeometries(shell()), lit));
 
-  /* The decor is two meshes for the whole room; what can be clicked stays apart. */
+  /* The decor is two meshes for the whole room; what moves or can be clicked stays apart. */
   const placed = objects().map((object, index) => ({ ...object, id: index + 1 }));
   const id = (name: string) => placed.find((object) => object.name === name)?.id ?? 0;
   const decor = mergedGeometry(placed.filter((object) => object.decor));
@@ -150,23 +159,34 @@ export function createScene(): RoomScene {
   for (const object of placed.filter((o) => !o.decor)) {
     const mesh = new Mesh(voxelGeometry(object.model, object.voxel, object.id), [lit, glow]);
     mesh.name = object.name;
+    mesh.userData.placed = object; // where it stands, for what moves it
     mesh.applyMatrix4(placement(object));
     solid(mesh);
   }
 
-  /* Screens face +z, just in front of their panels. They glow. */
-  for (const [spot, map, owner] of [
-    [MAIN_SCREEN, desktopScreen(), 'monitor'],
-    [SIDE_SCREEN, codeScreen(), 'monitor-side'],
-  ] as const) {
+  /* Pictures laid just in front of a face that looks at +z. The two screens
+     glow; the whiteboard is lit like the rest. Each belongs to its object. */
+  const picture = (spot: typeof MAIN_SCREEN, map: Texture, owner: string, glows: boolean) => {
     const geometry = new PlaneGeometry(spot.width, spot.height);
     const aux = new Float32Array(geometry.getAttribute('position').count * 2);
-    for (let i = 0; i < aux.length; i += 2) aux.set([id(owner), 1], i);
+    for (let i = 0; i < aux.length; i += 2) aux.set([id(owner), glows ? 1 : 0], i);
     geometry.setAttribute('aux', new BufferAttribute(aux, 2));
-    const screen = new Mesh(geometry, new MeshBasicMaterial({ map }));
-    screen.position.set(spot.x, spot.y, spot.z);
-    scene.add(screen);
-  }
+    const mesh = new Mesh(geometry, glows ? new MeshBasicMaterial({ map }) : new MeshToonMaterial({ map, gradientMap: ramp }));
+    mesh.name = `${owner}-picture`;
+    mesh.position.set(spot.x, spot.y, spot.z);
+    mesh.receiveShadow = !glows;
+    scene.add(mesh);
+  };
+  picture(MAIN_SCREEN, desktopScreen(), 'monitor', true);
+  picture(SIDE_SCREEN, codeScreen(), 'monitor-side', true);
+  picture(WHITEBOARD_SURFACE, whiteboardNotes(), 'whiteboard', false);
+
+  /* The lamp of the desk has its own glow and its own light: it can be switched off. */
+  const lampMesh = scene.getObjectByName('lamp') as Mesh;
+  const lampGlow = glow.clone();
+  lampMesh.material = [lit, lampGlow];
+  const deskLamp = new PointLight(DESK_LAMP.color, 0, 4, 2);
+  deskLamp.position.copy(lampMesh.position).add({ x: 0.09, y: 0.25, z: 0.09 });
 
   /* The city behind the window: a wall facing the room and one running back
      from it. Seen from above they would show over the top of the room, so a
@@ -223,13 +243,23 @@ export function createScene(): RoomScene {
     light.position.fromArray(lamp.at);
     return light;
   });
-  scene.add(hemisphere, key, key.target, moon, moon.target, ...lamps);
+  scene.add(hemisphere, key, key.target, moon, moon.target, ...lamps, deskLamp);
 
   let night = false;
+  let lamp = true;
   const state: RoomScene = {
     scene,
+    names: placed.map((object) => object.name),
     get night() {
       return night;
+    },
+    get lamp() {
+      return lamp;
+    },
+    setLamp(on) {
+      lamp = on;
+      lampGlow.color.setScalar(on ? 1 : DESK_LAMP.off);
+      state.setNight(night);
     },
     setNight(value) {
       night = value;
@@ -242,6 +272,7 @@ export function createScene(): RoomScene {
       key.castShadow = preset.key > 0;
       moon.intensity = Math.PI * preset.moon;
       lamps.forEach((light, i) => (light.intensity = LAMPS[i].power * preset.lamps));
+      deskLamp.intensity = lamp ? DESK_LAMP.power * preset.lamps : 0;
       back.material.map = value ? views.night.back : views.day.back;
       side.material.map = value ? views.night.side : views.day.side;
     },

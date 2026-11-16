@@ -185,6 +185,7 @@ export class OutlinePass extends Pass {
   private readonly auxOverride = auxMaterial();
   private readonly quad = new FullScreenQuad(compositeMaterial());
   private readonly clearColor = new Color();
+  private readonly picked = new Uint8Array(4);
 
   constructor(scene: Scene, camera: OrthographicCamera) {
     super();
@@ -199,6 +200,15 @@ export class OutlinePass extends Pass {
   /** Normal, object id and emissive flag of every pixel of the last frame. */
   get auxTexture(): Texture {
     return this.aux.texture;
+  }
+
+  /**
+   * The id of the object drawn at a pixel of the last frame, counted from the
+   * bottom left of the buffer. 0 is the room itself, or nothing.
+   */
+  idAt(renderer: WebGLRenderer, x: number, y: number): number {
+    renderer.readRenderTargetPixels(this.aux, x, y, 1, 1, this.picked);
+    return this.picked[2];
   }
 
   override setSize(width: number, height: number): void {

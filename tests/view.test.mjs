@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoGrid, fitHalfHeight, gridSize, pixelFraction, snap } from '../src/room/view.ts';
+import { autoGrid, fitHalfHeight, gridSize, pixelAt, pixelFraction, snap } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -101,4 +101,18 @@ test('snap: rounds to the nearest step', () => {
 
 test('snap: a step of 0 leaves the value alone', () => {
   assert.equal(snap(1.234, 0), 1.234);
+});
+
+test('pixelAt: a point of the canvas, in CSS pixels from its top left, to a pixel of the buffer from its bottom left', () => {
+  const grid = gridSize(1440, 900, 1, 2); // 720 x 450, two CSS pixels each
+  assert.deepEqual(pixelAt(grid, 0, 0), { x: 0, y: 449 });
+  assert.deepEqual(pixelAt(grid, 1439.5, 899.5), { x: 719, y: 0 });
+  assert.deepEqual(pixelAt(grid, 3.9, 2), { x: 1, y: 448 });
+});
+
+test('pixelAt: nothing outside the canvas', () => {
+  const grid = gridSize(1440, 900, 1, 2);
+  assert.equal(pixelAt(grid, -1, 10), null);
+  assert.equal(pixelAt(grid, 10, 900), null);
+  assert.equal(pixelAt(grid, 1440, 10), null);
 });

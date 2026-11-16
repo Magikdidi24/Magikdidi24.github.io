@@ -4,8 +4,10 @@
   sampled without smoothing.
 */
 import { CanvasTexture, NearestFilter, SRGBColorSpace } from 'three';
+import { BOARD, notes, strokes } from '../../data/whiteboard.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import { PALETTE, type Swatch } from './palette.ts';
+import { typeset } from './text.ts';
 
 type Rect = (x: number, y: number, w: number, h: number, color: Swatch) => void;
 type Painter = (rect: Rect) => void;
@@ -27,8 +29,29 @@ function texture(width: number, height: number, paint: Painter): CanvasTexture {
   return map;
 }
 
+/** What a hit leaves on a screen: columns of stuck pixels, slabs that slipped, and cracks from the point of impact. */
+function shatter(rect: Rect, width: number, height: number): void {
+  const random = mulberry32(5);
+  const pick = (n: number) => Math.floor(random() * n);
+  const raw: Swatch[] = ['lime', 'cyan', 'magenta', 'violet', 'red', 'night', 'ink'];
+  for (let x = Math.floor(width / 3); x < width; ) {
+    const w = 1 + pick(3);
+    if (random() < 0.7) rect(x, 0, w, height, raw[pick(raw.length)]);
+    x += w;
+  }
+  for (let i = 0; i < 3; i++) rect(pick(width / 2), pick(height), Math.floor(width / 3), 2 + pick(3), raw[pick(raw.length)]);
+  const cx = Math.floor(width * 0.28);
+  const cy = Math.floor(height * 0.6);
+  for (let i = 0; i < 9; i++) {
+    const angle = (i / 9) * Math.PI * 2 + random();
+    const length = (0.5 + random()) * height;
+    for (let d = 0; d < length; d++) rect(Math.round(cx + Math.cos(angle) * d), Math.round(cy + Math.sin(angle) * d), 1, 1, 'paper');
+  }
+  rect(cx - 1, cy - 1, 3, 3, 'paper');
+}
+
 /** The desktop of the main monitor: wallpaper, a column of icons, a terminal window and a task bar. 64 × 32. */
-export function desktopScreen(): CanvasTexture {
+export function desktopScreen(broken = false): CanvasTexture {
   const icons: Swatch[] = ['cyan', 'magenta', 'amber', 'lime', 'violet', 'red'];
   return texture(64, 32, (rect) => {
     rect(0, 0, 64, 32, 'night');
@@ -47,6 +70,7 @@ export function desktopScreen(): CanvasTexture {
     rect(0, 29, 64, 3, 'ink'); // task bar
     rect(2, 30, 3, 1, 'cyan');
     rect(55, 30, 7, 1, 'stone'); // clock
+    if (broken) shatter(rect, 64, 32);
   });
 }
 
@@ -121,8 +145,19 @@ export function cityView(part: 'side' | 'back', night: boolean): CanvasTexture {
   );
 }
 
+/** What is written on the whiteboard, in marker pens. One pixel is 1 cm. */
+export function whiteboardNotes(): CanvasTexture {
+  return texture(BOARD.width, BOARD.height, (rect) => {
+    rect(0, 0, BOARD.width, BOARD.height, 'paper');
+    for (const { at, size, pen } of strokes) rect(at[0], at[1], size[0], size[1], pen);
+    for (const { text, at, pen } of notes) {
+      for (const [x, y] of typeset(text).pixels) rect(at[0] + x, at[1] + y, 1, 1, pen);
+    }
+  });
+}
+
 /** The side monitor: lines of code. 40 × 25. */
-export function codeScreen(): CanvasTexture {
+export function codeScreen(broken = false): CanvasTexture {
   const colors: Swatch[] = ['violet', 'cyan', 'paper', 'lime', 'amber'];
   return texture(40, 25, (rect) => {
     rect(0, 0, 40, 25, 'ink');
@@ -132,5 +167,6 @@ export function codeScreen(): CanvasTexture {
       rect(2, 4 + line * 2, 1, 1, 'steel'); // line number
       rect(5 + indent, 4 + line * 2, [9, 14, 20, 11, 6, 3, 12, 17, 4][line], 1, colors[line % colors.length]);
     }
+    if (broken) shatter(rect, 40, 25);
   });
 }

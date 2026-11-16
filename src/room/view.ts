@@ -68,3 +68,16 @@ export function pixelFraction(position: number, pixelWorldSize: number): number 
 export function snap(value: number, step: number): number {
   return step > 0 ? Math.round(value / step) * step : value;
 }
+
+/**
+ * The pixel of the drawing buffer under a point of the canvas. The point is
+ * in CSS pixels from the top left corner of the canvas, the pixel is counted
+ * from the bottom left corner of the buffer, as WebGL reads it. Null outside.
+ */
+export function pixelAt(grid: Grid, x: number, y: number): { x: number; y: number } | null {
+  if (x < 0 || y < 0 || x >= grid.cssWidth || y >= grid.cssHeight) return null;
+  return {
+    x: Math.floor((x / grid.cssWidth) * grid.cols),
+    y: grid.rows - 1 - Math.floor((y / grid.cssHeight) * grid.rows),
+  };
+}

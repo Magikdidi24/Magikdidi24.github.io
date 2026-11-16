@@ -5,16 +5,22 @@
 */
 import { NoToneMapping, PCFShadowMap, WebGLRenderer } from 'three';
 import { createRig, type Rig } from './camera.ts';
+import { createReactions } from './interaction/reactions.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
 import { createScene, ROOM, type RoomScene } from './scene.ts';
+import { pixelAt } from './view.ts';
 
 export interface RoomApp {
   readonly renderer: WebGLRenderer;
   readonly room: RoomScene;
   readonly rig: Rig;
   readonly pipeline: Pipeline;
-  /** Draw a frame on the next tick. */
-  invalidate(): void;
+  /** Draw a frame on the next tick. With `shadows`, redraw the shadow map too: something that casts one moved. */
+  invalidate(shadows?: boolean): void;
+  /** Call `step` before each frame, with the time in milliseconds, until it returns false. */
+  animate(step: (now: number) => boolean): void;
+  /** The name of the object drawn under a point of the viewport, if there is one. */
+  pick(clientX: number, clientY: number): string | null;
   /** Recompute the pixel grid and the camera fit, after the viewport or the pixel size changed. */
   resize(): void;
   setNight(night: boolean): void;
@@ -28,7 +34,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   renderer.shadowMap.enabled = true;
   /* Filtered: unfiltered shadows saw-tooth on 5 cm steps. The low-resolution buffer makes the edge hard again. */
   renderer.shadowMap.type = PCFShadowMap;
-  /* Nothing that casts a shadow moves yet: the shadow map is drawn again only when asked. */
+  /* The shadow map is drawn again only when asked: when the lights change or something that casts a shadow moves. */
   renderer.shadowMap.autoUpdate = false;
   /* The pipeline calls render() several times per frame: count draw calls over the whole frame. */
   renderer.info.autoReset = false;
@@ -39,19 +45,27 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
 
   let dirty = true;
   let frame = 0;
+  const animations = new Set<(now: number) => boolean>();
   /** Draw a frame with fresh shadows: the lights changed, or the graphics context came back. */
-  const redraw = () => {
-    renderer.shadowMap.needsUpdate = true;
-    dirty = true;
-  };
+  const redraw = () => app.invalidate(true);
 
   const app: RoomApp = {
     renderer,
     room,
     rig,
     pipeline,
-    invalidate() {
+    invalidate(shadows = false) {
+      if (shadows) renderer.shadowMap.needsUpdate = true;
       dirty = true;
+    },
+    animate(step) {
+      animations.add(step);
+    },
+    pick(clientX, clientY) {
+      const box = canvas.getBoundingClientRect();
+      const pixel = pixelAt(pipeline.grid, clientX - box.left, clientY - box.top);
+      if (!pixel) return null;
+      return room.names[pipeline.outlinePass.idAt(renderer, pixel.x, pixel.y) - 1] ?? null;
     },
     resize() {
       pipeline.resize();
@@ -66,6 +80,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     },
     dispose() {
       cancelAnimationFrame(frame);
+      stopReactions();
       observer.disconnect();
       canvas.removeEventListener('webglcontextrestored', redraw);
       rig.dispose();
@@ -75,6 +90,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     },
   };
 
+  const stopReactions = createReactions(app, canvas);
   const observer = new ResizeObserver(() => app.resize());
   observer.observe(container);
   canvas.addEventListener('webglcontextrestored', redraw);
@@ -82,15 +98,16 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   app.setNight(hour < 7 || hour >= 19);
   app.resize();
 
-  const tick = () => {
+  const tick = (now: number) => {
     frame = requestAnimationFrame(tick);
+    for (const step of animations) if (!step(now)) animations.delete(step);
     const moved = rig.controls.update();
     if (!moved && !dirty) return;
     dirty = false;
     renderer.info.reset();
     rig.renderAligned(pipeline.grid, () => pipeline.render());
   };
-  tick();
+  tick(performance.now());
 
   if (import.meta.env.DEV) (await import('./debug.ts')).setupDebug(app);
   return app;

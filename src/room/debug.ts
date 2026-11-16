@@ -55,6 +55,7 @@ export function setupDebug(app: RoomApp): void {
   };
 
   const gui = new GUI({ title: 'Room (dev)' });
+  const redraw = () => app.invalidate();
   gui.close();
 
   const pixels = gui.addFolder('Pixels');
@@ -62,9 +63,9 @@ export function setupDebug(app: RoomApp): void {
     pipeline.mode = (value === 'auto' || value === 'smooth' ? value : Number(value)) as PixelMode;
     app.resize();
   });
-  pixels.add(pipeline.outlinePass, 'depthEdgeStrength', 0, 1, 0.05).name('outline strength').onChange(app.invalidate);
-  pixels.add(pipeline.outlinePass, 'normalEdgeStrength', 0, 1, 0.05).name('highlight strength').onChange(app.invalidate);
-  pixels.add(pipeline.outlinePass, 'depthThreshold', 0.02, 0.4, 0.01).name('inner step (m)').onChange(app.invalidate);
+  pixels.add(pipeline.outlinePass, 'depthEdgeStrength', 0, 1, 0.05).name('outline strength').onChange(redraw);
+  pixels.add(pipeline.outlinePass, 'normalEdgeStrength', 0, 1, 0.05).name('highlight strength').onChange(redraw);
+  pixels.add(pipeline.outlinePass, 'depthThreshold', 0.02, 0.4, 0.01).name('inner step (m)').onChange(redraw);
   pixels.add(state, 'grid').listen().disable();
 
   const camera = gui.addFolder('Camera');
@@ -74,8 +75,8 @@ export function setupDebug(app: RoomApp): void {
   };
   camera.add(state, 'front', 4, 12, 0.5).name('depth in front (m)').onChange(depth);
   camera.add(state, 'back', 4, 20, 0.5).name('depth behind (m)').onChange(depth);
-  camera.add(rig, 'rotationStep', 0, 15, 0.5).name('rotation step (deg)').onChange(app.invalidate);
-  camera.add(rig, 'zoomStep', 0, 0.25, 0.01).name('zoom step').onChange(app.invalidate);
+  camera.add(rig, 'rotationStep', 0, 15, 0.5).name('rotation step (deg)').onChange(redraw);
+  camera.add(rig, 'zoomStep', 0, 0.25, 0.01).name('zoom step').onChange(redraw);
   camera.add(state, 'view').listen().disable();
   camera.add(state, 'copyView').name('copy view');
 
@@ -91,9 +92,9 @@ export function setupDebug(app: RoomApp): void {
   }
 
   const bloom = gui.addFolder('Bloom');
-  bloom.add(pipeline.bloomPass, 'strength', 0, 2, 0.05).onChange(app.invalidate);
-  bloom.add(pipeline.bloomPass, 'radius', 0, 1, 0.05).onChange(app.invalidate);
-  bloom.add(pipeline.bloomPass, 'threshold', 0, 3, 0.05).onChange(app.invalidate);
+  bloom.add(pipeline.bloomPass, 'strength', 0, 2, 0.05).onChange(redraw);
+  bloom.add(pipeline.bloomPass, 'radius', 0, 1, 0.05).onChange(redraw);
+  bloom.add(pipeline.bloomPass, 'threshold', 0, 3, 0.05).onChange(redraw);
 
   const info = gui.addFolder('Frame');
   info.add(state, 'calls').name('draw calls').listen().disable();

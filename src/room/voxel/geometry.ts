@@ -23,7 +23,8 @@ export function voxelGeometry(model: VoxelModel, voxel: number, id: number): Buf
   const { geometry, mesh } = attributes(model, voxel, id);
   geometry.setIndex(new BufferAttribute(mesh.indices, 1));
   geometry.addGroup(0, mesh.emissiveStart, 0);
-  geometry.addGroup(mesh.emissiveStart, mesh.indices.length - mesh.emissiveStart, 1);
+  /* No draw call for an object that has nothing emissive. */
+  if (mesh.indices.length > mesh.emissiveStart) geometry.addGroup(mesh.emissiveStart, mesh.indices.length - mesh.emissiveStart, 1);
   return geometry;
 }
 
