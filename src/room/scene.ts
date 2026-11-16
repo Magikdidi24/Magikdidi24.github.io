@@ -1,9 +1,9 @@
 /*
-  The room itself: floor, back wall (north, with the window opening) and left
-  wall (west, with the door), what stands in it, what the window looks out
-  on, and the lights for day and night. Right side, front and ceiling are
-  open. Units are metres; x runs along the back wall, z towards the viewer,
-  y up.
+  The room itself: floor, four walls, what stands in it, what the window
+  looks out on, and the lights for day and night. It is shown as a doll's
+  house: the two walls between the camera and the room are taken away, with
+  what hangs on them, and the ceiling is always open. Units are metres; x
+  runs along the back wall, z towards the viewer of the opening view, y up.
 */
 import {
   AlwaysStencilFunc,
@@ -26,6 +26,7 @@ import {
   Scene,
   type BufferGeometry,
   type Material,
+  type Object3D,
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -35,18 +36,20 @@ import { DEFAULT_VIEW } from './camera.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects, type RoomObject } from './objects/index.ts';
-import { BAC_PAPER, TOEIC_PAPER, WHITEBOARD_SURFACE } from './objects/walls.ts';
+import { BAC_PAPER, FORMULAS, PASSES, TOEIC_PAPER, WHITEBOARD_SURFACE } from './objects/walls.ts';
+import { BEACON_LIGHT } from './objects/wardrobe.ts';
 import { WINDOW } from './objects/window.ts';
 import { COLOR_ONLY } from './render/outline.ts';
 import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { certificate, CITY, cityView, codeScreen, desktopScreen, whiteboardNotes } from './voxel/paint.ts';
+import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
-import { texelFit } from './view.ts';
+import { shownWalls, texelFit, type Wall } from './view.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
 
 const WALL = 0.2; // wall and floor thickness
+const WALLS: Wall[] = ['north', 'west', 'south', 'east'];
 
 /** Light arriving on a surface facing the key light, then two steps down, then none. */
 const TOON_STEPS = [
@@ -62,21 +65,30 @@ export const LIGHTING = {
   night: { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, lamps: 1, background: PALETTE.night },
 };
 
-/** What can be switched in the room: the bedside lamp, the neon sign, and the PC with its two screens. */
-export type Switch = 'lamp' | 'neon' | 'pc';
+/** Where the key light stands from the middle of the room as the page opens: over the right shoulder of the camera. It follows the camera round the room, a quarter turn at a time. */
+const KEY = { across: 2.5, up: 8, back: 5.5 };
+
+/** What can be switched in the room: the bedside lamp, the neon sign, the PC with its two screens, and the warning light on the wardrobe. */
+export type Switch = 'lamp' | 'neon' | 'pc' | 'beacon';
 
 /** The objects whose glowing voxels follow each switch, and how bright they stay once it is off. */
 const SWITCHES: Record<Switch, { objects: string[]; off: number }> = {
   lamp: { objects: ['lamp'], off: 0.3 },
   neon: { objects: ['neon'], off: 0.12 },
   pc: { objects: ['pc', 'monitor', 'monitor-side'], off: 0.04 },
+  beacon: { objects: ['beacon'], off: 0.3 },
 };
 
-/** The lamps of the night: where each one is, its colour, its strength at full power and the switch it follows. */
-const LAMPS: { at: [number, number, number]; color: string; power: number; follows?: Switch }[] = [
-  { at: [3, 2, 1], color: PALETTE.magenta, power: 3, follows: 'neon' }, // a metre from the wall so the wall itself stays under 1
-  { at: [2.8, 0.45, 1.1], color: PALETTE.cyan, power: 1.2 }, // LED strip under the desk
-  { at: [2.7, 1.2, 0.9], color: '#bcd0ff', power: 1.6, follows: 'pc' }, // the two screens
+/**
+ * The lamps: where each one is, its colour, its strength at full power and
+ * the switch it follows. They are lit at night; one that shines `always` is
+ * strong enough to show in daylight too.
+ */
+const LAMPS: { at: [number, number, number]; color: string; power: number; follows?: Switch; always?: boolean }[] = [
+  { at: [2.75, 2, 1], color: PALETTE.magenta, power: 3, follows: 'neon' }, // a metre from the wall so the wall itself stays under 1
+  { at: [3, 0.45, 1.1], color: PALETTE.cyan, power: 1.2 }, // LED strip under the desk
+  { at: [3, 1.2, 0.9], color: '#bcd0ff', power: 1.6, follows: 'pc' }, // the two screens
+  { at: BEACON_LIGHT, color: '#ff8c1a', power: 26, follows: 'beacon', always: true },
 ];
 
 /** The bedside lamp: warm, and near enough to the wall to draw a pool of light on it. */
@@ -87,6 +99,17 @@ const CITY_PIXEL = 0.02;
 const CITY_BACK = -1.4; // z of the wall that faces the room
 const CITY_SIDE = -1.6; // x of the wall that runs back from the room
 
+/** A flat picture in the room: its centre and its size, in metres. It can be bent to a radius, like a curved screen, or lean in its plane, in degrees. */
+interface Paper {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+  bend?: number;
+  tilt?: number;
+}
+
 export interface RoomScene {
   readonly scene: Scene;
   readonly night: boolean;
@@ -96,14 +119,20 @@ export interface RoomScene {
   readonly names: readonly string[];
   setNight(night: boolean): void;
   /**
+   * Show the room to a camera that stands at `azimuth`, in radians from +z
+   * towards +x: the walls it looks at, what hangs on them, and the daylight
+   * from its side. Returns whether anything changed.
+   */
+  face(azimuth: number): boolean;
+  /**
    * Lay the writing of the whiteboard on the pixel grid, so that the default
    * view shows it one texel per pixel. `pixel` is the size of a pixel of the
    * grid in the room at zoom 1, in metres.
    */
   fitBoard(pixel: number, grid: { cols: number; rows: number }): void;
   setLevel(which: Switch, level: number): void;
-  /** How many glowing voxels an object that is its own mesh has: its lights. */
-  lights(name: string): number;
+  /** The lights of an object that is its own mesh, by number: its glowing voxels, all of them or those of one colour. */
+  lights(name: string, which?: Swatch): number[];
   /** Brightness of the lights of an object that is its own mesh: all of them, those of one colour, or one by its number. */
   setGlow(name: string, level: number, which?: Swatch | number): void;
   dispose(): void;
@@ -136,28 +165,34 @@ function toonRamp(): DataTexture {
   return texture;
 }
 
-/* Floor and walls. No box may share a face with a voxel object where both
-   faces look the same way: the two would flicker as the camera turns. */
-function shell(): BufferGeometry[] {
+/* The four walls, each with its skirting board and standing on its own
+   footing beside the floor slab. No box may share a face with a voxel object
+   where both faces look the same way: the two would flicker as the camera
+   turns. */
+function walls(): Record<Wall, BufferGeometry[]> {
   const { w, h, d } = ROOM;
   const win = WINDOW;
-  return [
-    /* Floor slab, under the walls too. */
-    box(-WALL, -WALL, -WALL, w, 0, d, 'oak'),
-    /* Back wall around the window opening. */
-    box(-WALL, 0, -WALL, win.x0, h, 0, 'cream'),
-    box(win.x1, 0, -WALL, w, h, 0, 'cream'),
-    box(win.x0, 0, -WALL, win.x1, win.y0, 0, 'cream'),
-    box(win.x0, win.y1, -WALL, win.x1, h, 0, 'cream'),
-    /* Left wall around the door opening. */
-    box(-WALL, 0, 0, 0, h, DOOR.z0, 'cream'),
-    box(-WALL, 0, DOOR.z1, 0, h, d, 'cream'),
-    box(-WALL, DOOR.height, DOOR.z0, 0, h, DOOR.z1, 'cream'),
-    /* Skirting boards. */
-    box(0, 0, 0, w, 0.1, 0.03, 'stone'),
-    box(0, 0, 0.03, 0.03, 0.1, DOOR.z0 - 0.05, 'stone'),
-    box(0, 0, DOOR.z1 + 0.05, 0.03, 0.1, d, 'stone'),
-  ];
+  return {
+    /* The back wall, around the window opening. */
+    north: [
+      box(-WALL, -WALL, -WALL, win.x0, h, 0, 'cream'),
+      box(win.x1, -WALL, -WALL, w, h, 0, 'cream'),
+      box(win.x0, -WALL, -WALL, win.x1, win.y0, 0, 'cream'),
+      box(win.x0, win.y1, -WALL, win.x1, h, 0, 'cream'),
+      box(0, 0, 0, w, 0.1, 0.03, 'stone'),
+    ],
+    /* The left wall, around the door opening, and the threshold under it. */
+    west: [
+      box(-WALL, -WALL, 0, 0, h, DOOR.z0, 'cream'),
+      box(-WALL, -WALL, DOOR.z1, 0, h, d, 'cream'),
+      box(-WALL, DOOR.height, DOOR.z0, 0, h, DOOR.z1, 'cream'),
+      box(-WALL, -WALL, DOOR.z0, 0, 0, DOOR.z1, 'oak'),
+      box(0, 0, 0.03, 0.03, 0.1, DOOR.z0 - 0.05, 'stone'),
+      box(0, 0, DOOR.z1 + 0.05, 0.03, 0.1, d, 'stone'),
+    ],
+    south: [box(0, -WALL, d, w + WALL, h, d + WALL, 'cream'), box(0, 0, d - 0.03, w - 0.03, 0.1, d, 'stone')],
+    east: [box(w, -WALL, 0, w + WALL, h, d, 'cream'), box(w - 0.03, 0, 0, w, 0.1, d, 'stone')],
+  };
 }
 
 export function createScene(): RoomScene {
@@ -168,51 +203,71 @@ export function createScene(): RoomScene {
   const ramp = toonRamp();
   const lit = new MeshToonMaterial({ vertexColors: true, gradientMap: ramp });
   const glow = new MeshBasicMaterial({ vertexColors: true });
-  const solid = (mesh: Mesh) => {
+  /** What goes with each wall when it is taken away. */
+  const attached: Record<Wall, Object3D[]> = { north: [], west: [], south: [], east: [] };
+  const solid = (mesh: Mesh, wall?: Wall) => {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     scene.add(mesh);
+    if (wall) attached[wall].push(mesh);
   };
 
-  solid(new Mesh(mergeGeometries(shell()), lit));
+  solid(new Mesh(box(0, -WALL, 0, ROOM.w, 0, ROOM.d, 'oak'), lit));
+  for (const [wall, boxes] of Object.entries(walls()) as [Wall, BufferGeometry[]][]) solid(new Mesh(mergeGeometries(boxes), lit), wall);
 
-  /* The decor is two meshes for the whole room; what moves or can be clicked stays apart. */
+  /* The decor is two meshes for what stands on the floor, and two more for each wall that carries some; what moves or can be clicked stays apart. */
   const placed = objects().map((object, index) => ({ ...object, id: index + 1 }));
   const id = (name: string) => placed.find((object) => object.name === name)?.id ?? 0;
-  const decor = mergedGeometry(placed.filter((object) => object.decor));
-  solid(new Mesh(decor.lit, lit));
-  solid(new Mesh(decor.glow, glow));
+  for (const wall of [undefined, ...WALLS]) {
+    const decor = mergedGeometry(placed.filter((object) => object.decor && object.wall === wall));
+    for (const [geometry, material] of [[decor.lit, lit], [decor.glow, glow]] as const) {
+      if (geometry.getAttribute('position')) solid(new Mesh(geometry, material), wall);
+    }
+  }
   for (const object of placed.filter((o) => !o.decor)) {
     const mesh = new Mesh(voxelGeometry(object.model, object.voxel, object.id, object.smooth), [lit, glow]);
     mesh.name = object.name;
     mesh.userData.placed = object; // where it stands, for what moves it
     mesh.applyMatrix4(placement(object));
     mesh.visible = !object.hidden;
-    solid(mesh);
+    solid(mesh, object.wall);
   }
 
   /* Pictures laid just in front of a face: one that looks at +z, or at +x
-     with a quarter turn. The two screens glow; the whiteboard and the diploma
-     are lit like the rest. Each belongs to its object. */
-  const picture = (spot: typeof MAIN_SCREEN, map: Texture, owner: string, glows: boolean, turn = 0) => {
-    const geometry = new PlaneGeometry(spot.width, spot.height);
+     with a quarter turn. The two screens glow; papers are lit like the rest.
+     Each belongs to its object and moves with it. */
+  const picture = (spot: Paper, map: Texture, owner: string, glows: boolean, turn = 0) => {
+    const geometry = new PlaneGeometry(spot.width, spot.height, spot.bend ? 32 : 1, 1);
+    if (spot.bend) {
+      /* Wrapped on a circle: its ends come towards the viewer. */
+      const position = geometry.getAttribute('position');
+      for (let i = 0; i < position.count; i++) {
+        const angle = position.getX(i) / spot.bend;
+        position.setX(i, spot.bend * Math.sin(angle));
+        position.setZ(i, spot.bend * (1 - Math.cos(angle)));
+      }
+      geometry.computeVertexNormals();
+    }
     const aux = new Float32Array(geometry.getAttribute('position').count * 2);
     for (let i = 0; i < aux.length; i += 2) aux.set([id(owner), glows ? 1 : 0], i);
     geometry.setAttribute('aux', new BufferAttribute(aux, 2));
     const mesh = new Mesh(geometry, glows ? new MeshBasicMaterial({ map }) : new MeshToonMaterial({ map, gradientMap: ramp }));
     mesh.name = `${owner}-picture`;
     mesh.position.set(spot.x, spot.y, spot.z);
-    mesh.rotation.y = turn;
+    mesh.rotation.set(0, turn, MathUtils.degToRad(spot.tilt ?? 0));
     mesh.receiveShadow = !glows;
-    scene.add(mesh);
+    scene.getObjectByName(owner)!.attach(mesh);
     return mesh;
   };
   const screens = [picture(MAIN_SCREEN, desktopScreen(), 'monitor', true), picture(SIDE_SCREEN, codeScreen(), 'monitor-side', true)].map(
     (screen) => screen.material,
   );
-  const board = picture(WHITEBOARD_SURFACE, whiteboardNotes(true), 'whiteboard', false);
+  const board = picture(WHITEBOARD_SURFACE, whiteboardNotes(), 'whiteboard', false);
   picture(BAC_PAPER, certificate(bac), 'frame-bac', false, Math.PI / 2);
-  picture(TOEIC_PAPER, certificate(toeic, 'denim'), 'frame-toeic', false, Math.PI / 2);
+  picture(TOEIC_PAPER, nameplate(toeic.title), 'frame-toeic', false, Math.PI / 2);
+  const pass = boardingPass();
+  for (const spot of PASSES) picture(spot, pass, 'passes', false);
+  picture(FORMULAS, formulaSheet(), 'formulas', false);
 
   /* The lights of an object: its glowing voxels, each with the vertices that draw it. A face is four vertices in a row. */
   const lightsOf = (mesh: Mesh): number[][] => {
@@ -231,15 +286,20 @@ export function createScene(): RoomScene {
     return (mesh.userData.lights = [...cells.values()]);
   };
 
+  /** The colours an object was built with: lights are dimmed from them. */
+  const built = (mesh: Mesh) => (mesh.userData.colors ??= (mesh.geometry.getAttribute('color') as BufferAttribute).array.slice()) as Float32Array;
+  /** Whether a vertex was built in a colour of the palette. */
+  const colored = (full: Float32Array, vertex: number, which: Swatch) =>
+    hexToLinear(PALETTE[which]).every((channel, k) => Math.abs(full[vertex * 3 + k] - channel) <= 1e-4);
+
   /* Lights are dimmed through their vertex colours: one material still serves them all. */
   const setGlow = (name: string, level: number, which?: Swatch | number) => {
     const mesh = scene.getObjectByName(name) as Mesh;
     const color = mesh.geometry.getAttribute('color') as BufferAttribute;
-    const full = (mesh.userData.colors ??= color.array.slice()) as Float32Array;
-    const only = typeof which === 'string' && hexToLinear(PALETTE[which]);
+    const full = built(mesh);
     for (const vertices of typeof which === 'number' ? [lightsOf(mesh)[which]] : lightsOf(mesh)) {
       for (const i of vertices) {
-        if (only && only.some((channel, k) => Math.abs(full[i * 3 + k] - channel) > 1e-4)) continue;
+        if (typeof which === 'string' && !colored(full, i, which)) continue;
         color.setXYZ(i, full[i * 3] * level, full[i * 3 + 1] * level, full[i * 3 + 2] * level);
       }
     }
@@ -278,12 +338,12 @@ export function createScene(): RoomScene {
   for (const mesh of [opening, back, side]) {
     mesh.layers.set(COLOR_ONLY);
     scene.add(mesh);
+    attached.north.push(mesh);
   }
 
   const hemisphere = new HemisphereLight();
-  /* From the open side, so the floor, the back wall and the left wall get three different tones. */
+  /* From the open side, so the floor and the two walls that show get three different tones. */
   const key = new DirectionalLight('#fff1dd');
-  key.position.set(ROOM.w / 2 + 2.5, 8, ROOM.d / 2 + 5.5);
   key.target.position.set(ROOM.w / 2, 0, ROOM.d / 2);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
@@ -307,20 +367,37 @@ export function createScene(): RoomScene {
   scene.add(hemisphere, key, key.target, moon, moon.target, ...lamps, bedside);
 
   let night = false;
-  const levels: Record<Switch, number> = { lamp: 1, neon: 1, pc: 1 };
+  let facing = '';
+  const levels: Record<Switch, number> = { lamp: 1, neon: 1, pc: 1, beacon: 0 };
   const state: RoomScene = {
     scene,
     names: placed.map((object) => object.name),
     levels,
     setGlow,
-    lights: (name) => lightsOf(scene.getObjectByName(name) as Mesh).length,
+    lights(name, which) {
+      const mesh = scene.getObjectByName(name) as Mesh;
+      const all = lightsOf(mesh).map(([vertex], i) => ({ vertex, i }));
+      return all.filter(({ vertex }) => !which || colored(built(mesh), vertex, which)).map(({ i }) => i);
+    },
     get night() {
       return night;
+    },
+    face(azimuth) {
+      const shown = shownWalls(azimuth);
+      const quarter = Math.floor(((azimuth / (Math.PI / 2)) % 4 + 4) % 4); // 0 as the page opens, 2 from behind
+      const now = `${WALLS.map((wall) => shown[wall])}${quarter}`;
+      if (now === facing) return false;
+      facing = now;
+      for (const wall of WALLS) for (const part of attached[wall]) part.visible = shown[wall];
+      const angle = Math.atan2(KEY.across, KEY.back) + (quarter * Math.PI) / 2;
+      const reach = Math.hypot(KEY.across, KEY.back);
+      key.position.set(ROOM.w / 2 + Math.sin(angle) * reach, KEY.up, ROOM.d / 2 + Math.cos(angle) * reach);
+      return true;
     },
     fitBoard(pixel, grid) {
       const texels = { cols: BOARD.width, rows: BOARD.height };
       const fit = texelFit(WHITEBOARD_SURFACE, texels, pixel, grid, MathUtils.degToRad(DEFAULT_VIEW.azimuth), MathUtils.degToRad(DEFAULT_VIEW.elevation));
-      board.position.set(fit.x, fit.y, fit.z);
+      board.position.set(fit.x, fit.y, fit.z).sub(board.parent!.position); // it hangs on the whiteboard, which never turns
       board.scale.set(fit.width / WHITEBOARD_SURFACE.width, fit.height / WHITEBOARD_SURFACE.height, 1);
     },
     setLevel(which, level) {
@@ -341,8 +418,8 @@ export function createScene(): RoomScene {
       key.castShadow = preset.key > 0;
       moon.intensity = Math.PI * preset.moon;
       lamps.forEach((light, i) => {
-        const { power, follows } = LAMPS[i];
-        light.intensity = power * preset.lamps * (follows ? levels[follows] : 1);
+        const { power, follows, always } = LAMPS[i];
+        light.intensity = power * (always ? 1 : preset.lamps) * (follows ? levels[follows] : 1);
       });
       bedside.intensity = BEDSIDE.power * preset.lamps * levels.lamp;
       back.material.map = value ? views.night.back : views.day.back;
@@ -362,6 +439,7 @@ export function createScene(): RoomScene {
       key.shadow.dispose();
     },
   };
-  state.setNight(false);
+  state.face(MathUtils.degToRad(DEFAULT_VIEW.azimuth));
+  state.setLevel('beacon', 0);
   return state;
 }

@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
-import { easeOut, flutter, stepAt } from '../src/room/interaction/motion.ts';
+import { easeOut, flutter, stepAt, tumble } from '../src/room/interaction/motion.ts';
 
 test('stepAt: a movement advances in whole steps', () => {
   assert.equal(stepAt(0, 2, 8), 0);
@@ -62,4 +62,28 @@ test('flutter: it stalls at the end of a swing and leans into the next one', () 
   near(drop(0.4), 0, 1e-9); // and t = 0.4 the middle of one, where it is lowest
   assert.ok(Math.abs(flutter(from, to, 0.4, swing).lean) > 0.5);
   near(flutter(from, to, 0.5, swing).lean, 0, 1e-9);
+});
+
+// Something heavy that slips off: the brush of the whiteboard, a marker.
+test('tumble: it leaves from where it was and comes to rest on its spot', () => {
+  const from = [5, 1.2, 0.1];
+  const to = [5.2, 0, 1.1];
+  tumble(from, to, 0).forEach((value, i) => near(value, from[i]));
+  tumble(from, to, 1).forEach((value, i) => near(value, to[i]));
+});
+
+test('tumble: it leaves level and drops faster and faster', () => {
+  const height = (t) => tumble([0, 1, 0], [0, 0, 1], t)[1];
+  const drops = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7].map((t) => height(t - 0.1) - height(t));
+  assert.ok(drops[0] < 0.03, `it has hardly dropped after a tenth of the way: ${drops[0]}`);
+  drops.forEach((drop, i) => i > 0 && assert.ok(drop > drops[i - 1], `drop ${i} is not larger than the one before`));
+});
+
+test('tumble: it hits the ground, bounces once, low, and goes on a little', () => {
+  const at = (t) => tumble([0, 1, 0], [0, 0, 1], t);
+  near(at(0.75)[1], 0);
+  assert.ok(at(0.75)[2] < 1, 'it lands short of its spot');
+  const peak = Math.max(...[0.8, 0.85, 0.875, 0.9, 0.95].map((t) => at(t)[1]));
+  assert.ok(peak > 0.03 && peak < 0.2, `the bounce is ${peak} high`);
+  for (let t = 0; t <= 1; t += 0.05) assert.ok(at(t)[1] >= -1e-9, `it sinks into the ground at ${t}`);
 });

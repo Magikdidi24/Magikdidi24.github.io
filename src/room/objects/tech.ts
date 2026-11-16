@@ -1,6 +1,7 @@
 /*
   Right of the desk: the PC tower on the floor, and the low cabinet that
-  carries the NAS, its UPS and the printer.
+  carries the NAS, its UPS and the printer. Behind the two doors of the
+  cabinet, old game consoles and their controllers, in a heap.
 */
 import { EMISSIVE, VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
@@ -32,15 +33,117 @@ export function pc(): RoomObject {
   return { name: 'pc', voxel: 0.025, at: [4.05, 0, 0.3], model: m };
 }
 
-/** 1.2 m wide, 50 cm deep, 60 cm high, two doors. */
+/** Where the cabinet stands: its left end and its back, in metres. */
+const CABINET = { x: 4.4, z: 0.05 };
+
+/** 1.2 m wide, 50 cm deep with its doors, 60 cm high: a hollow case. Voxels of 2.5 cm. */
 export function cabinet(): RoomObject {
-  const m = new VoxelModel(24, 12, 11);
-  for (const [x, z] of [[0, 0], [23, 0], [0, 9], [23, 9]]) m.box(x, 0, z, 1, 1, 1, C.walnut); // feet
-  m.box(0, 1, 0, 24, 10, 10, C.honey);
-  m.box(0, 11, 0, 24, 1, 10, C.oak); // top
-  m.box(11, 1, 9, 2, 10, 1, C.walnut); // the gap between the doors
-  m.box(9, 7, 10, 1, 2, 1, C.steel).box(14, 7, 10, 1, 2, 1, C.steel); // handles
-  return { name: 'cabinet', voxel: 0.05, at: [4.5, 0, 0.05], model: m, decor: true };
+  const m = new VoxelModel(48, 24, 19);
+  for (const [x, z] of [[0, 0], [46, 0], [0, 17], [46, 17]]) m.box(x, 0, z, 2, 2, 2, C.walnut); // feet
+  m.box(0, 2, 0, 48, 20, 19, C.honey).box(1, 3, 1, 46, 18, 18, 0); // the case, open at the front
+  m.box(0, 2, 0, 48, 20, 1, C.chestnut); // its back, darker
+  m.box(0, 22, 0, 48, 2, 19, C.oak); // top
+  return { name: 'cabinet', voxel: 0.025, at: [CABINET.x, 0, CABINET.z], model: m };
+}
+
+/**
+ * One door of the cabinet, 60 cm wide. As for the wardrobe, the model is
+ * twice as wide as the door: it turns around the edge it hangs by.
+ */
+function door(name: string, left: boolean): RoomObject {
+  const m = new VoxelModel(48, 20, 3);
+  const x = left ? 24 : 0;
+  m.box(x, 0, 1, 24, 20, 1, C.honey);
+  m.box(x + 2, 2, 1, 20, 16, 1, C.oak).box(x + 3, 3, 1, 18, 14, 1, C.honey); // moulding
+  m.box(left ? x + 20 : x + 2, 11, 2, 2, 4, 1, C.steel); // handle, on the edge away from the hinge
+  const hinge = CABINET.x + (left ? 0 : 1.2);
+  return { name, voxel: 0.025, at: [hinge - 0.6, 0.05, CABINET.z + 0.45], model: m };
+}
+
+export const cabinetDoors = (): RoomObject[] => [door('cabinet-door-left', true), door('cabinet-door-right', false)];
+
+/** One thing of the heap in the cabinet: built in voxels of 1.25 cm, set down at (x, y, z) metres from the corner of the cabinet, and turned. */
+const heaped = (name: string, m: VoxelModel, x: number, y: number, z: number, turn: number): RoomObject => ({
+  name,
+  voxel: 0.0125,
+  at: [CABINET.x + x, y, CABINET.z + z],
+  model: m,
+  turn,
+  decor: true,
+});
+
+/** A controller of the old kind: a flat brick with a cross and two round buttons, and the start of its cable. */
+function brick(shell: number, buttons: number): VoxelModel {
+  const m = new VoxelModel(11, 3, 6);
+  m.box(0, 0, 1, 11, 2, 5, shell);
+  m.box(1, 2, 3, 3, 1, 1, C.ink).box(2, 2, 2, 1, 1, 3, C.ink); // cross
+  m.box(7, 2, 3, 1, 1, 1, buttons).box(9, 2, 3, 1, 1, 1, buttons);
+  m.box(5, 2, 4, 1, 1, 1, C.graphite); // start
+  m.box(5, 1, 0, 1, 1, 1, C.ink); // cable
+  return m;
+}
+
+/**
+ * Old game consoles and controllers, thrown in rather than put away. None is
+ * a real one: a grey box that takes cartridges, a black one with a round lid,
+ * a small cube with a handle, a handheld, and what goes with them.
+ */
+export function consoles(): RoomObject[] {
+  /* A grey console: two-tone case, a flap for the cartridge, two red buttons on its front. */
+  const grey = new VoxelModel(22, 7, 17);
+  grey.box(0, 0, 0, 22, 3, 17, C.taupe).box(0, 3, 0, 22, 3, 17, C.stone);
+  grey.box(3, 6, 4, 14, 1, 8, C.silver).box(4, 6, 5, 12, 1, 6, C.graphite); // flap
+  grey.box(2, 1, 16, 3, 1, 1, C.red).box(6, 1, 16, 3, 1, 1, C.red).box(15, 1, 16, 5, 1, 1, C.ink);
+
+  /* A black one, flat, with a round lid and a light. */
+  const black = new VoxelModel(22, 5, 19);
+  black.box(0, 0, 0, 22, 4, 19, C.graphite);
+  black.ball(11, 4, 9, 7.5, 1, 7.5, C.ink);
+  black.box(2, 4, 16, 4, 1, 2, C.steel).set(18, 4, 17, C.lime | EMISSIVE);
+  for (let x = 3; x < 20; x += 2) black.box(x, 1, 18, 1, 2, 1, C.ink); // vents
+
+  /* A cube with a handle at the back. */
+  const cube = new VoxelModel(13, 13, 15);
+  cube.box(0, 0, 2, 13, 11, 13, C.night);
+  cube.ball(6.5, 11, 8.5, 4.5, 1, 4.5, C.steel);
+  cube.box(3, 4, 0, 7, 5, 2, C.graphite).box(4, 5, 0, 5, 3, 2, 0); // handle
+  cube.box(2, 3, 14, 9, 1, 1, C.ink).set(11, 9, 14, C.amber | EMISSIVE);
+
+  /* A handheld: a screen that went green, a cross, two buttons. */
+  const handheld = new VoxelModel(8, 3, 13);
+  handheld.box(0, 0, 0, 8, 2, 13, C.stone);
+  handheld.box(1, 2, 1, 6, 1, 5, C.taupe).box(2, 2, 2, 4, 1, 3, C.sage);
+  handheld.box(1, 2, 9, 3, 1, 1, C.ink).box(2, 2, 8, 1, 1, 3, C.ink);
+  handheld.set(5, 2, 9, C.rust).set(6, 2, 8, C.rust);
+
+  /* Cartridges in a pile, each with its label. */
+  const cartridges = new VoxelModel(7, 7, 6);
+  [C.red, C.mustard, C.denim, C.leaf, C.violet, C.paper].forEach((label, i) => {
+    const x = i % 2;
+    cartridges.box(x, i, 0, 6, 1, 6, C.taupe).box(x + 1, i, 5, 4, 1, 1, label);
+  });
+
+  /* Cables, left as they fell. */
+  const cables = new VoxelModel(40, 6, 20);
+  cables.limb([2, 1, 4], [14, 1, 16], 0.9, 0.9, C.ink).limb([14, 1, 16], [26, 1, 5], 0.9, 0.9, C.ink).limb([26, 1, 5], [37, 1, 14], 0.9, 0.9, C.ink);
+  cables.limb([6, 1, 15], [20, 2.5, 9], 0.8, 0.8, C.graphite).limb([20, 2.5, 9], [33, 1, 17], 0.8, 0.8, C.graphite);
+
+  /* The heap: the larger ones at the bottom, the rest on top of them or in front, where the open doors show it. */
+  const floor = 0.075;
+  const on = (voxels: number) => floor + voxels * 0.0125;
+  return [
+    heaped('cables', cables, 0.3, floor, 0.2, -6),
+    heaped('console-grey', grey, 0.05, floor, 0.2, 9),
+    heaped('console-black', black, 0.1, on(7), 0.18, -17),
+    heaped('handheld', handheld, 0.2, on(12), 0.25, 30),
+    heaped('cartridges', cartridges, 0.38, floor, 0.38, 14),
+    heaped('console-cube', cube, 0.5, floor, 0.22, 24),
+    heaped('controller-cube', brick(C.stone, C.red), 0.52, on(13), 0.28, -35),
+    heaped('controller-floor', brick(C.graphite, C.stone), 0.7, floor, 0.4, 38),
+    heaped('console-black-right', black, 0.8, floor, 0.2, 12),
+    heaped('controller-right', brick(C.paper, C.denim), 0.93, on(5), 0.25, -48),
+    heaped('handheld-right', handheld, 1.02, floor, 0.37, -28),
+  ];
 }
 
 /** The NAS, four bays, and the UPS beside it. Voxels of 2.5 cm. */
@@ -50,16 +153,15 @@ export function homelab(): RoomObject {
   m.box(0, 0, 0, 10, 8, 10, C.graphite);
   for (const x of [1, 3, 5, 7]) {
     m.box(x, 1, 9, 1, 4, 1, C.steel); // a drive tray
-    m.set(x, 5, 9, C.lime | EMISSIVE); // its light
+    m.set(x, 5, 9, C.cyan | EMISSIVE); // its blue light
   }
-  m.set(7, 5, 9, C.amber | EMISSIVE); // one drive is busy
-  m.box(1, 6, 9, 5, 1, 1, C.cyan | EMISSIVE); // the status display
+  m.box(1, 6, 9, 3, 1, 1, C.lime | EMISSIVE).set(7, 6, 9, C.amber | EMISSIVE); // power, and a warning that stays on
   /* UPS: 15 cm wide, 25 cm high, 30 cm deep. */
   m.box(13, 0, 0, 6, 10, 12, C.steel);
   m.box(14, 6, 11, 4, 2, 1, C.ink).box(15, 7, 11, 2, 1, 1, C.lime | EMISSIVE); // its display
   m.set(14, 4, 11, C.amber | EMISSIVE);
   for (const y of [1, 2]) m.box(14, y, 11, 4, 1, 1, y % 2 ? C.ink : C.steel); // vents
-  return { name: 'homelab', voxel: 0.025, at: [4.58, 0.6, 0.15], model: m };
+  return { name: 'homelab', voxel: 0.025, at: [CABINET.x + 0.08, 0.6, 0.15], model: m };
 }
 
 /** 40 cm wide, with a sheet coming out of it. Voxels of 2.5 cm. */
@@ -70,7 +172,7 @@ export function printer(): RoomObject {
   m.box(1, 4, 12, 14, 1, 1, C.graphite).set(13, 4, 12, C.lime | EMISSIVE); // control strip
   m.box(2, 2, 12, 12, 1, 1, C.ink); // output slot
   m.box(3, 2, 13, 10, 1, 3, C.paper); // the sheet
-  return { name: 'printer', voxel: 0.025, at: [5.22, 0.6, 0.1], model: m };
+  return { name: 'printer', voxel: 0.025, at: [CABINET.x + 0.72, 0.6, 0.1], model: m };
 }
 
 /**
@@ -84,5 +186,5 @@ export function cvSheet(): RoomObject {
   m.slices(1, 0, 2, [['.kkkk', 'kkkkk', 'kk...', 'kk...', 'kk...', 'kk...', 'kkkkk', '.kkkk']], ink); // C
   m.slices(7, 0, 2, [['kk....kk', 'kk....kk', '.kk..kk.', '.kk..kk.', '..kkkk..', '..kkkk..', '...kk...', '...kk...']], ink); // V
   for (const [z, width] of [[12, 13], [14, 10], [16, 13], [18, 7], [20, 11]]) m.box(1, 0, z, width, 1, 1, C.stone); // lines of text
-  return { name: 'cv', voxel: 0.0125, at: [5, 0, 0.85], model: m, turn: 35, hidden: true };
+  return { name: 'cv', voxel: 0.0125, at: [CABINET.x + 0.5, 0, 0.85], model: m, turn: 35, hidden: true };
 }

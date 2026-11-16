@@ -3,14 +3,18 @@
   its voxels and where its corner (0, 0, 0) sits. Its position in this list,
   plus one, is its id in the outline pass: 0 is the room itself.
 */
+import type { Wall } from '../view.ts';
 import type { VoxelModel } from '../voxel/builder.ts';
-import { bed, book, dog, lamp, nightstand } from './bed.ts';
-import { chair, desk, deskLamp, headphones, juice, keyboard, mainMonitor, mouse, sideMonitor, speaker } from './desk.ts';
+import { bed, bedding, book, dog, lamp, nightstand } from './bed.ts';
+import { chair, desk, dock, headphones, juice, keyboard, mainMonitor, mouse, sideMonitor, speaker } from './desk.ts';
 import { door } from './door.ts';
 import { figurines } from './figurines.ts';
-import { rug, sakura, smallPlant } from './floor.ts';
-import { cabinet, cvSheet, homelab, pc, printer } from './tech.ts';
-import { bookshelf, calendar, clipboard, frames, neon, pegboard, shelf, whiteboard } from './walls.ts';
+import { rug, sakura } from './floor.ts';
+import { library, volume } from './library.ts';
+import { LOWER_SHELF, shelfThings } from './shelf.ts';
+import { cabinet, cabinetDoors, consoles, cvSheet, homelab, pc, printer } from './tech.ts';
+import { calendar, clipboard, eraser, formulas, frames, marker, MARKERS, neon, passes, pegboard, shelf, whiteboard } from './walls.ts';
+import { beacon, tripod, wardrobe, wardrobeDoors } from './wardrobe.ts';
 import { windowFrame } from './window.ts';
 
 export interface RoomObject {
@@ -28,24 +32,36 @@ export interface RoomObject {
   hidden?: boolean;
   /** Sculpted in voxels much smaller than a pixel of the room, and shaded as a round shape. */
   smooth?: boolean;
+  /** The wall it hangs on or stands against: it goes with that wall when the camera looks from behind it. */
+  wall?: Wall;
 }
 
 export const objects = (): RoomObject[] => [
-  /* Walls */
+  /* Left wall */
   door(),
-  windowFrame(),
   ...frames(),
-  bookshelf(),
+  wardrobe(),
+  ...wardrobeDoors(),
+  tripod(),
+  beacon(),
   clipboard(),
+  /* Back wall */
+  windowFrame(),
   calendar(),
   pegboard(),
-  shelf('shelf', [3.1, 1.35, 0], 24),
+  passes(),
+  formulas(),
+  shelf('shelf', [LOWER_SHELF.x, LOWER_SHELF.y, 0], LOWER_SHELF.length),
+  ...shelfThings(),
   shelf('shelf-top', [3.45, 1.9, 0], 20, 6, 3),
   figurines(),
   neon(),
   whiteboard(),
+  eraser(),
+  ...MARKERS.map(marker),
   /* Bed corner */
   bed(),
+  bedding(),
   dog(),
   nightstand(),
   lamp(),
@@ -58,19 +74,22 @@ export const objects = (): RoomObject[] => [
   keyboard(),
   mouse(),
   juice(),
-  deskLamp(),
-  speaker('speaker-left', 0.04),
-  speaker('speaker-right', 1.56),
+  speaker('speaker-left', 0.05),
+  speaker('speaker-right', 1.68),
   headphones(),
+  dock(),
   /* Right of the desk */
   pc(),
   cabinet(),
+  ...cabinetDoors(),
+  ...consoles(),
   homelab(),
   printer(),
   cvSheet(),
   /* Floor */
   rug(),
   sakura(),
-  smallPlant('plant-bookshelf', [0.08, 2, 2.47]),
-  smallPlant('plant-shelf', [4.08, 1.5, 0.02]),
+  /* The two walls behind the opening view */
+  ...library(),
+  volume(),
 ];

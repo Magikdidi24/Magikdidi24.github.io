@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoGrid, fitHalfHeight, gridSize, pixelAt, pixelFraction, snap, texelFit } from '../src/room/view.ts';
+import { autoGrid, fitHalfHeight, gridSize, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -160,4 +160,25 @@ test('texelFit: a picture too large for its paper fills it instead, in its middl
   assert.ok(Math.abs(fit.width - paper.width) < 1e-9 || Math.abs(fit.height - paper.height) < 1e-9);
   near(fit.x, paper.x);
   near(fit.y, paper.y);
+});
+
+// The room is a doll's house: the two walls between the camera and the room are taken away.
+const walls = (degrees) => Object.entries(shownWalls((degrees * Math.PI) / 180)).filter(([, shown]) => shown).map(([wall]) => wall).sort();
+
+test('shownWalls: from the front the back wall and the left wall show, from behind the two others', () => {
+  assert.deepEqual(walls(45), ['north', 'west']);
+  assert.deepEqual(walls(225), ['east', 'south']);
+  assert.deepEqual(walls(-135), ['east', 'south']);
+});
+
+test('shownWalls: on the way round, walls change one at a time', () => {
+  assert.deepEqual(walls(75), ['north', 'west']);
+  assert.deepEqual(walls(105), ['south', 'west']);
+  assert.deepEqual(walls(195), ['east', 'south']);
+  assert.deepEqual(walls(315), ['east', 'north']);
+});
+
+test('shownWalls: a wall seen edge on is not drawn', () => {
+  assert.deepEqual(walls(90), ['west']);
+  assert.deepEqual(walls(180), ['south']);
 });

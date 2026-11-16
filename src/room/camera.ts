@@ -39,6 +39,12 @@ export interface Rig {
   zoomStep: number;
   /** Metres of depth kept in front of and behind the target. Sets the scale of the depth outlines. */
   setDepthRange(front: number, back: number): void;
+  /** Whether the camera stands behind the room, looking at the two walls that the opening view leaves out. */
+  readonly behind: boolean;
+  /** Where the camera stands around the room, in radians from +z towards +x. */
+  azimuth(): number;
+  /** Carry the camera half a turn round the room: `t` goes from 0 to 1. At 1 it is held on its new side. */
+  around(t: number): void;
   /** Let the controls move the camera: what is left of a drag, the limits of the view. */
   update(): void;
   /** Fit the room in a viewport with the aspect ratio of the pixel grid. Returns the size of a pixel in the room at zoom 1, in metres. */
@@ -68,8 +74,16 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.rotateSpeed = 0.6;
-  controls.minAzimuthAngle = MathUtils.degToRad(DEFAULT_VIEW.azimuth - AZIMUTH_RANGE);
-  controls.maxAzimuthAngle = MathUtils.degToRad(DEFAULT_VIEW.azimuth + AZIMUTH_RANGE);
+  /* The camera is held on one side of the room: in front of it as the page opens, or behind it. */
+  let behind = false;
+  const hold = () => {
+    const middle = DEFAULT_VIEW.azimuth + (behind ? 180 : 0);
+    controls.minAzimuthAngle = MathUtils.degToRad(middle - AZIMUTH_RANGE);
+    controls.maxAzimuthAngle = MathUtils.degToRad(middle + AZIMUTH_RANGE);
+  };
+  hold();
+  /** The azimuth a turn round the room started from, while it lasts. */
+  let turnedFrom: number | null = null;
   controls.minPolarAngle = MathUtils.degToRad(90 - ELEVATION_MAX);
   controls.maxPolarAngle = MathUtils.degToRad(90 - ELEVATION_MIN);
   controls.minZoom = MIN_ZOOM;
@@ -91,6 +105,30 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
     controls,
     rotationStep: 1,
     zoomStep: 0.05,
+    get behind() {
+      return behind;
+    },
+    azimuth() {
+      return Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
+    },
+    around(t) {
+      spherical.setFromVector3(offset.copy(camera.position).sub(controls.target));
+      if (turnedFrom === null) {
+        /* Nothing holds the camera during the turn, and a drag would fight it. */
+        turnedFrom = spherical.theta;
+        controls.minAzimuthAngle = -Infinity;
+        controls.maxAzimuthAngle = Infinity;
+        controls.enabled = false;
+      }
+      spherical.theta = turnedFrom + Math.PI * t;
+      camera.position.setFromSpherical(spherical).add(controls.target);
+      camera.lookAt(controls.target);
+      if (t < 1) return;
+      turnedFrom = null;
+      behind = !behind;
+      hold();
+      controls.enabled = true;
+    },
     update() {
       /* Zooming out brings the room back to the middle. */
       const close = MathUtils.clamp((camera.zoom - 1) / 3, 0, 1);

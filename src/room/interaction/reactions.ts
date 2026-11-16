@@ -1,32 +1,52 @@
 /*
   What the things of the room do when they are clicked. The chair spins, a
-  screen cracks, the sakura sheds petals, the printer drops a CV, the neon
-  buzzes, the PC goes down, a frame or the whiteboard is shown large, the
-  calendar opens... A click is a pointer released where it was pressed; a
-  drag turns the camera instead. Under prefers-reduced-motion every movement
-  jumps to its end.
+  screen cracks, the sakura sheds petals, the printer drops a CV, doors swing
+  open, the brush falls off the whiteboard, the warning light flashes, a
+  frame is shown large, the calendar opens... A click is a pointer released
+  where it was pressed; a drag turns the camera instead. Under
+  prefers-reduced-motion every movement jumps to its end.
 */
 import { BoxGeometry, Color, InstancedMesh, MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
-import { enlarged } from '../../data/room.ts';
+import { enlarged, says } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import type { RoomApp } from '../main.ts';
-import { SAKURA_FOOT } from '../objects/floor.ts';
+import { ON_NIGHTSTAND } from '../objects/bed.ts';
+import { SAKURA_CROWN, SAKURA_FOOT } from '../objects/floor.ts';
+import { pulled } from '../objects/library.ts';
+import { MARKERS } from '../objects/walls.ts';
+import { DOORS } from '../objects/wardrobe.ts';
 import { COLOR_ONLY } from '../render/outline.ts';
-import type { Switch } from '../scene.ts';
+import { ROOM, type Switch } from '../scene.ts';
 import { showCalendar, showPicture } from '../ui/sheets.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
-import { codeScreen, desktopScreen, whiteboardNotes } from '../voxel/paint.ts';
+import { codeScreen, desktopScreen } from '../voxel/paint.ts';
 import { PALETTE } from '../voxel/palette.ts';
-import { easeOut, flutter, stepAt, type Point } from './motion.ts';
+import { easeOut, flutter, stepAt, tumble, type Point } from './motion.ts';
 
 /** A pointer that moved further than this between press and release was dragging. CSS pixels. */
 const CLICK_SLOP = 5;
-/** Seconds fallen petals stay on the floor. */
+/** Seconds that what fell stays on the floor: petals, then what dropped off the whiteboard or out of a bookcase. */
 const FALLEN = 10;
-const PETALS = 18;
+const DROPPED = 5;
+const PETALS = 28;
 /** How bright a neon tube that has gone out still is. */
 const OUT = 0.12;
+
+/** Where a click happened in the viewport: a picture shown large grows from there. */
+interface Spot {
+  x: number;
+  y: number;
+}
+
+/** What is clicked as one thing: while one of them reacts, the others wait. */
+const GROUPS: Record<string, string> = {
+  ...Object.fromEntries(Object.keys(DOORS).map((door) => [door, door.split('-')[0]])),
+  ...Object.fromEntries(['eraser', ...MARKERS.map((color) => `marker-${color}`)].map((name) => [name, 'whiteboard'])),
+  'manga-east': 'library',
+  'manga-south': 'library',
+  volume: 'library',
+};
 
 /** Start reacting to clicks on the canvas. Returns what stops it. */
 export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => void {
@@ -39,6 +59,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const random = mulberry32(3);
   const between = (a: number, b: number) => a + (b - a) * random();
   const mesh = (name: string) => scene.getObjectByName(name) as Mesh;
+  let running = true;
 
   /** Call `apply` with t going from 0 to 1 in `count` steps over `seconds`. `shadows`: what moves casts one. */
   const move = (seconds: number, count: number, apply: (t: number) => void, shadows = true) =>
@@ -110,12 +131,27 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     matrix.decompose(object.position, object.quaternion, object.scale);
   };
 
+  const corner = new Vector3();
+
+  /** A few words in a bubble over an object, for a moment. Screen readers hear them too. */
+  const say = (name: string, words: string) => {
+    const { at, model, voxel } = mesh(name).userData.placed as Placed;
+    corner.set(at[0] + (model.sx * voxel) / 2, at[1] + model.sy * voxel, at[2] + (model.sz * voxel) / 2).project(app.rig.camera);
+    const bubble = Object.assign(document.createElement('p'), { className: 'bubble', role: 'status', textContent: words });
+    bubble.style.left = `${((corner.x + 1) / 2) * app.pipeline.grid.cssWidth}px`;
+    bubble.style.top = `${((1 - corner.y) / 2) * app.pipeline.grid.cssHeight}px`;
+    canvas.after(bubble);
+    void wait(1.4).then(() => bubble.remove());
+  };
+
   /** One full turn, in steps of 15 degrees, coming to rest. */
   const spin = (name: string) => () => move(1.4, 24, (t) => pose(name, Math.round((360 * easeOut(t)) / 15) * 15));
 
-  /** Little jumps on the spot, in steps of 2.5 cm. */
-  const hop = (name: string, hops: number, height: number) => () =>
-    move(0.3 * hops, 6 * hops, (t) => pose(name, 0, [0, Math.round((Math.abs(Math.sin(t * Math.PI * hops)) * height) / 0.025) * 0.025, 0]));
+  /** Little jumps on the spot, in steps of 2.5 cm at most. */
+  const hop = (name: string, hops = 1, height = 0.05) => () => {
+    const grain = Math.min(0.025, height / 2);
+    return move(0.3 * hops, 6 * hops, (t) => pose(name, 0, [0, Math.round((Math.abs(Math.sin(t * Math.PI * hops)) * height) / grain) * grain, 0]));
+  };
 
   /** The screen flickers, stays broken for `seconds`, then flickers back. */
   const crack = (name: string, paint: (broken: boolean) => Texture, seconds: number) => async () => {
@@ -137,9 +173,10 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const axis = new Vector3();
 
   /**
-   * The sakura shivers and lets petals go, a few at a time. Each one flutters
-   * down its own way and comes to rest at the foot of the tree; they lie
-   * there, then fade. Free to shiver again once they have landed.
+   * The sakura shivers and lets petals go, a few at a time. Each one leaves
+   * the crown and flutters down its own way, to rest on the floor around the
+   * foot of the tree; they lie there, then fade. Free to shiver again once
+   * they have landed.
    */
   const shed = async () => {
     const material = (mesh('sakura').material as [MeshToonMaterial, MeshBasicMaterial])[0].clone();
@@ -150,17 +187,18 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     petals.layers.set(COLOR_ONLY);
     petals.receiveShadow = true;
     petals.frustumCulled = false; // its bounds would be those of the first frame
+    const around = (reach: number): [number, number] => {
+      const bearing = between(0, 2 * Math.PI);
+      return [SAKURA_FOOT.x + Math.cos(bearing) * reach, SAKURA_FOOT.z + Math.sin(bearing) * reach];
+    };
     const paths = Array.from({ length: PETALS }, (_, i) => {
       petals.setColorAt(i, new Color(i % 3 ? PALETTE.blossom : PALETTE.sakura));
-      /* Its spot: on the floor around the front of the pot, clear of the cabinet and of the edge of the room. */
-      const bearing = between(-1.3, 1.3);
-      const reach = between(0.2, 0.5);
-      const z = SAKURA_FOOT.z + Math.cos(bearing) * reach;
-      const x = Math.min(5.98, Math.max(SAKURA_FOOT.x + Math.sin(bearing) * reach, z < 0.64 ? 5.73 : 0));
+      const [x0, z0] = around(between(0.05, SAKURA_CROWN.reach));
+      const [x1, z1] = around(between(0.3, 0.95));
       const heading = between(0, 2 * Math.PI);
       return {
-        from: [SAKURA_FOOT.x + between(-0.38, 0.12), between(0.85, 1.2), SAKURA_FOOT.z + between(-0.12, 0.25)] as Point,
-        to: [x, 0.005, z] as Point,
+        from: [x0, between(SAKURA_CROWN.from, SAKURA_CROWN.to), z0] as Point,
+        to: [Math.min(x1, ROOM.w - 0.3), 0.005, Math.min(z1, ROOM.d - 0.3)] as Point, // clear of the bookcases
         delay: between(0, 0.45),
         swing: { reach: between(0.05, 0.12), swings: between(1.5, 3), along: [Math.cos(heading), Math.sin(heading)] as const },
         turned: between(0, 2 * Math.PI),
@@ -178,7 +216,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     };
     place(0);
     scene.add(petals);
-    await Promise.all([move(0.4, 6, (t) => pose('sakura', 0, [[0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125, 0, 0])), move(3.4, 40, place, false)]);
+    await Promise.all([move(0.4, 6, (t) => pose('sakura', 0, [[0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125, 0, 0])), move(3.6, 44, place, false)]);
     void wait(FALLEN)
       .then(() => move(0.9, 6, (t) => void (material.opacity = 1 - t), false))
       .then(() => {
@@ -229,17 +267,27 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
       [0, neon(1, 1, 1)],
     ]);
 
+  /**
+   * The warning light on the wardrobe: six strong orange flashes, two a
+   * second. Slow enough to be safe for a light that fills the room.
+   */
+  const flash = () => {
+    const lit = (level: number) => () => room.setLevel('beacon', level);
+    return play([...Array.from({ length: 6 }, (): [number, () => void][] => [[170, lit(1)], [330, lit(0)]]).flat(), [0, lit(0)]]);
+  };
+
   /** The PC goes down, or comes back: its lights and its two screens fade in a few steps. */
   const power = () => {
     const on = room.levels.pc === 0;
     return move(0.35, 4, (t) => room.setLevel('pc', on ? t : 1 - t), false);
   };
 
-  /** The lights of the NAS and of its UPS flicker out of step, like drives at work, then all come back. */
-  const blink = () => {
-    const lights = room.lights('homelab');
-    return move(2, 16, (t) => {
-      for (let i = 0; i < lights; i++) room.setGlow('homelab', t === 1 || random() < 0.5 ? 1 : 0.08, i);
+  /** The lights of one colour of an object flicker, each on its own, like drives at work, then all come back. */
+  const blink = (name: string, color: 'cyan' | 'lime', seconds: number) => () => {
+    const lights = room.lights(name, color);
+    const steps = Math.round(seconds * 8);
+    return move(seconds, steps, (t) => {
+      for (const light of lights) room.setGlow(name, t === 1 || random() < 0.5 ? 1 : 0.08, light);
     }, false);
   };
 
@@ -247,9 +295,10 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const SLOT: Point = [0.3, 0.65, -0.7];
   const CLEAR: Point = [0.3, 0.65, -0.2];
 
-  /** A sheet slides out of the printer and flutters down to the floor, to and fro, where it stays. */
+  /** The printer works, its green light blinking: a sheet slides out of it and flutters down to the floor, to and fro, where it stays. */
   const print = async () => {
     const rest = (mesh('cv').userData.placed as Placed).turn ?? 0;
+    void blink('printer', 'lime', 3.2)();
     pose('cv', -rest, SLOT);
     mesh('cv').visible = true;
     await move(0.6, 7, (t) => pose('cv', -rest, [SLOT[0], SLOT[1], SLOT[2] + (CLEAR[2] - SLOT[2]) * t]));
@@ -262,56 +311,173 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   /** The sheet on the floor hands out the CV, when there is one to hand out. */
   const download = () => {
     if (person.cv) Object.assign(document.createElement('a'), { href: person.cv, download: '' }).click();
-    return hop('cv', 1, 0.05)();
+    return hop('cv')();
   };
 
-  /** A framed paper shown large: the real document when there is one, the paper drawn in the room otherwise. */
-  const enlarge = (name: 'frame-bac' | 'frame-toeic') => () => {
+  /** A paper shown large, from where it was clicked: the real document when there is one, the paper drawn in the room otherwise. */
+  const enlarge = (name: keyof typeof enlarged) => async (from: Spot) => {
+    await hop(name, 1, 0.025)();
     const drawn = (mesh(`${name}-picture`).material as MeshToonMaterial).map!.image as HTMLCanvasElement;
-    showPicture(enlarged[name].image ?? drawn, enlarged[name].caption);
+    showPicture(enlarged[name].image ?? drawn, enlarged[name].caption, from);
   };
 
-  /** The whiteboard shown large, as seen face on. */
-  const read = () => {
-    const board = whiteboardNotes(false);
-    showPicture(board.image as HTMLCanvasElement, enlarged.whiteboard.caption);
-    board.dispose();
+  /* The doors that stand open. */
+  const open = new Set<string>();
+
+  /** A door swings on its hinge, in steps: open if it was shut, shut if it was open, unless told which. */
+  const swing = (name: string, wide = !open.has(name)) => {
+    if (wide === open.has(name)) return Promise.resolve();
+    const [from, to] = wide ? [0, DOORS[name]] : [DOORS[name], 0];
+    if (wide) open.add(name);
+    else open.delete(name);
+    return move(0.5, 6, (t) => pose(name, from + (to - from) * t));
   };
 
-  const reactions: Record<string, () => unknown> = {
+  /** A piece of furniture clicked elsewhere than on a door: all its doors open, or all shut if one stood open. */
+  const doors = (furniture: string) => () => {
+    const names = Object.keys(DOORS).filter((door) => door.startsWith(furniture));
+    const wide = !names.some((door) => open.has(door));
+    return Promise.all(names.map((door) => swing(door, wide)));
+  };
+
+  /** The nightstand is locked: it shakes, gives a small jump, and says so. What stands on it goes with it. */
+  const locked = () => {
+    say('nightstand', says.nightstand);
+    return move(0.5, 10, (t) => {
+      const step = Math.round(t * 10);
+      const aside = step === 10 ? 0 : (step % 2 ? 1 : -1) * 0.0125;
+      for (const name of ON_NIGHTSTAND) pose(name, 0, [aside, step > 2 && step < 6 ? 0.025 : 0, 0]);
+    });
+  };
+
+  /** The dog jumps up twice, and barks. */
+  const bark = () => {
+    say('dog', says.dog);
+    return hop('dog', 2, 0.075)();
+  };
+
+  /**
+   * What is on the whiteboard lets go: the magnetic brush, and one or two of
+   * the markers, never the same. They drop past the cabinet to the floor,
+   * turning over, lie there, then jump back to their place.
+   */
+  const drop = async () => {
+    const markers = [...MARKERS].sort(() => random() - 0.5).slice(0, random() < 0.5 ? 1 : 2);
+    const fallen = ['eraser', ...markers.map((color) => `marker-${color}`)].map((name, i) => {
+      const { at } = mesh(name).userData.placed as Placed;
+      return {
+        name,
+        to: [between(-0.25, 0.25), -at[1], between(0.95, 1.2) - at[2]] as Point, // on the floor, in front of the cabinet
+        delay: i * 0.12,
+        spin: between(-200, 200),
+        flips: random() < 0.5 ? 180 : 360,
+      };
+    });
+    const fall = (t: number) =>
+      fallen.forEach(({ name, to, delay, spin, flips }) => {
+        const own = Math.min(1, Math.max(0, (t - delay) / 0.7));
+        pose(name, spin * own, tumble([0, 0, 0], to, own), flips * own);
+      });
+    await move(1.2, 24, fall);
+    await wait(DROPPED);
+    /* The way back is a jump: up fast, then level on to its place. */
+    await move(0.5, 8, (t) => fallen.forEach(({ name, to, spin }) => pose(name, spin * (1 - t), [to[0] * (1 - t), to[1] * (1 - t) ** 2, to[2] * (1 - t)])));
+  };
+
+  /** A volume slips out of the bookcase that was clicked, falls open on the floor in front of it, and is gone a while later. */
+  const pull = (name: string) => async () => {
+    const { from, to } = pulled(name, random(), 2 + Math.floor(random() * 7));
+    const spin = between(-240, 240);
+    mesh('volume').visible = true;
+    await move(1, 20, (t) => pose('volume', spin * t, tumble(from, to, t), 360 * t));
+    await wait(DROPPED);
+    mesh('volume').visible = false;
+    app.invalidate(true);
+  };
+
+  /** The daruma is knocked and rocks back upright, as a daruma does. */
+  const rock = (name: string) => () => move(1.1, 16, (t) => pose(name, 0, [0, 0, 0], Math.round(Math.sin(t * 4 * Math.PI) * (1 - t) * 22)));
+
+  /** Something on wheels rolls away along x and comes back. */
+  const roll = (name: string, reach: number) => () => move(1.2, 16, (t) => pose(name, 0, [Math.round((Math.sin(t * Math.PI) * reach) / 0.00625) * 0.00625, 0, 0]));
+
+  /** The mouse is moved in a loop on its pad. */
+  const circle = (name: string) => () => move(0.9, 14, (t) => pose(name, 0, [Math.sin(t * 2 * Math.PI) * 0.035, 0, (Math.cos(t * 2 * Math.PI) - 1) * 0.025]));
+
+  const reactions: Record<string, (from: Spot) => unknown> = {
     chair: spin('chair'),
-    dog: hop('dog', 2, 0.075),
-    figurines: hop('figurines', 1, 0.05),
+    dog: bark,
+    figurines: hop('figurines'),
     sakura: shed,
     monitor: crack('monitor', desktopScreen, 1), // a glitch: in phase 3 it leads into the projects
     'monitor-side': crack('monitor-side', codeScreen, 8),
+    keyboard: hop('keyboard', 1, 0.0125),
+    mouse: circle('mouse'),
+    'speaker-left': hop('speaker-left', 2, 0.025),
+    'speaker-right': hop('speaker-right', 2, 0.025),
+    dock: hop('dock', 1, 0.025),
     lamp: toggle('lamp'),
+    nightstand: locked,
+    book: hop('book', 1, 0.025),
     neon: buzz,
     pc: power,
-    homelab: blink,
+    homelab: blink('homelab', 'cyan', 2),
     printer: print,
     cv: download,
+    cabinet: doors('cabinet'),
+    wardrobe: doors('wardrobe'),
+    ...Object.fromEntries(Object.keys(DOORS).map((door) => [door, () => swing(door)])),
+    tripod: hop('tripod', 2),
+    beacon: flash,
     'frame-bac': enlarge('frame-bac'),
     'frame-toeic': enlarge('frame-toeic'),
-    whiteboard: read,
+    passes: enlarge('passes'),
+    formulas: enlarge('formulas'),
     calendar: showCalendar,
+    whiteboard: drop,
+    eraser: drop,
+    ...Object.fromEntries(MARKERS.map((color) => [`marker-${color}`, drop])),
+    duo: hop('duo'),
+    meteorite: hop('meteorite', 1, 0.025),
+    liquids: hop('liquids', 1, 0.025),
+    daruma: rock('daruma'),
+    'lucky-cat': hop('lucky-cat', 3, 0.025),
+    car: roll('car', -0.06),
+    tiger: hop('tiger', 2, 0.025),
+    'stamp-book': hop('stamp-book', 1, 0.025),
+    'manga-east': pull('manga-east'),
+    'manga-south': pull('manga-south'),
   };
 
-  /* One reaction at a time for each object. */
+  /* One reaction at a time for each thing. */
   const busy = new Set<string>();
-  const react = (name: string | null) => {
+  const react = (name: string | null, from: Spot) => {
     const reaction = name === null ? undefined : reactions[name];
-    if (!name || !reaction || busy.has(name)) return;
-    busy.add(name);
-    void Promise.resolve(reaction()).finally(() => busy.delete(name));
+    const thing = name && (GROUPS[name] ?? name);
+    if (!thing || !reaction || busy.has(thing)) return;
+    busy.add(thing);
+    void Promise.resolve(reaction(from)).finally(() => busy.delete(thing));
   };
 
-  let pressed: { x: number; y: number } | null = null;
+  /* The dock blinks for as long as its controllers charge. */
+  let charging = true;
+  app.animate((now) => {
+    const lit = still.matches || Math.floor(now / 600) % 2 === 0;
+    if (lit !== charging) {
+      charging = lit;
+      room.setGlow('dock', lit ? 1 : 0.12, 'lime');
+      app.invalidate();
+    }
+    return running;
+  });
+
+  let pressed: Spot | null = null;
   const down = (event: PointerEvent) => {
     pressed = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY } : null;
   };
   const up = (event: PointerEvent) => {
-    if (pressed && Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) <= CLICK_SLOP) react(app.pick(event.clientX, event.clientY));
+    const at = { x: event.clientX, y: event.clientY };
+    if (pressed && Math.hypot(at.x - pressed.x, at.y - pressed.y) <= CLICK_SLOP) react(app.pick(at.x, at.y), at);
     pressed = null;
   };
   const cancel = () => {
@@ -322,6 +488,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   canvas.addEventListener('pointercancel', cancel);
 
   return () => {
+    running = false;
     canvas.removeEventListener('pointerdown', down);
     canvas.removeEventListener('pointerup', up);
     canvas.removeEventListener('pointercancel', cancel);

@@ -9,9 +9,9 @@ import { EMISSIVE, VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
 import type { RoomObject } from './index.ts';
 
-type Point = [number, number, number];
+export type Point = [number, number, number];
 
-interface Look {
+export interface Look {
   skin: number;
   hair: number;
   top: number;
@@ -33,7 +33,7 @@ const radians = (degrees: number) => (degrees * Math.PI) / 180;
  * arms, and a head a quarter of its height under a cap of hair, with two
  * eyes. Returns the centre of its head, for what each figure adds to it.
  */
-function body(m: VoxelModel, [x, y, z]: Point, s: number, look: Look, stance: Stance): Point {
+export function body(m: VoxelModel, [x, y, z]: Point, s: number, look: Look, stance: Stance): Point {
   const at = (dx: number, dy: number, dz: number): Point => [x + dx * s, y + dy * s, z + dz * s];
   const feet = stance.feet ?? [[-3.5, 0, 0], [3.5, 0, 0]];
   feet.forEach(([fx, fy, fz], i) => {
@@ -57,7 +57,7 @@ function body(m: VoxelModel, [x, y, z]: Point, s: number, look: Look, stance: St
 }
 
 /** Balls of one colour: a cloud, a mane, a rock. Each is x, y, z and a radius, flattened a little. */
-function lumps(m: VoxelModel, [x, y, z]: Point, color: number, balls: number[][]): void {
+export function lumps(m: VoxelModel, [x, y, z]: Point, color: number, balls: number[][]): void {
   for (const [dx, dy, dz, r] of balls) m.ball(x + dx, y + dy, z + dz, r, r * 0.85, r, color);
 }
 
@@ -153,5 +153,5 @@ export function figurines(): RoomObject {
   for (const x of [144, 150]) m.paint(x, 8.5, 42, 1.2, 1.6, 1.6, C.ink);
   for (const x of [141.5, 152.5]) m.paint(x, 6, 40.5, 1.6, 1.3, 2, C.rust);
 
-  return { name: 'figurines', voxel: 0.00625, at: [3.45, 2.05, 0.0125], model: m, smooth: true };
+  return { name: 'figurines', voxel: 0.00625, at: [3.45, 2.05, 0.0125], model: m, smooth: true, wall: 'north' };
 }

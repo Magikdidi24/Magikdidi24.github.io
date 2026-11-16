@@ -131,3 +131,19 @@ export function texelFit(
   top -= (row - Math.round(row) - 0.25) * up;
   return { x: left + width / 2, y: top - height / 2, z: paper.z, width, height };
 }
+
+/** The four walls of the room: north is the back wall, west the left one; south and east are the two that the opening view leaves out. */
+export type Wall = 'north' | 'west' | 'south' | 'east';
+
+/**
+ * The walls to draw when the camera stands at `azimuth`, in radians from +z
+ * towards +x. The room is shown as a doll's house: a wall is drawn when the
+ * camera looks at its inner face, and left out when it stands between the
+ * camera and the room, or edge on.
+ */
+export function shownWalls(azimuth: number): Record<Wall, boolean> {
+  const x = Math.sin(azimuth);
+  const z = Math.cos(azimuth);
+  const facing = 1e-6; // exactly edge on counts as hidden
+  return { north: z > facing, south: z < -facing, west: x > facing, east: x < -facing };
+}

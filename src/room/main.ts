@@ -5,6 +5,7 @@
 */
 import { NoToneMapping, PCFShadowMap, WebGLRenderer } from 'three';
 import { createRig, type Rig } from './camera.ts';
+import { stepAt } from './interaction/motion.ts';
 import { createReactions } from './interaction/reactions.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
 import { createScene, ROOM, type RoomScene } from './scene.ts';
@@ -24,8 +25,13 @@ export interface RoomApp {
   /** Recompute the pixel grid and the camera fit, after the viewport or the pixel size changed. */
   resize(): void;
   setNight(night: boolean): void;
+  /** Go round to the other side of the room, half a turn in steps: the walls in front of the camera give way to the two behind it. */
+  turn(): void;
   dispose(): void;
 }
+
+/** The half turn round the room: how long it takes, and in how many steps, of 15 degrees each. */
+const TURN = { seconds: 1.2, steps: 12 };
 
 export async function start(canvas: HTMLCanvasElement, container: HTMLElement): Promise<RoomApp> {
   const renderer = new WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -45,6 +51,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
 
   let dirty = true;
   let frame = 0;
+  let turning = false;
   const animations = new Set<(now: number) => boolean>();
   /** Draw a frame with fresh shadows: the lights changed, or the graphics context came back. */
   const redraw = () => app.invalidate(true);
@@ -78,6 +85,25 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       pipeline.bloomPass.strength = night ? 0.6 : 0.25;
       redraw();
     },
+    turn() {
+      if (turning) return;
+      turning = true;
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let start = -1;
+      let last = 0;
+      app.animate((now) => {
+        if (start < 0) start = now;
+        const step = still ? TURN.steps : stepAt((now - start) / 1000, TURN.seconds, TURN.steps);
+        if (step !== last) {
+          last = step;
+          rig.around(step / TURN.steps);
+          dirty = true;
+        }
+        if (step < TURN.steps) return true;
+        turning = false;
+        return false;
+      });
+    },
     dispose() {
       cancelAnimationFrame(frame);
       stopReactions();
@@ -109,6 +135,8 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     rig.update();
     if (!dirty) return;
     dirty = false;
+    /* The walls that show, and the side the daylight comes from, follow the camera. */
+    if (room.face(rig.azimuth())) renderer.shadowMap.needsUpdate = true;
     renderer.info.reset();
     rig.renderAligned(pipeline.grid, () => pipeline.render());
   };

@@ -39,3 +39,19 @@ export function flutter(from: Point, to: Point, t: number, { reach, swings, alon
     lean: Math.cos(phase) * calm || 0,
   };
 }
+
+/** The share of the way after which something that tumbles hits the ground, and how high it then bounces, as a share of its drop. */
+const LANDS = 0.75;
+const BOUNCE = 0.08;
+
+/**
+ * Where something heavy that slips off is, t from 0 to 1: the brush of the
+ * whiteboard, a marker. It leaves level, drops faster and faster, hits the
+ * ground short of its spot, then bounces once, low, to it.
+ */
+export function tumble(from: Point, to: Point, t: number): Point {
+  const far = t < LANDS ? (t / LANDS) * 0.8 : 0.8 + ((t - LANDS) / (1 - LANDS)) * 0.2; // share of the way across
+  const drop = from[1] - to[1];
+  const height = t < LANDS ? drop * (1 - (t / LANDS) ** 2) : drop * BOUNCE * Math.sin(((t - LANDS) / (1 - LANDS)) * Math.PI);
+  return [from[0] + (to[0] - from[0]) * far, to[1] + height, from[2] + (to[2] - from[2]) * far];
+}

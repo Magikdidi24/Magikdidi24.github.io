@@ -56,6 +56,7 @@ const openSourceMeta = [
       <p class="summary">{openSource.summary}</p>
       <PullRequestList />
       <p class="summary">{openSource.fork.summary} <a href={openSource.fork.url}>The fork on GitHub</a>.</p>
+      <p class="summary">{openSource.driver.project} ({openSource.driver.language}): {openSource.driver.summary} {openSource.driver.note}</p>
       <p><a class="go" href={`/work/${openSource.slug}/`}>Read about the contributions</a></p>
     </Row>
   </div>

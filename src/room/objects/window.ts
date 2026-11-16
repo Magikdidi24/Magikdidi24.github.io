@@ -1,7 +1,7 @@
 /*
   The window in the back wall, above the head of the bed: a frame lining the
-  opening, one cross and a sill deep enough for the dog. No pane: nothing in
-  the scene is transparent.
+  opening, one bar across it and a sill deep enough for the dog. No pane:
+  nothing in the scene is transparent.
 */
 import { VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
@@ -18,6 +18,6 @@ export function windowFrame(): RoomObject {
   const m = new VoxelModel(20, 24, 6);
   m.box(1, 0, 0, 18, 1, 4, C.walnut).box(0, 0, 4, 20, 1, 2, C.walnut); // sill
   m.box(1, 1, 1, 1, 23, 2, C.walnut).box(18, 1, 1, 1, 23, 2, C.walnut).box(1, 23, 1, 18, 1, 2, C.walnut); // frame
-  m.box(9, 1, 1, 2, 22, 1, C.walnut).box(2, 12, 1, 16, 1, 1, C.walnut); // cross
-  return { name: 'window', voxel: 0.05, at: [WINDOW.x0 - 0.05, WINDOW.y0, -WALL], model: m };
+  m.box(2, 18, 1, 16, 1, 1, C.walnut); // one bar across, high up: the tower outside shows whole under it
+  return { name: 'window', voxel: 0.05, at: [WINDOW.x0 - 0.05, WINDOW.y0, -WALL], model: m, wall: 'north' };
 }

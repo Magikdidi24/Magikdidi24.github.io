@@ -22,5 +22,5 @@ export function door(): RoomObject {
   }
   m.box(0, 30, 6, 1, 2, 8, C.paper); // name plate
   m.box(1, 20, 3, 1, 1, 3, C.silver); // handle
-  return { name: 'door', voxel: 0.05, at: [-0.1, 0, DOOR.z0 - 0.05], model: m };
+  return { name: 'door', voxel: 0.05, at: [-0.1, 0, DOOR.z0 - 0.05], model: m, wall: 'west' };
 }

@@ -18,7 +18,7 @@ export const person = {
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',
   /** His dog, curled up on the bed of the 3D room. */
   dog: 'Elfy',
-  /** His birthday, without the year: a cross on the calendar of the 3D room. */
+  /** His birthday, without the year: circled on the calendar of the 3D room. */
   birthday: { month: 9, day: 23 },
   /** The CV that the printer of the 3D room hands out. Its copy in public/ has no phone number. */
   cv: '/Samuel_Berthelot_Resume.pdf' as string | null,
@@ -99,7 +99,7 @@ export const education = [
 
 export const languages = [
   { name: 'French', level: 'Native' },
-  { name: 'English', level: 'Professional working proficiency (TOEIC Listening and Reading 860/990, May 2026)' },
+  { name: 'English', level: 'Professional working proficiency (TOEIC Listening and Reading 860/990, Feb 2026)' },
   { name: 'Japanese', level: 'Elementary, studying for the JLPT N5' },
 ] as const;
 
@@ -177,6 +177,13 @@ export const openSource = {
     { repo: 'rubocop/rubocop', number: 14818, url: 'https://github.com/rubocop/rubocop/pull/14818', status: 'merged', date: 'Jan 2026', topic: 'Fixes a Layout/IndentationWidth regression in RuboCop 1.84.0' },
   ] as { repo: string; number: number; url: string; status: PullRequestStatus; date: string; topic: string }[],
   rubocopPrsUrl: 'https://github.com/rubocop/rubocop/pulls?q=author%3AMagikdidi24',
+  /* From his CV. The pull request is on a private repository: there is no link to give. */
+  driver: {
+    project: 'NVIDIA open-gpu-kernel-modules',
+    language: 'C',
+    summary: 'Fixed image duplication on split-head displays, enabling 5K at 120 Hz on the HTC Vive Pro 2.',
+    note: 'The pull request is on a private repository.',
+  },
   fork: {
     name: 'tree-sitter-ruby',
     url: 'https://github.com/Magikdidi24/tree-sitter-ruby',

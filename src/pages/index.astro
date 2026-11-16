@@ -26,7 +26,12 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     ></canvas>
     <header class="hud">
       <h1>{person.name}</h1>
-      <a href="/classic/">Text version</a>
+      <div class="tools">
+        <!-- Shown once the room is drawn: see the script below. -->
+        <button type="button" id="turn" aria-pressed="false" hidden>Turn around</button>
+        <button type="button" id="night" aria-pressed="false" hidden>Night</button>
+        <a href="/classic/">Text version</a>
+      </div>
     </header>
     <p class="loader" role="status">Loading the room</p>
     <noscript>
@@ -66,6 +71,39 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
   const toTextVersion = () => location.replace(textVersion + location.hash);
 
+  /* Day or night is the visitor's choice once made. Storage can be closed to the page: the choice is then for this visit only. */
+  const CHOICE = 'room-night';
+  const chosen = (): string | null => {
+    try {
+      return localStorage.getItem(CHOICE);
+    } catch {
+      return null;
+    }
+  };
+
+  /** The two buttons of the room: the other side, and day or night. */
+  function controls(app: import('../room/main.ts').RoomApp): void {
+    const turn = root.querySelector('#turn') as HTMLButtonElement;
+    const night = root.querySelector('#night') as HTMLButtonElement;
+    const saved = chosen();
+    if (saved) app.setNight(saved === '1');
+    night.setAttribute('aria-pressed', String(app.room.night));
+    night.onclick = () => {
+      app.setNight(!app.room.night);
+      night.setAttribute('aria-pressed', String(app.room.night));
+      try {
+        localStorage.setItem(CHOICE, app.room.night ? '1' : '0');
+      } catch {
+        /* Not remembered, then. */
+      }
+    };
+    turn.onclick = () => {
+      turn.setAttribute('aria-pressed', String(!app.rig.behind));
+      app.turn();
+    };
+    turn.hidden = night.hidden = false;
+  }
+
   if (!supported()) {
     toTextVersion();
   } else {
@@ -73,8 +111,9 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     requestAnimationFrame(async () => {
       try {
         const { start } = await import('../room/main.ts');
-        await start(canvas, root);
+        const app = await start(canvas, root);
         loader.hidden = true;
+        controls(app);
       } catch (error) {
         if (import.meta.env.DEV) throw error;
         toTextVersion();
@@ -116,18 +155,53 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     pointer-events: none;
   }
 
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
   h1,
-  .hud a {
+  .hud a,
+  .hud button {
     display: inline-flex;
     align-items: center;
     min-height: 2.75rem;
     padding: 0 var(--space-3);
+    border: 0;
     background: var(--room-ink);
-    font-size: inherit;
+    color: inherit;
+    font: inherit;
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1;
     pointer-events: auto;
+  }
+
+  .hud button {
+    cursor: pointer;
+  }
+
+  .hud [hidden] {
+    display: none;
+  }
+
+  /* A button that is on: the room seen from behind, the night. */
+  .hud [aria-pressed='true'] {
+    background: var(--room-paper);
+    color: var(--room-ink);
+  }
+
+  /* A few words over an object of the room, put there by a click (src/room/interaction/reactions.ts). */
+  .room :global(.bubble) {
+    position: absolute;
+    padding: var(--space-2) var(--space-3);
+    border: 2px solid var(--room-ink);
+    background: var(--room-paper);
+    color: var(--room-ink);
+    pointer-events: none;
+    transform: translate(-50%, calc(-100% - 0.5rem));
   }
 
   /* One centred line of text, kept as a plain block so a link stays inline. */
@@ -161,6 +235,50 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
   .sheet::backdrop {
     background: rgb(26 20 35 / 0.8);
+  }
+
+  /* A sheet pops out of what was clicked: it grows from that point of the room, which the script gives it, to the middle of the page. */
+  @keyframes pop {
+    from {
+      opacity: 0.3;
+      transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.05) rotate(-12deg);
+    }
+
+    60% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dim {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes ring {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet[open] {
+      animation: pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+    }
+
+    .sheet[open]::backdrop {
+      animation: dim 0.3s ease-out;
+    }
+
+    .room :global(.bubble) {
+      animation: pop 0.2s steps(4);
+    }
+
+    /* The ring is drawn once the calendar is open. */
+    .months :global(.marked path) {
+      stroke-dashoffset: 100;
+      animation: ring 0.6s 0.5s ease-out forwards;
+    }
   }
 
   .sheet figure {
@@ -244,11 +362,28 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     outline-offset: -2px;
   }
 
-  /* The cross: two diagonals over the day. */
+  /* The day that is circled: a ring drawn by hand, in red marker, wider than its cell as a real one would be. */
   .months :global(.marked) {
-    background:
-      linear-gradient(to top right, transparent calc(50% - 1px), var(--room-red) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
-      linear-gradient(to bottom right, transparent calc(50% - 1px), var(--room-red) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px));
+    position: relative;
+  }
+
+  .months :global(.marked svg) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.75rem;
+    max-width: none; /* the site keeps pictures inside their box */
+    height: 2.75rem;
+    overflow: visible;
+    transform: translate(-50%, -50%);
+  }
+
+  .months :global(.marked path) {
+    fill: none;
+    stroke: var(--room-red);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
   }
 
   @media (scripting: none) {

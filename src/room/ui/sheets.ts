@@ -12,8 +12,10 @@ const sheet = (id: string) => document.getElementById(id) as HTMLDialogElement;
 /**
  * Show a picture large: an image file, or a canvas of the room, enlarged by a
  * whole number so that its pixels stay square. `caption` says what it shows.
+ * The sheet grows from `from`, the point of the viewport that was clicked:
+ * the page animates it from there (see .sheet in index.astro).
  */
-export function showPicture(picture: HTMLCanvasElement | string, caption: string): void {
+export function showPicture(picture: HTMLCanvasElement | string, caption: string, from?: { x: number; y: number }): void {
   const dialog = sheet('zoom');
   const image = new Image();
   image.alt = caption;
@@ -22,14 +24,22 @@ export function showPicture(picture: HTMLCanvasElement | string, caption: string
   } else {
     const scale = Math.max(1, Math.floor(Math.min((innerWidth * 0.9) / picture.width, (innerHeight * 0.72) / picture.height)));
     image.src = picture.toDataURL();
-    image.width = picture.width * scale;
-    image.height = picture.height * scale;
+    /* As a style: the page sizes the pictures of a sheet itself, and would win over a width attribute. */
+    image.style.width = `${picture.width * scale}px`;
+    image.style.height = `${picture.height * scale}px`;
     image.className = 'pixels';
   }
   dialog.setAttribute('aria-label', caption);
   dialog.querySelector('figure')!.replaceChildren(image);
-  dialog.showModal();
+  dialog.style.setProperty('--from-x', `${(from?.x ?? innerWidth / 2) - innerWidth / 2}px`);
+  dialog.style.setProperty('--from-y', `${(from?.y ?? innerHeight / 2) - innerHeight / 2}px`);
+  /* Once the picture has its size: the sheet would open small and jump otherwise. */
+  const show = () => dialog.showModal();
+  void image.decode().then(show, show);
 }
+
+/** A ring drawn by hand around a day, in a square of 44: it overshoots where it closes. */
+const RING = '<svg viewBox="0 0 44 44" aria-hidden="true"><path pathLength="100" d="M12 9C23 2 38 7 37 21C36 35 15 39 7 28C1 18 9 5 26 6"/></svg>';
 
 const MONTH = new Intl.DateTimeFormat('en', { month: 'long' });
 const DAY = { short: new Intl.DateTimeFormat('en', { weekday: 'narrow' }), long: new Intl.DateTimeFormat('en', { weekday: 'long' }) };
@@ -52,6 +62,7 @@ function month(year: number, index: number, today: Date): HTMLTableElement {
       cell.textContent = String(day);
       if (index === birthday.month && day === birthday.day) {
         cell.className = 'marked';
+        cell.insertAdjacentHTML('beforeend', RING);
         cell.title = birthday.label;
         cell.setAttribute('aria-label', `${day}, ${birthday.label}`);
       }
