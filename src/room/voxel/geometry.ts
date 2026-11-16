@@ -8,8 +8,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { buildMesh, type VoxelModel } from './builder.ts';
 import { COLORS } from './palette.ts';
 
-function attributes(model: VoxelModel, voxel: number, id: number) {
-  const mesh = buildMesh(model, COLORS, { voxel, id });
+function attributes(model: VoxelModel, voxel: number, id: number, smooth = false) {
+  const mesh = buildMesh(model, COLORS, { voxel, id, smooth });
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(mesh.positions, 3));
   geometry.setAttribute('normal', new BufferAttribute(mesh.normals, 3));
@@ -19,8 +19,8 @@ function attributes(model: VoxelModel, voxel: number, id: number) {
 }
 
 /** One object on its own: a geometry with its origin at the corner of the model. */
-export function voxelGeometry(model: VoxelModel, voxel: number, id: number): BufferGeometry {
-  const { geometry, mesh } = attributes(model, voxel, id);
+export function voxelGeometry(model: VoxelModel, voxel: number, id: number, smooth = false): BufferGeometry {
+  const { geometry, mesh } = attributes(model, voxel, id, smooth);
   geometry.setIndex(new BufferAttribute(mesh.indices, 1));
   geometry.addGroup(0, mesh.emissiveStart, 0);
   /* No draw call for an object that has nothing emissive. */
@@ -36,6 +36,8 @@ export interface Placed {
   at: [number, number, number];
   /** Rotation around the vertical axis through the centre of the model, in degrees. */
   turn?: number;
+  /** Shade it as a round shape: for models sculpted in very small voxels. */
+  smooth?: boolean;
 }
 
 /** Where a placed model stands: its turn around its own centre, then its position. */
@@ -56,7 +58,7 @@ export function mergedGeometry(objects: Placed[]): { lit: BufferGeometry; glow: 
   const lit: BufferGeometry[] = [];
   const glow: BufferGeometry[] = [];
   for (const object of objects) {
-    const { geometry, mesh } = attributes(object.model, object.voxel, object.id);
+    const { geometry, mesh } = attributes(object.model, object.voxel, object.id, object.smooth);
     geometry.applyMatrix4(placement(object));
     /* The same vertices, drawn through two index lists. */
     const part = (from: number, to: number) => geometry.clone().setIndex(new BufferAttribute(mesh.indices.slice(from, to), 1));

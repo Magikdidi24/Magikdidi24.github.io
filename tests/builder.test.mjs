@@ -155,3 +155,90 @@ test('picture: on a side wall the rows run along z', () => {
 test('slices: an unknown character is an error, not a silent hole', () => {
   assert.throws(() => new VoxelModel(1, 1, 1).slices(0, 0, 0, [['?']], { '#': WHITE }), /\?/);
 });
+
+// Round shapes and smooth shading, for the finely sculpted objects.
+
+const count = (model) => {
+  let n = 0;
+  for (let z = 0; z < model.sz; z++) for (let y = 0; y < model.sy; y++) for (let x = 0; x < model.sx; x++) if (model.get(x, y, z)) n++;
+  return n;
+};
+
+test('ball: fills an ellipsoid around its centre', () => {
+  const m = new VoxelModel(20, 20, 20).ball(10, 10, 10, 6, 6, 6, WHITE);
+  assert.equal(m.get(10, 10, 10), WHITE);
+  assert.equal(m.get(15, 10, 10), WHITE, 'its edge along x');
+  assert.equal(m.get(16, 10, 10), 0, 'just outside');
+  assert.equal(m.get(14, 14, 14), 0, 'the corner of its box');
+  near(count(m), (4 / 3) * Math.PI * 6 ** 3, 60);
+});
+
+test('ball: radii differ along each axis, and colour 0 carves', () => {
+  const m = new VoxelModel(20, 20, 20).ball(10, 10, 10, 8, 2, 4, WHITE);
+  assert.equal(m.get(17, 10, 10), WHITE);
+  assert.equal(m.get(10, 13, 10), 0);
+  assert.equal(m.get(10, 10, 13), WHITE);
+  m.ball(10, 10, 10, 2, 2, 2, 0);
+  assert.equal(m.get(10, 10, 10), 0);
+  assert.equal(m.get(15, 10, 10), WHITE);
+});
+
+test('limb: every voxel within reach of a segment, thinner towards its end', () => {
+  const m = new VoxelModel(30, 12, 12).limb([4, 6, 6], [24, 6, 6], 4, 1.5, WHITE);
+  assert.equal(m.get(4, 6, 6), WHITE);
+  assert.equal(m.get(24, 6, 6), WHITE);
+  assert.equal(m.get(5, 9, 6), WHITE, 'thick where it starts');
+  assert.equal(m.get(23, 9, 6), 0, 'thin where it ends');
+  assert.equal(m.get(1, 6, 6), WHITE, 'rounded beyond its start');
+  assert.equal(m.get(27, 6, 6), 0);
+});
+
+test('paint: recolours what is filled and fills nothing', () => {
+  const m = new VoxelModel(12, 12, 12).box(0, 0, 0, 12, 4, 12, WHITE).paint(6, 4, 6, 3, 3, 3, GREY);
+  assert.equal(m.get(6, 3, 6), GREY);
+  assert.equal(m.get(6, 5, 6), 0, 'above the slab stays empty');
+  assert.equal(m.get(0, 3, 0), WHITE, 'out of reach');
+});
+
+test('buildMesh smooth: the normals of a ball point away from its centre and turn gradually', () => {
+  const m = new VoxelModel(24, 24, 24).ball(12, 12, 12, 9, 9, 9, WHITE);
+  const mesh = buildMesh(m, palette, { voxel: 1, smooth: true });
+  assert.ok(faces(mesh) > 100);
+  let slanted = 0;
+  for (let i = 0; i < mesh.positions.length / 3; i++) {
+    const { position, normal } = vertex(mesh, i);
+    const out = position.map((c) => c - 12);
+    const length = Math.hypot(...out);
+    near(Math.hypot(...normal), 1, 1e-5);
+    const facing = normal.reduce((sum, c, k) => sum + c * out[k], 0) / length;
+    assert.ok(facing > 0.9, `a normal looks ${facing} away from the centre`);
+    if (normal.every((c) => Math.abs(c) < 0.95)) slanted++;
+  }
+  assert.ok(slanted > mesh.positions.length / 3 / 2, 'most normals are off the axes');
+});
+
+test('buildMesh smooth: a flat face keeps its normal and its full colour', () => {
+  const m = new VoxelModel(16, 4, 16).box(0, 0, 0, 16, 4, 16, WHITE);
+  const mesh = buildMesh(m, palette, { voxel: 1, smooth: true });
+  const middle = facing(mesh, [0, 1, 0]).filter((v) => v.position[0] === 8 && v.position[2] === 8);
+  assert.ok(middle.length > 0);
+  for (const v of middle) near(v.color[0], 1);
+});
+
+test('buildMesh smooth: a hollow is darker than the open surface around it', () => {
+  const m = new VoxelModel(20, 12, 20).box(0, 0, 0, 20, 4, 20, WHITE).box(0, 4, 0, 10, 8, 20, WHITE);
+  const mesh = buildMesh(m, palette, { voxel: 1, smooth: true });
+  const at = (x, y, z) => {
+    for (let i = 0; i < mesh.positions.length / 3; i++) {
+      const v = vertex(mesh, i);
+      if (v.position[0] === x && v.position[1] === y && v.position[2] === z) return v;
+    }
+    throw new Error(`no vertex at ${x}, ${y}, ${z}`);
+  };
+  const inner = at(10, 4, 10).color[0]; // where the floor meets the wall
+  const open = at(17, 4, 10).color[0]; // out on the floor
+  near(open, 1);
+  assert.ok(inner < 0.85, `the hollow is at ${inner}`);
+  const beside = at(12, 4, 10).color[0]; // two voxels out: a flat-shaded model is at full colour there
+  assert.ok(beside < 0.97 && beside > inner, `two voxels from the wall it is at ${beside}`);
+});

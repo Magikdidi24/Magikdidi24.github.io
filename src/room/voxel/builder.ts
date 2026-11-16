@@ -69,6 +69,49 @@ export class VoxelModel {
     return this;
   }
 
+  /** Calls `visit` for each cell whose centre lies in an ellipsoid. Centre and radii in voxels. */
+  private within(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, visit: (x: number, y: number, z: number) => void): void {
+    for (let z = Math.max(0, Math.floor(cz - rz)); z < Math.min(this.sz, cz + rz); z++) {
+      for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(this.sy, cy + ry); y++) {
+        for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(this.sx, cx + rx); x++) {
+          if (((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 + ((z + 0.5 - cz) / rz) ** 2 <= 1) visit(x, y, z);
+        }
+      }
+    }
+  }
+
+  /** Fill an ellipsoid: centre and radii in voxels, halves allowed. Colour 0 carves. */
+  ball(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, color: number): this {
+    this.within(cx, cy, cz, rx, ry, rz, (x, y, z) => this.set(x, y, z, color));
+    return this;
+  }
+
+  /** Recolour what is already filled inside an ellipsoid: a patch of fur, an eye, a stripe. */
+  paint(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, color: number): this {
+    this.within(cx, cy, cz, rx, ry, rz, (x, y, z) => this.get(x, y, z) !== 0 && this.set(x, y, z, color));
+    return this;
+  }
+
+  /** A rounded limb: every cell within reach of the segment from `a` to `b`, the reach going from `ra` to `rb`. */
+  limb(a: readonly [number, number, number], b: readonly [number, number, number], ra: number, rb: number, color: number): this {
+    const reach = Math.max(ra, rb);
+    const axis = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const length2 = axis[0] ** 2 + axis[1] ** 2 + axis[2] ** 2;
+    const from = (k: number) => Math.floor(Math.min(a[k], b[k]) - reach);
+    const to = (k: number) => Math.max(a[k], b[k]) + reach;
+    for (let z = from(2); z < to(2); z++) {
+      for (let y = from(1); y < to(1); y++) {
+        for (let x = from(0); x < to(0); x++) {
+          const p = [x + 0.5 - a[0], y + 0.5 - a[1], z + 0.5 - a[2]];
+          const t = length2 === 0 ? 0 : Math.min(1, Math.max(0, (p[0] * axis[0] + p[1] * axis[1] + p[2] * axis[2]) / length2));
+          const distance = Math.hypot(p[0] - axis[0] * t, p[1] - axis[1] * t, p[2] - axis[2] * t);
+          if (distance <= ra + (rb - ra) * t) this.set(x, y, z, color);
+        }
+      }
+    }
+    return this;
+  }
+
   /**
    * Layers of text for organic shapes, bottom layer first. In a layer each
    * string is a row along z and each character a voxel along x, looked up
@@ -122,13 +165,23 @@ const CORNERS = [
 /** Brightness of a vertex with 0, 1, 2 or 3 solid neighbours in front of its face. */
 const OCCLUSION = [1, 0.84, 0.7, 0.56];
 
+/* Smooth shading looks at the cells within REACH of a corner of the grid. A
+   corner that is buried in matter loses up to HOLLOW of its brightness. */
+const REACH = 3;
+const HOLLOW = 0.5;
+
 /**
  * One mesh for a model: a quad per visible face, vertex colours from the
  * palette (index 0 is unused), and ambient occlusion from the three cells
  * that touch each vertex in front of its face, as in Minecraft.
+ *
+ * `smooth` is for models sculpted in voxels much smaller than a pixel of the
+ * room: each vertex then gets the direction that leads away from the matter
+ * around it as its normal, and is darkened by how enclosed it is. The faces
+ * stay those of the voxels; the light runs over them as over a round shape.
  */
-export function buildMesh(model: VoxelModel, palette: readonly string[], options: { voxel: number; id?: number }): VoxelMesh {
-  const { voxel, id = 0 } = options;
+export function buildMesh(model: VoxelModel, palette: readonly string[], options: { voxel: number; id?: number; smooth?: boolean }): VoxelMesh {
+  const { voxel, id = 0, smooth = false } = options;
   const colors = palette.map((hex) => (hex ? hexToLinear(hex) : [0, 0, 0]));
   const positions: number[] = [];
   const normals: number[] = [];
@@ -137,6 +190,35 @@ export function buildMesh(model: VoxelModel, palette: readonly string[], options
   const lit: number[] = [];
   const emissive: number[] = [];
   const solid = (x: number, y: number, z: number) => (model.get(x, y, z) !== 0 ? 1 : 0);
+
+  /* Normal and brightness at a corner of the grid, for smooth shading. Computed once per corner. */
+  const corners = new Map<number, [number, number, number, number]>();
+  const rounded = (cx: number, cy: number, cz: number) => {
+    const key = cx + (model.sx + 1) * (cy + (model.sy + 1) * cz);
+    let corner = corners.get(key);
+    if (!corner) {
+      let gx = 0;
+      let gy = 0;
+      let gz = 0;
+      let filled = 0;
+      for (let dz = -REACH; dz < REACH; dz++) {
+        for (let dy = -REACH; dy < REACH; dy++) {
+          for (let dx = -REACH; dx < REACH; dx++) {
+            if (!solid(cx + dx, cy + dy, cz + dz)) continue;
+            gx -= dx + 0.5;
+            gy -= dy + 0.5;
+            gz -= dz + 0.5;
+            filled++;
+          }
+        }
+      }
+      const length = Math.hypot(gx, gy, gz) || 1;
+      const buried = Math.max(0, filled / (2 * REACH) ** 3 - 0.5) * 2; // 0 on a flat surface, 1 inside matter
+      corner = [gx / length, gy / length, gz / length, 1 - HOLLOW * buried];
+      corners.set(key, corner);
+    }
+    return corner;
+  };
 
   for (let z = 0; z < model.sz; z++) {
     for (let y = 0; y < model.sy; y++) {
@@ -157,14 +239,17 @@ export function buildMesh(model: VoxelModel, palette: readonly string[], options
           const first = positions.length / 3;
           const shade: number[] = [];
           for (const [su, sv] of CORNERS) {
-            positions.push(
-              (x + 0.5 + 0.5 * (n[0] + su * u[0] + sv * v[0])) * voxel,
-              (y + 0.5 + 0.5 * (n[1] + su * u[1] + sv * v[1])) * voxel,
-              (z + 0.5 + 0.5 * (n[2] + su * u[2] + sv * v[2])) * voxel,
-            );
-            normals.push(n[0], n[1], n[2]);
+            const cx = x + 0.5 + 0.5 * (n[0] + su * u[0] + sv * v[0]);
+            const cy = y + 0.5 + 0.5 * (n[1] + su * u[1] + sv * v[1]);
+            const cz = z + 0.5 + 0.5 * (n[2] + su * u[2] + sv * v[2]);
+            positions.push(cx * voxel, cy * voxel, cz * voxel);
+            const round = smooth && !glows ? rounded(cx, cy, cz) : null;
+            /* Matter evenly spread around a corner leaves no direction: the face keeps its own. */
+            if (round && (round[0] !== 0 || round[1] !== 0 || round[2] !== 0)) normals.push(round[0], round[1], round[2]);
+            else normals.push(n[0], n[1], n[2]);
             let brightness = 1;
-            if (!glows) {
+            if (round) brightness = round[3];
+            else if (!glows) {
               const side1 = solid(fx + su * u[0], fy + su * u[1], fz + su * u[2]);
               const side2 = solid(fx + sv * v[0], fy + sv * v[1], fz + sv * v[2]);
               const corner = solid(fx + su * u[0] + sv * v[0], fy + su * u[1] + sv * v[1], fz + su * u[2] + sv * v[2]);
