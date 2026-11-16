@@ -3,54 +3,65 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { BOARD, notes, strokes } from '../src/data/whiteboard.ts';
-import { GLYPHS, typeset } from '../src/room/voxel/text.ts';
+import { LARGE, SMALL, typeset } from '../src/room/voxel/text.ts';
 
 const key = ([x, y]) => `${x},${y}`;
-const rows = (line) => line.pixels.map(([, y]) => y);
 const columns = (line) => line.pixels.map(([x]) => x);
+/** The lowest and highest row of the ink between two columns. */
+const span = (line, from, to) => {
+  const ys = line.pixels.filter(([x]) => x >= from && x <= to).map(([, y]) => y);
+  return [Math.min(...ys), Math.max(...ys)];
+};
 
 test('typeset: one glyph gives its pixels, from the top of a capital', () => {
   const line = typeset('L');
-  assert.equal(line.width, 3);
-  assert.deepEqual(new Set(line.pixels.map(key)), new Set(['0,0', '0,1', '0,2', '0,3', '0,4', '1,4', '2,4']));
+  assert.equal(line.width, 5);
+  const upright = [0, 1, 2, 3, 4, 5, 6].map((y) => `0,${y}`);
+  assert.deepEqual(new Set(line.pixels.map(key)), new Set([...upright, '1,6', '2,6', '3,6', '4,6']));
 });
 
-test('typeset: glyphs follow each other one pixel apart, a space is two pixels', () => {
-  assert.equal(typeset('LL').width, 7);
-  assert.equal(typeset('L L').width, 9);
-  assert.equal(Math.min(...columns(typeset('LL')).filter((x) => x > 2)), 4);
+test('typeset: glyphs follow each other one pixel apart, a space is three pixels', () => {
+  assert.equal(typeset('LL').width, 11);
+  assert.equal(typeset('L L').width, 14);
+  assert.equal(Math.min(...columns(typeset('LL')).filter((x) => x > 4)), 6);
 });
 
-test('typeset: ^ raises the next glyph by two pixels, _ lowers it', () => {
-  assert.equal(Math.min(...rows(typeset('L^L'))), -2);
-  assert.equal(Math.max(...rows(typeset('L_L'))), 6);
-  assert.equal(Math.min(...rows(typeset('L_L'))), 0);
+test('typeset: ^ writes the next glyph small and raised, _ small and lowered', () => {
+  assert.deepEqual(span(typeset('L^L'), 6, 8), [-2, 2]);
+  assert.deepEqual(span(typeset('L_L'), 6, 8), [4, 8]);
+  assert.equal(typeset('L^L').width, 9);
 });
 
-test('typeset: braces group a script, and the line comes back down after it', () => {
+test('typeset: braces group a script, and the line comes back to full size after it', () => {
   const line = typeset('L^{LL}L');
-  const span = (from, to) => rows({ pixels: line.pixels.filter(([x]) => x >= from && x <= to) });
-  assert.equal(line.width, 15);
-  assert.deepEqual([Math.min(...span(0, 2)), Math.max(...span(0, 2))], [0, 4]);
-  assert.deepEqual([Math.min(...span(4, 10)), Math.max(...span(4, 10))], [-2, 2]);
-  assert.deepEqual([Math.min(...span(12, 14)), Math.max(...span(12, 14))], [0, 4]);
+  assert.equal(line.width, 19);
+  assert.deepEqual(span(line, 0, 4), [0, 6]);
+  assert.deepEqual(span(line, 6, 12), [-2, 2]);
+  assert.deepEqual(span(line, 14, 18), [0, 6]);
 });
 
 test('typeset: a command names a glyph and swallows the space that ends it', () => {
-  assert.equal(typeset('\\pi').width, GLYPHS.pi[0].length);
-  assert.equal(typeset('\\pi L').width, typeset('\\pi').width + 1 + 3);
+  assert.equal(typeset('\\pi').width, LARGE.pi[0].length);
+  assert.equal(typeset('\\pi L').width, typeset('\\pi').width + 1 + 5);
 });
 
 test('typeset: a character with no glyph is an error', () => {
   assert.throws(() => typeset('L@'), /no glyph/);
   assert.throws(() => typeset('\\nope'), /no glyph/);
+  assert.throws(() => typeset('L^@'), /no glyph/);
 });
 
-test('font: every glyph is a rectangle of 5 rows, or 6 with a descender', () => {
-  for (const [name, glyph] of Object.entries(GLYPHS)) {
-    assert.ok(glyph.length === 5 || glyph.length === 6, `${name} has ${glyph.length} rows`);
-    assert.ok(glyph.every((row) => row.length === glyph[0].length && /^[#.]+$/.test(row)), `${name} is ragged`);
+test('fonts: every glyph is a rectangle, with one or two rows under the line at most', () => {
+  for (const [glyphs, heights] of [[LARGE, [7, 9]], [SMALL, [5, 6]]]) {
+    for (const [name, glyph] of Object.entries(glyphs)) {
+      assert.ok(heights.includes(glyph.length), `${name} has ${glyph.length} rows`);
+      assert.ok(glyph.every((row) => row.length === glyph[0].length && /^[#.]+$/.test(row)), `${name} is ragged`);
+    }
   }
+});
+
+test('fonts: what the large font can write, the small one can raise', () => {
+  assert.deepEqual(Object.keys(SMALL).sort(), Object.keys(LARGE).sort());
 });
 
 test('whiteboard: every note fits on the board and none touches another', () => {
