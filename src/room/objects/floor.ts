@@ -1,5 +1,5 @@
 /*
-  The rug and the plants.
+  The rug, the sakura and the small plants.
 */
 import { VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
@@ -38,16 +38,27 @@ function leaves(m: VoxelModel, x: number, y: number, z: number, size: number, he
   }
 }
 
-/** Floor plant, 1.1 m high, in the corner right of the cabinet. */
-export function bigPlant(): RoomObject {
-  const m = new VoxelModel(7, 22, 7);
-  m.box(1, 0, 1, 5, 4, 5, C.sage).box(1, 4, 1, 5, 1, 5, C.linen).box(2, 4, 2, 3, 1, 3, C.walnut); // pot, rim, soil
-  m.box(3, 5, 3, 1, 6, 1, C.moss); // stem
-  leaves(m, 1, 10, 1, 5, 4);
-  leaves(m, 0, 13, 2, 4, 3);
-  leaves(m, 3, 14, 0, 4, 4);
-  leaves(m, 2, 17, 2, 3, 4);
-  return { name: 'plant', voxel: 0.05, at: [5.72, 0, 0.05], model: m };
+/** The middle of the pot of the sakura, on the floor: what falls from the tree lands around it. Metres. */
+export const SAKURA_FOOT = { x: 5.8675, z: 0.22 };
+
+/**
+ * A sakura in a pot, in the corner right of the cabinet: a leaning trunk,
+ * three branches and clouds of blossom, deeper pink underneath. Voxels of
+ * 1.25 cm, shaded as round shapes: 1.25 m high.
+ */
+export function sakura(): RoomObject {
+  const m = new VoxelModel(56, 104, 48);
+  m.limb([39, 1, 16], [39, 12, 16], 9, 10.5, C.sage); // pot
+  m.ball(39, 13.5, 16, 11.5, 2, 11.5, C.linen).ball(39, 14.5, 16, 9, 1.5, 9, C.walnut); // its rim, and the soil
+  m.limb([39, 14, 16], [34, 40, 18], 3.6, 3, C.walnut).limb([34, 40, 18], [30, 62, 20], 3, 2.4, C.walnut); // trunk
+  m.limb([33, 44, 18], [44, 68, 14], 2.2, 1.4, C.walnut).limb([31, 56, 19], [17, 74, 25], 2, 1.2, C.walnut).limb([30, 62, 20], [33, 86, 22], 2, 1.2, C.walnut);
+  const clouds = [[30, 80, 22, 13], [44, 73, 15, 10], [17, 78, 26, 10], [35, 93, 21, 9], [23, 92, 24, 8.5], [41, 86, 27, 8], [22, 68, 16, 7.5], [36, 70, 30, 7]];
+  for (const [x, y, z, r] of clouds) {
+    m.ball(x, y, z, r, r * 0.85, r, C.blossom);
+    m.paint(x - r * 0.3, y - r * 0.45, z + r * 0.2, r * 0.75, r * 0.5, r * 0.75, C.sakura);
+    m.paint(x + r * 0.2, y + r * 0.5, z - r * 0.1, r * 0.45, r * 0.3, r * 0.45, C.paper);
+  }
+  return { name: 'sakura', voxel: 0.0125, at: [SAKURA_FOOT.x - 39.5 * 0.0125, 0, SAKURA_FOOT.z - 16.5 * 0.0125], model: m, smooth: true };
 }
 
 /** A small potted plant, 15 cm across. */

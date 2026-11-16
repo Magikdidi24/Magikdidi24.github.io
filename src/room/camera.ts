@@ -39,10 +39,10 @@ export interface Rig {
   zoomStep: number;
   /** Metres of depth kept in front of and behind the target. Sets the scale of the depth outlines. */
   setDepthRange(front: number, back: number): void;
-  /** Let the controls move the camera. True when the view changed. */
-  update(): boolean;
-  /** Fit the room in a viewport with the aspect ratio of the pixel grid. */
-  fit(grid: Grid): void;
+  /** Let the controls move the camera: what is left of a drag, the limits of the view. */
+  update(): void;
+  /** Fit the room in a viewport with the aspect ratio of the pixel grid. Returns the size of a pixel in the room at zoom 1, in metres. */
+  fit(grid: Grid): number;
   /** Draw from the pose aligned to the grid, then restore the true pose. */
   renderAligned(grid: Grid, draw: () => void): void;
   /** The true view, in the units of DEFAULT_VIEW. */
@@ -95,7 +95,7 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
       /* Zooming out brings the room back to the middle. */
       const close = MathUtils.clamp((camera.zoom - 1) / 3, 0, 1);
       controls.maxTargetRadius = MathUtils.lerp(PAN_RADIUS.wide, PAN_RADIUS.close, close);
-      return controls.update();
+      controls.update();
     },
     setDepthRange(front, back) {
       camera.near = DISTANCE - front;
@@ -117,6 +117,7 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
       camera.top = halfHeight;
       camera.bottom = -halfHeight;
       camera.updateProjectionMatrix();
+      return (2 * halfHeight) / grid.rows;
     },
     renderAligned(grid, draw) {
       const trueZoom = camera.zoom;

@@ -14,7 +14,7 @@ export interface Props {
   image?: string;
   type?: 'website' | 'article';
   noindex?: boolean;
-  /** No skip link, header or footer: the 3D room page brings its own controls. */
+  /** No skip link, header or footer: the 3D room page brings its own controls, and its own icon. */
   bare?: boolean;
 }
 const { bare = false, ...seo } = Astro.props;
@@ -28,7 +28,7 @@ const { bare = false, ...seo } = Astro.props;
     <meta name="theme-color" content="#f3f5f7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)" />
     <link rel="preload" href={fontUrl} as="font" type="font/woff2" crossorigin />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href={bare ? '/favicon-room.svg' : '/favicon.svg'} type="image/svg+xml" />
     <SEO {...seo} />
     <slot name="head" />
   </head>

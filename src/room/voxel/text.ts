@@ -1,7 +1,8 @@
 /*
   Two pixel fonts for what is written by hand in the room: the formulas of
-  the whiteboard. The large one, 7 pixels to a capital, writes the line; the
-  small one, 5 pixels, writes what is raised or lowered. A line is typed in
+  the whiteboard, the name on a diploma. The small one, 5 pixels to a
+  capital, is the default; the large one, 7 pixels, is for what must be read
+  from afar. Raised and lowered glyphs are always small. A line is typed in
   ASCII with three TeX habits: \name for a symbol, ^ and _ for a raised or
   lowered glyph, braces to group several of them. Pure: no DOM, so it runs
   under `node --test` (tests/text.test.mjs).
@@ -242,45 +243,59 @@ export const SMALL = font({
 });
 
 export interface Line {
-  /** The ink: x from the left edge, y from the top of a capital, so negative in a raised glyph. */
-  pixels: [number, number][];
+  /**
+   * The ink, a pixel each: x from the left edge, y from the top of a capital
+   * (negative in a raised glyph), then the x of the middle of its glyph.
+   */
+  pixels: [number, number, number][];
   width: number;
 }
 
-/** Where the top of a small glyph goes, from the top of a capital: raised, or lowered under the line. */
+/** Where the top of a raised glyph goes, from the top of a capital. A lowered one ends two pixels under the line. */
 const RAISED = -2;
-const LOWERED = 4;
-/** Width of a space. Glyphs stand one pixel apart. */
-const SPACE = 3;
 
 /** The glyph names of a run of source: a character each, or a \command with the space that ends it. */
 const names = (source: string) => source.match(/\\[a-zA-Z]+ ?|[^]/g) ?? [];
 
-/**
- * Lay out one line of formula source, in the large font unless told
- * otherwise. A character or command with no glyph is an error.
- */
-export function typeset(source: string, glyphs: Font = LARGE): Line {
-  const pixels: [number, number][] = [];
+/** Lay out one line of formula source, in the small font unless told otherwise. A character or command with no glyph is an error. */
+export function typeset(source: string, glyphs: Font = SMALL): Line {
+  const pixels: [number, number, number][] = [];
+  const capital = glyphs.L.length; // 5 pixels in the small font, 7 in the large one
+  const space = capital > 5 ? 3 : 2; // glyphs stand one pixel apart
   let x = 0;
   const draw = (run: string, font: Font, top: number) => {
     for (const token of names(run)) {
       if (token === ' ') {
-        x += SPACE;
+        x += space;
         continue;
       }
       const name = token.startsWith('\\') ? token.slice(1).trimEnd() : token;
       const glyph = font[name];
       if (!glyph) throw new Error(`no glyph for "${name}" in "${source}"`);
-      glyph.forEach((row, j) => [...row].forEach((cell, i) => cell === '#' && pixels.push([x + i, j + top])));
+      const middle = x + Math.floor(glyph[0].length / 2);
+      glyph.forEach((row, j) => [...row].forEach((cell, i) => cell === '#' && pixels.push([x + i, j + top, middle])));
       x += glyph[0].length + 1;
     }
   };
 
   /* A script is "^" or "_" and what it applies to: a group in braces, or one glyph. */
   for (const [part, mark, group, single] of source.matchAll(/([\^_])(?:\{([^}]*)\}|(\\[a-zA-Z]+ ?|[^]))|\\[a-zA-Z]+ ?|[^]/g)) {
-    if (mark) draw(group ?? single, SMALL, mark === '^' ? RAISED : LOWERED);
+    if (mark) draw(group ?? single, SMALL, mark === '^' ? RAISED : capital - 3);
     else draw(part, glyphs, 0);
   }
   return { pixels, width: Math.max(0, ...pixels.map(([px]) => px + 1)) };
+}
+
+/**
+ * The same line for a wall that recedes from the viewer. Seen from the
+ * default view of the room, such a wall drops one pixel every two pixels
+ * across, which would shear every letter. Here each glyph is drawn upright
+ * instead: its columns are moved by what the wall will take back, around its
+ * middle, and only the glyphs step down from one to the next. `left` is the
+ * column of the wall the line starts at: the view draws columns 0 and 1 on
+ * one row, 2 and 3 on the next, as `texelFit` lays the wall on the grid.
+ */
+export function upright(line: Line, left: number): Line {
+  const drop = (column: number) => Math.floor((left + column) / 2);
+  return { width: line.width, pixels: line.pixels.map(([x, y, middle]) => [x, y - (drop(x) - drop(middle)), middle]) };
 }

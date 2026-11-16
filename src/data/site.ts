@@ -18,13 +18,14 @@ export const person = {
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',
   /** His dog, curled up on the bed of the 3D room. */
   dog: 'Elfy',
-  /* The CV that the printer of the 3D room hands out: a path such as "/cv.pdf".
-     TODO(Samuel): put the PDF in public/, without address or phone number. */
-  cv: null as string | null,
+  /** His birthday, without the year: a cross on the calendar of the 3D room. */
+  birthday: { month: 9, day: 23 },
+  /** The CV that the printer of the 3D room hands out. Its copy in public/ has no phone number. */
+  cv: '/Samuel_Berthelot_Resume.pdf' as string | null,
   /* After the exchange: the end-of-studies internship, found.
      TODO(Samuel): company and role, once they can be announced. */
   nextStep: {
-    sentence: 'Feb 2027: end-of-studies internship, more soon',
+    sentence: 'Mar 2027: end-of-studies internship, more soon',
     company: null as string | null,
     role: null as string | null,
   },
@@ -84,7 +85,7 @@ export const education = [
     org: 'EPITA',
     place: 'France',
     period: { start: '2024', end: '2027', label: '2024 to 2027' },
-    summary: 'Artificial intelligence major (SCIAG).',
+    summary: 'Artificial intelligence major (SCIA-G).',
   },
   {
     id: 'cpge',

@@ -1,5 +1,5 @@
 /*
-  The palette of the room: 30 colours, validated with Samuel in phase 0.
+  The palette of the room: 30 colours validated with Samuel in phase 0, and two pinks for the sakura.
   These are the colours of the materials. Voxels and canvas textures use
   nothing else; lighting makes the shadow and highlight tones.
   Order matters: a colour's position is its index in voxel data.
@@ -27,6 +27,8 @@ export const PALETTE = {
   /* Plants */
   leaf: '#4e8f4a',
   moss: '#2c5937',
+  blossom: '#f7c3d4', // sakura, in the light
+  sakura: '#e68fae', // sakura, underneath
   /* Tech */
   graphite: '#262833', // PC, monitors, NAS
   steel: '#50566a',

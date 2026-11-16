@@ -11,23 +11,29 @@ import type { RoomObject } from './index.ts';
 const FRAMES = { y: 1.25, z: 0.3 };
 
 /**
- * The row of frames above the bed, on the left wall: the baccalaureate,
- * wider than high, two diplomas of 30 × 40 cm (preparatory classes, EPITA),
- * then the TOEIC certificate with its blue header and its seal.
+ * One frame of the row above the bed, `z` metres along it: 40 × 30 cm when
+ * wide, 30 × 40 cm otherwise. A wide one carries a paper, drawn as a texture,
+ * and is its own object, to be clicked; the others are part of the decor.
  */
-export function frames(): RoomObject {
-  const m = new VoxelModel(1, 10, 30);
-  const frame = (z: number, y: number, width: number, height: number) =>
-    m.box(0, y, z, 1, height, width, C.walnut).box(0, y + 1, z + 1, 1, height - 2, width - 2, C.paper);
-  frame(0, 2, 8, 6);
-  for (const z of [9, 16]) frame(z, 1, 6, 8);
-  frame(23, 2, 7, 6);
-  m.box(0, 6, 24, 1, 1, 5, C.denim).set(0, 3, 28, C.mustard);
-  return { name: 'frames', voxel: 0.05, at: [0, FRAMES.y, FRAMES.z], model: m };
+function frame(name: string, z: number, wide: boolean): RoomObject {
+  const [width, height] = wide ? [8, 6] : [6, 8];
+  const m = new VoxelModel(1, height, width);
+  m.box(0, 0, 0, 1, height, width, C.walnut).box(0, 1, 1, 1, height - 2, width - 2, C.paper);
+  return { name, voxel: 0.05, at: [0, FRAMES.y + (wide ? 0.1 : 0.05), FRAMES.z + z], model: m, decor: !wide };
 }
 
-/** The paper of the first frame, facing the room: centre, width and height in metres. The diploma is a texture. */
-export const BAC_PAPER = { x: 0.05 + 0.002, y: FRAMES.y + 0.25, z: FRAMES.z + 0.2, width: 0.3, height: 0.2 };
+/** The baccalaureate, the preparatory classes, EPITA, then the TOEIC certificate. */
+export const frames = (): RoomObject[] => [
+  frame('frame-bac', 0, true),
+  frame('frame-prepa', 0.45, false),
+  frame('frame-epita', 0.8, false),
+  frame('frame-toeic', 1.15, true),
+];
+
+/** The paper of a wide frame, facing the room: centre, width and height in metres. */
+const paper = (z: number) => ({ x: 0.05 + 0.002, y: FRAMES.y + 0.25, z: FRAMES.z + z + 0.2, width: 0.3, height: 0.2 });
+export const BAC_PAPER = paper(0);
+export const TOEIC_PAPER = paper(1.15);
 
 /** 60 cm wide, 30 cm deep, 2 m high, full of books. */
 export function bookshelf(): RoomObject {
@@ -104,14 +110,14 @@ export function neon(): RoomObject {
 }
 
 /** Where the whiteboard hangs, and its writing surface inside one voxel of frame: centre, width and height in metres. */
-const WHITEBOARD = { x: 4.5, y: 1.05 };
-export const WHITEBOARD_SURFACE = { x: WHITEBOARD.x + 0.575, y: WHITEBOARD.y + 0.45, z: 0.05 + 0.002, width: 1.05, height: 0.8 };
+const WHITEBOARD = { x: 4.5, y: 1.15 };
+export const WHITEBOARD_SURFACE = { x: WHITEBOARD.x + 0.725, y: WHITEBOARD.y + 0.675, z: 0.05 + 0.002, width: 1.35, height: 1.25 };
 
-/** Whiteboard above the cabinet, 1.15 m × 90 cm, with its tray and four markers. What is written on it is a texture. */
+/** Whiteboard above the cabinet, 1.45 × 1.35 m, with its tray and four markers. What is written on it is a texture. */
 export function whiteboard(): RoomObject {
-  const m = new VoxelModel(23, 18, 2);
-  m.box(0, 0, 0, 23, 18, 1, C.silver).box(1, 1, 0, 21, 16, 1, C.paper);
-  m.box(2, 0, 1, 19, 1, 1, C.steel); // tray
-  [C.ink, C.denim, C.red, C.leaf].forEach((color, i) => m.box(4 + i * 4, 1, 1, 2, 1, 1, color)); // markers
+  const m = new VoxelModel(29, 27, 2);
+  m.box(0, 0, 0, 29, 27, 1, C.silver).box(1, 1, 0, 27, 25, 1, C.paper);
+  m.box(2, 0, 1, 25, 1, 1, C.steel); // tray
+  [C.ink, C.denim, C.red, C.leaf].forEach((color, i) => m.box(4 + i * 6, 1, 1, 2, 1, 1, color)); // markers
   return { name: 'whiteboard', voxel: 0.05, at: [WHITEBOARD.x, WHITEBOARD.y, 0], model: m };
 }

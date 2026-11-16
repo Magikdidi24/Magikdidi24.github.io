@@ -8,7 +8,7 @@ import { bed, book, dog, lamp, nightstand } from './bed.ts';
 import { chair, desk, deskLamp, headphones, juice, keyboard, mainMonitor, mouse, sideMonitor, speaker } from './desk.ts';
 import { door } from './door.ts';
 import { figurines } from './figurines.ts';
-import { bigPlant, rug, smallPlant } from './floor.ts';
+import { rug, sakura, smallPlant } from './floor.ts';
 import { cabinet, cvSheet, homelab, pc, printer } from './tech.ts';
 import { bookshelf, calendar, clipboard, frames, neon, pegboard, shelf, whiteboard } from './walls.ts';
 import { windowFrame } from './window.ts';
@@ -34,7 +34,7 @@ export const objects = (): RoomObject[] => [
   /* Walls */
   door(),
   windowFrame(),
-  frames(),
+  ...frames(),
   bookshelf(),
   clipboard(),
   calendar(),
@@ -70,7 +70,7 @@ export const objects = (): RoomObject[] => [
   cvSheet(),
   /* Floor */
   rug(),
-  bigPlant(),
+  sakura(),
   smallPlant('plant-bookshelf', [0.08, 2, 2.47]),
   smallPlant('plant-shelf', [4.08, 1.5, 0.02]),
 ];

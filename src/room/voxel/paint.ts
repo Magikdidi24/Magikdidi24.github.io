@@ -4,11 +4,10 @@
   sampled without smoothing.
 */
 import { CanvasTexture, NearestFilter, SRGBColorSpace } from 'three';
-import { bac } from '../../data/room.ts';
-import { BOARD, notes, strokes } from '../../data/whiteboard.ts';
+import { BOARD, doodle, notes } from '../../data/whiteboard.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import { PALETTE, type Swatch } from './palette.ts';
-import { SMALL, typeset } from './text.ts';
+import { LARGE, SMALL, typeset, upright } from './text.ts';
 
 type Rect = (x: number, y: number, w: number, h: number, color: Swatch) => void;
 type Painter = (rect: Rect) => void;
@@ -146,37 +145,59 @@ export function cityView(part: 'side' | 'back', night: boolean): CanvasTexture {
   );
 }
 
-/** What is written on the whiteboard, in marker pens. One pixel is 1 cm. */
-export function whiteboardNotes(): CanvasTexture {
+/**
+ * What is written on the whiteboard, in marker pens. `onWall` draws it for
+ * the board in the room, each glyph upright for the default view (see
+ * `upright`); without it, it is the board seen face on, to show enlarged.
+ */
+export function whiteboardNotes(onWall: boolean): CanvasTexture {
   return texture(BOARD.width, BOARD.height, (rect) => {
     rect(0, 0, BOARD.width, BOARD.height, 'paper');
-    for (const { at, size, pen } of strokes) rect(at[0], at[1], size[0], size[1], pen);
+    /* The doodle is kept upright as one block, around its middle column. */
+    const middle = Math.floor(doodle.rows[0].length / 2);
+    doodle.rows.forEach((row, y) =>
+      [...row].forEach((mark, x) => {
+        if (!(mark in doodle.pens)) return;
+        const drawn = { width: 1, pixels: [[x, y, middle] as [number, number, number]] };
+        const [[px, py]] = (onWall ? upright(drawn, doodle.at[0]) : drawn).pixels;
+        rect(doodle.at[0] + px, doodle.at[1] + py, 1, 1, doodle.pens[mark]);
+      }),
+    );
     for (const { text, at, pen } of notes) {
-      for (const [x, y] of typeset(text).pixels) rect(at[0] + x, at[1] + y, 1, 1, pen);
+      const written = typeset(text, LARGE);
+      const line = onWall ? upright(written, at[0]) : written;
+      for (const [x, y] of line.pixels) rect(at[0] + x, at[1] + y, 1, 1, pen);
     }
   });
 }
 
+
 /**
- * The diploma of the baccalaureate: a tricolour band, the title, the name of
- * its holder on as many lines as it has words, two lines of small print and
- * a red seal. 60 × 40, one pixel is 5 mm.
+ * A framed certificate: its title, on a band of colour when there is one and
+ * under a tricolour mark otherwise, the name of its holder on as many lines
+ * as it has words, then a score in large figures or two lines of small
+ * print, and a red seal. 60 × 40, one pixel is 5 mm.
  */
-export function bacDiploma(): CanvasTexture {
+export function certificate({ title, holder, score }: { title: string; holder: string; score?: string }, band?: Swatch): CanvasTexture {
   return texture(60, 40, (rect) => {
     rect(0, 0, 60, 40, 'paper');
     for (const [x, y, w, h] of [[2, 2, 56, 1], [2, 37, 56, 1], [2, 2, 1, 36], [57, 2, 1, 36]]) rect(x, y, w, h, 'stone'); // border
-    (['denim', 'paper', 'red'] as const).forEach((color, i) => rect(24 + i * 4, 4, 4, 2, color));
-    /** One line in the small font, centred. */
-    const centred = (text: string, y: number) => {
-      const line = typeset(text, SMALL);
-      for (const [x, dy] of line.pixels) rect(Math.floor((60 - line.width) / 2) + x, y + dy, 1, 1, 'ink');
+    /** One line, centred. */
+    const centred = (text: string, y: number, pen: Swatch, glyphs = SMALL) => {
+      const line = typeset(text, glyphs);
+      for (const [x, dy] of line.pixels) rect(Math.floor((60 - line.width) / 2) + x, y + dy, 1, 1, pen);
     };
-    centred(bac.title, 8);
-    rect(14, 15, 32, 1, 'stone');
-    bac.holder.split(' ').forEach((word, i) => centred(word, 18 + i * 7));
-    rect(6, 33, 18, 1, 'stone');
-    rect(6, 35, 12, 1, 'stone');
+    if (band) rect(3, 3, 54, 9, band);
+    else (['denim', 'paper', 'red'] as const).forEach((color, i) => rect(24 + i * 4, 4, 4, 2, color));
+    centred(title, band ? 5 : 8, band ? 'paper' : 'ink');
+    if (!band) rect(14, 15, 32, 1, 'stone');
+    holder.split(' ').forEach((word, i) => centred(word, (band ? 14 : 18) + i * 7, 'ink'));
+    if (score) {
+      centred(score, 29, 'ink', LARGE);
+    } else {
+      rect(6, 33, 18, 1, 'stone');
+      rect(6, 35, 12, 1, 'stone');
+    }
     rect(47, 32, 5, 3, 'red'); // seal, and the two ends of its ribbon
     rect(48, 31, 3, 5, 'red');
     rect(47, 35, 1, 2, 'red');

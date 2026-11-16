@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoGrid, fitHalfHeight, gridSize, pixelAt, pixelFraction, snap } from '../src/room/view.ts';
+import { autoGrid, fitHalfHeight, gridSize, pixelAt, pixelFraction, snap, texelFit } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -115,4 +115,49 @@ test('pixelAt: nothing outside the canvas', () => {
   assert.equal(pixelAt(grid, -1, 10), null);
   assert.equal(pixelAt(grid, 10, 900), null);
   assert.equal(pixelAt(grid, 1440, 10), null);
+});
+
+// A picture on the back wall, laid so that the default view shows one of its texels per pixel.
+const AZIMUTH = Math.PI / 4;
+const ELEVATION = Math.PI / 6;
+const paper = { x: 5.225, y: 1.825, z: 0.052, width: 1.35, height: 1.25 };
+const texels = { cols: 60, rows: 68 };
+const fraction = (value) => value - Math.floor(value);
+/** Columns and rows of pixels, from the origin, of a point of the wall seen from the default view. */
+const onScreen = (x, y, pixel) => [
+  (x * Math.cos(AZIMUTH) - paper.z * Math.sin(AZIMUTH)) / pixel,
+  (-x * Math.sin(AZIMUTH) * Math.sin(ELEVATION) + y * Math.cos(ELEVATION) - paper.z * Math.cos(AZIMUTH) * Math.sin(ELEVATION)) / pixel,
+];
+
+test('texelFit: from the default view each texel covers one pixel, across and up', () => {
+  const pixel = 6.5 / 450;
+  const fit = texelFit(paper, texels, pixel, { cols: 720, rows: 450 }, AZIMUTH, ELEVATION);
+  near((fit.width / texels.cols) * Math.cos(AZIMUTH), pixel);
+  near((fit.height / texels.rows) * Math.cos(ELEVATION), pixel);
+  assert.ok(Math.abs(fit.x - paper.x) < 0.03 && Math.abs(fit.y - paper.y) < 0.03, 'it stays in the middle of its paper');
+});
+
+test('texelFit: its columns fall on the columns of the grid, its rows a quarter of a pixel off', () => {
+  const pixel = 6.5 / 450;
+  const fit = texelFit(paper, texels, pixel, { cols: 720, rows: 450 }, AZIMUTH, ELEVATION);
+  const [column, row] = onScreen(fit.x - fit.width / 2, fit.y + fit.height / 2, pixel);
+  near(fraction(column + 0.5), 0.5, 1e-6);
+  near(fraction(row), 0.25, 1e-6);
+});
+
+test('texelFit: on a grid of odd size the boundaries are half a pixel further', () => {
+  const pixel = 6.5 / 433;
+  const fit = texelFit(paper, texels, pixel, { cols: 853, rows: 433 }, AZIMUTH, ELEVATION);
+  const [column, row] = onScreen(fit.x - fit.width / 2, fit.y + fit.height / 2, pixel);
+  near(fraction(column), 0.5, 1e-6);
+  near(fraction(row), 0.75, 1e-6);
+});
+
+test('texelFit: a picture too large for its paper fills it instead, in its middle', () => {
+  const pixel = 6.5 / 300; // a small window: larger pixels
+  const fit = texelFit(paper, texels, pixel, { cols: 480, rows: 300 }, AZIMUTH, ELEVATION);
+  assert.ok(fit.width <= paper.width + 1e-9 && fit.height <= paper.height + 1e-9);
+  assert.ok(Math.abs(fit.width - paper.width) < 1e-9 || Math.abs(fit.height - paper.height) < 1e-9);
+  near(fit.x, paper.x);
+  near(fit.y, paper.y);
 });

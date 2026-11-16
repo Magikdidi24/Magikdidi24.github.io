@@ -14,6 +14,7 @@ import {
   DirectionalLight,
   EqualStencilFunc,
   HemisphereLight,
+  MathUtils,
   Mesh,
   MeshBasicMaterial,
   MeshToonMaterial,
@@ -28,16 +29,20 @@ import {
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { bac, toeic } from '../data/room.ts';
+import { BOARD } from '../data/whiteboard.ts';
+import { DEFAULT_VIEW } from './camera.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
-import { objects } from './objects/index.ts';
-import { BAC_PAPER, WHITEBOARD_SURFACE } from './objects/walls.ts';
+import { objects, type RoomObject } from './objects/index.ts';
+import { BAC_PAPER, TOEIC_PAPER, WHITEBOARD_SURFACE } from './objects/walls.ts';
 import { WINDOW } from './objects/window.ts';
 import { COLOR_ONLY } from './render/outline.ts';
 import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { bacDiploma, CITY, cityView, codeScreen, desktopScreen, whiteboardNotes } from './voxel/paint.ts';
+import { certificate, CITY, cityView, codeScreen, desktopScreen, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
+import { texelFit } from './view.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
 
@@ -90,9 +95,17 @@ export interface RoomScene {
   /** The name of each object, by its id in the outline pass: names[id - 1]. */
   readonly names: readonly string[];
   setNight(night: boolean): void;
+  /**
+   * Lay the writing of the whiteboard on the pixel grid, so that the default
+   * view shows it one texel per pixel. `pixel` is the size of a pixel of the
+   * grid in the room at zoom 1, in metres.
+   */
+  fitBoard(pixel: number, grid: { cols: number; rows: number }): void;
   setLevel(which: Switch, level: number): void;
-  /** Brightness of the glowing voxels of an object that is its own mesh: all of them, or those of one colour. */
-  setGlow(name: string, level: number, swatch?: Swatch): void;
+  /** How many glowing voxels an object that is its own mesh has: its lights. */
+  lights(name: string): number;
+  /** Brightness of the lights of an object that is its own mesh: all of them, those of one colour, or one by its number. */
+  setGlow(name: string, level: number, which?: Swatch | number): void;
   dispose(): void;
 }
 
@@ -192,23 +205,43 @@ export function createScene(): RoomScene {
     mesh.rotation.y = turn;
     mesh.receiveShadow = !glows;
     scene.add(mesh);
-    return mesh.material;
+    return mesh;
   };
-  const screens = [picture(MAIN_SCREEN, desktopScreen(), 'monitor', true), picture(SIDE_SCREEN, codeScreen(), 'monitor-side', true)];
-  picture(WHITEBOARD_SURFACE, whiteboardNotes(), 'whiteboard', false);
-  picture(BAC_PAPER, bacDiploma(), 'frames', false, Math.PI / 2);
+  const screens = [picture(MAIN_SCREEN, desktopScreen(), 'monitor', true), picture(SIDE_SCREEN, codeScreen(), 'monitor-side', true)].map(
+    (screen) => screen.material,
+  );
+  const board = picture(WHITEBOARD_SURFACE, whiteboardNotes(true), 'whiteboard', false);
+  picture(BAC_PAPER, certificate(bac), 'frame-bac', false, Math.PI / 2);
+  picture(TOEIC_PAPER, certificate(toeic, 'denim'), 'frame-toeic', false, Math.PI / 2);
 
-  /* Glowing voxels are dimmed through their vertex colours: one material still serves them all. */
-  const setGlow = (name: string, level: number, swatch?: Swatch) => {
+  /* The lights of an object: its glowing voxels, each with the vertices that draw it. A face is four vertices in a row. */
+  const lightsOf = (mesh: Mesh): number[][] => {
+    if (mesh.userData.lights) return mesh.userData.lights as number[][];
+    const { position, normal, aux } = mesh.geometry.attributes;
+    const { voxel } = mesh.userData.placed as RoomObject;
+    const cells = new Map<string, number[]>();
+    for (let i = 0; i < position.count; i += 4) {
+      if (aux.getY(i) !== 1) continue;
+      /* The middle of the face, half a voxel back along its normal: inside the voxel it belongs to. */
+      const inside = (get: 'getX' | 'getY' | 'getZ') =>
+        Math.floor(((position[get](i) + position[get](i + 2)) / 2 - (normal[get](i) * voxel) / 2) / voxel);
+      const cell = `${inside('getX')},${inside('getY')},${inside('getZ')}`;
+      cells.set(cell, [...(cells.get(cell) ?? []), i, i + 1, i + 2, i + 3]);
+    }
+    return (mesh.userData.lights = [...cells.values()]);
+  };
+
+  /* Lights are dimmed through their vertex colours: one material still serves them all. */
+  const setGlow = (name: string, level: number, which?: Swatch | number) => {
     const mesh = scene.getObjectByName(name) as Mesh;
     const color = mesh.geometry.getAttribute('color') as BufferAttribute;
-    const aux = mesh.geometry.getAttribute('aux');
     const full = (mesh.userData.colors ??= color.array.slice()) as Float32Array;
-    const only = swatch && hexToLinear(PALETTE[swatch]);
-    for (let i = 0; i < color.count; i++) {
-      if (aux.getY(i) !== 1) continue;
-      if (only?.some((channel, k) => Math.abs(full[i * 3 + k] - channel) > 1e-4)) continue;
-      color.setXYZ(i, full[i * 3] * level, full[i * 3 + 1] * level, full[i * 3 + 2] * level);
+    const only = typeof which === 'string' && hexToLinear(PALETTE[which]);
+    for (const vertices of typeof which === 'number' ? [lightsOf(mesh)[which]] : lightsOf(mesh)) {
+      for (const i of vertices) {
+        if (only && only.some((channel, k) => Math.abs(full[i * 3 + k] - channel) > 1e-4)) continue;
+        color.setXYZ(i, full[i * 3] * level, full[i * 3 + 1] * level, full[i * 3 + 2] * level);
+      }
     }
     color.needsUpdate = true;
   };
@@ -280,8 +313,15 @@ export function createScene(): RoomScene {
     names: placed.map((object) => object.name),
     levels,
     setGlow,
+    lights: (name) => lightsOf(scene.getObjectByName(name) as Mesh).length,
     get night() {
       return night;
+    },
+    fitBoard(pixel, grid) {
+      const texels = { cols: BOARD.width, rows: BOARD.height };
+      const fit = texelFit(WHITEBOARD_SURFACE, texels, pixel, grid, MathUtils.degToRad(DEFAULT_VIEW.azimuth), MathUtils.degToRad(DEFAULT_VIEW.elevation));
+      board.position.set(fit.x, fit.y, fit.z);
+      board.scale.set(fit.width / WHITEBOARD_SURFACE.width, fit.height / WHITEBOARD_SURFACE.height, 1);
     },
     setLevel(which, level) {
       levels[which] = level;

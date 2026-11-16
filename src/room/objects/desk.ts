@@ -116,9 +116,9 @@ export function headphones(): RoomObject {
 /** Gaming-style chair on casters, pulled back from the desk and turned a little. 60 cm wide, 1.35 m high. */
 export function chair(): RoomObject {
   const m = new VoxelModel(12, 27, 12);
-  m.box(1, 1, 5, 10, 1, 2, C.steel).box(5, 1, 1, 2, 1, 10, C.steel); // star base
-  for (const [x, z] of [[1, 5], [10, 5]]) m.box(x, 0, z, 1, 1, 2, C.ink); // a caster under the end of each arm
-  for (const [x, z] of [[5, 1], [5, 10]]) m.box(x, 0, z, 2, 1, 1, C.ink);
+  m.box(0, 1, 5, 12, 1, 2, C.graphite).box(5, 1, 0, 2, 1, 12, C.graphite); // star base, out to the width of the chair
+  for (const [x, z] of [[0, 5], [11, 5]]) m.box(x, 0, z, 1, 1, 2, C.silver); // a pale caster under the end of each arm
+  for (const [x, z] of [[5, 0], [5, 11]]) m.box(x, 0, z, 2, 1, 1, C.silver);
   m.box(5, 2, 5, 2, 6, 2, C.steel); // column
   m.box(1, 8, 1, 10, 2, 10, C.teal); // seat
   m.box(1, 9, 1, 1, 1, 10, C.ink).box(10, 9, 1, 1, 1, 10, C.ink); // its side bolsters

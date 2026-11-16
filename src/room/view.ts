@@ -81,3 +81,53 @@ export function pixelAt(grid: Grid, x: number, y: number): { x: number; y: numbe
     y: grid.rows - 1 - Math.floor((y / grid.cssHeight) * grid.rows),
   };
 }
+
+/** A flat rectangle on a wall: its centre, then its size, in metres. */
+export interface Spot {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Where to lay a picture of `cols` × `rows` texels on a wall that faces +z,
+ * inside `paper`, so that from the default view (`azimuth`, `elevation`, zoom
+ * 1) each of its texels covers exactly one pixel of the grid: text drawn in
+ * it is then as sharp as text drawn on the screen. `pixel` is the size of a
+ * pixel of the grid in the room, in metres.
+ *
+ * Its columns fall on the columns of the grid. Its rows sit a quarter of a
+ * pixel off: the wall drops half a pixel per column, so no row of texels ever
+ * falls right between two rows of pixels. A picture too large for its paper
+ * fills it instead; it is then no longer sharp without zooming in.
+ */
+export function texelFit(
+  paper: Spot,
+  texels: { cols: number; rows: number },
+  pixel: number,
+  grid: { cols: number; rows: number },
+  azimuth: number,
+  elevation: number,
+): Spot {
+  const across = pixel / Math.cos(azimuth); // size of a texel on the wall
+  const up = pixel / Math.cos(elevation);
+  const width = texels.cols * across;
+  const height = texels.rows * up;
+  if (width > paper.width || height > paper.height) {
+    const shrink = Math.min(paper.width / width, paper.height / height);
+    return { ...paper, width: width * shrink, height: height * shrink };
+  }
+  /* The grid is anchored to the room: boundaries on whole pixels from the origin, or on halves when its size is odd. */
+  const half = (count: number) => (count % 2 ? 0.5 : 0);
+  let left = paper.x - width / 2;
+  const column = (left * Math.cos(azimuth) - paper.z * Math.sin(azimuth)) / pixel - half(grid.cols);
+  left -= (column - Math.round(column)) * across;
+  let top = paper.y + height / 2;
+  const row =
+    (-left * Math.sin(azimuth) * Math.sin(elevation) + top * Math.cos(elevation) - paper.z * Math.cos(azimuth) * Math.sin(elevation)) / pixel -
+    half(grid.rows);
+  top -= (row - Math.round(row) - 0.25) * up;
+  return { x: left + width / 2, y: top - height / 2, z: paper.z, width, height };
+}

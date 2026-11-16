@@ -15,7 +15,7 @@ const description = `${person.intro} ${person.focus}`;
 if (description.length > 160) {
   throw new Error(`Home meta description is ${description.length} characters; keep it under 160.`);
 }
-const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}`;
+const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --room-red: ${PALETTE.red}`;
 ---
 <Base title={title} description={description} bare>
   <div class="room" id="room" style={colors}>
@@ -32,6 +32,20 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}`;
     <noscript>
       <p class="fallback">This page is a 3D room and needs JavaScript. <a href="/classic/">Read the text version</a>.</p>
     </noscript>
+    <!-- Opened by a click in the room (src/room/ui/sheets.ts): a picture shown large, and the calendar. -->
+    <dialog class="sheet" id="zoom">
+      <figure></figure>
+      <form method="dialog"><button>Close</button></form>
+    </dialog>
+    <dialog class="sheet" id="calendar" aria-labelledby="calendar-year">
+      <div class="bar">
+        <button type="button" data-step="-1" aria-label="Previous year">&lt;</button>
+        <p id="calendar-year" aria-live="polite"></p>
+        <button type="button" data-step="1" aria-label="Next year">&gt;</button>
+      </div>
+      <div class="months"></div>
+      <form method="dialog"><button>Close</button></form>
+    </dialog>
   </div>
 </Base>
 
@@ -132,6 +146,109 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}`;
 
   :focus-visible {
     outline-color: var(--room-paper);
+  }
+
+  /* A sheet over the room. What a script puts in it is not in this template, hence :global. */
+  .sheet {
+    max-width: 96vw;
+    max-height: 96vh;
+    padding: var(--space-3);
+    border: 2px solid var(--room-paper);
+    background: var(--room-ink);
+    color: var(--room-paper);
+    font: inherit;
+  }
+
+  .sheet::backdrop {
+    background: rgb(26 20 35 / 0.8);
+  }
+
+  .sheet figure {
+    margin: 0;
+  }
+
+  .sheet :global(img) {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 72vh;
+  }
+
+  /* A canvas of the room, enlarged by a whole number: sized by the script. */
+  .sheet :global(img.pixels) {
+    max-width: none;
+    max-height: none;
+    image-rendering: pixelated;
+  }
+
+  .sheet form,
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .sheet form {
+    justify-content: flex-end;
+    margin-top: var(--space-3);
+  }
+
+  .bar {
+    margin-bottom: var(--space-3);
+  }
+
+  .sheet button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 2px solid var(--room-paper);
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .months {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-4);
+    width: min(88vw, 54rem);
+  }
+
+  .months :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .months :global(caption) {
+    padding-bottom: var(--space-2);
+    text-align: left;
+  }
+
+  .months :global(th),
+  .months :global(td) {
+    width: calc(100% / 7);
+    padding: 0.25rem 0;
+    font-weight: 400;
+    text-align: center;
+  }
+
+  .months :global(th) {
+    opacity: 0.6;
+  }
+
+  .months :global([aria-current]) {
+    outline: 2px solid var(--room-paper);
+    outline-offset: -2px;
+  }
+
+  /* The cross: two diagonals over the day. */
+  .months :global(.marked) {
+    background:
+      linear-gradient(to top right, transparent calc(50% - 1px), var(--room-red) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+      linear-gradient(to bottom right, transparent calc(50% - 1px), var(--room-red) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px));
   }
 
   @media (scripting: none) {

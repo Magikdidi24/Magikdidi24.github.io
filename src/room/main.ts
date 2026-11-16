@@ -69,7 +69,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     },
     resize() {
       pipeline.resize();
-      rig.fit(pipeline.grid);
+      room.fitBoard(rig.fit(pipeline.grid), pipeline.grid);
       dirty = true;
     },
     setNight(night) {
@@ -81,6 +81,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     dispose() {
       cancelAnimationFrame(frame);
       stopReactions();
+      rig.controls.removeEventListener('change', changed);
       observer.disconnect();
       canvas.removeEventListener('webglcontextrestored', redraw);
       rig.dispose();
@@ -91,6 +92,10 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   };
 
   const stopReactions = createReactions(app, canvas);
+  /* The controls apply a turn of the wheel as soon as it happens, outside the loop below: the loop
+     would see nothing left to do and never draw it. Their own signal is what asks for a frame. */
+  const changed = () => app.invalidate();
+  rig.controls.addEventListener('change', changed);
   const observer = new ResizeObserver(() => app.resize());
   observer.observe(container);
   canvas.addEventListener('webglcontextrestored', redraw);
@@ -101,8 +106,8 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   const tick = (now: number) => {
     frame = requestAnimationFrame(tick);
     for (const step of animations) if (!step(now)) animations.delete(step);
-    const moved = rig.update();
-    if (!moved && !dirty) return;
+    rig.update();
+    if (!dirty) return;
     dirty = false;
     renderer.info.reset();
     rig.renderAligned(pipeline.grid, () => pipeline.render());
