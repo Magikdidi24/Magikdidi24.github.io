@@ -12,7 +12,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { autoPixelSize, gridSize, type Grid } from '../view.ts';
+import { autoGrid, gridSize, type Grid } from '../view.ts';
 
 /** 'auto' picks the size from the viewport, 'smooth' is one device pixel, a number is CSS pixels. */
 export type PixelMode = 'auto' | 'smooth' | number;
@@ -65,10 +65,9 @@ export function createPipeline(renderer: WebGLRenderer, scene: Scene, camera: Ca
       const height = container.clientHeight;
       const dpr = window.devicePixelRatio || 1;
       const { mode } = pipeline;
-      grid =
-        mode === 'smooth'
-          ? gridSize(width, height, Math.min(dpr, MAX_SMOOTH_DPR), 0)
-          : gridSize(width, height, dpr, mode === 'auto' ? autoPixelSize(width, height) : mode);
+      if (mode === 'smooth') grid = gridSize(width, height, Math.min(dpr, MAX_SMOOTH_DPR), 0);
+      else if (mode === 'auto') grid = autoGrid(width, height, dpr);
+      else grid = gridSize(width, height, dpr, mode);
       renderer.setSize(grid.cols, grid.rows, false);
       composer.setSize(grid.cols, grid.rows);
       canvas.style.width = `${grid.cssWidth}px`;

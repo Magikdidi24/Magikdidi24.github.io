@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoPixelSize, fitHalfHeight, gridSize, pixelFraction, snap } from '../src/room/view.ts';
+import { autoGrid, fitHalfHeight, gridSize, pixelFraction, snap } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -41,19 +41,31 @@ test('gridSize: pixel size 0 is the smooth mode, one device pixel per pixel', ()
   assert.deepEqual([grid.k, grid.cols, grid.rows], [1, 2880, 1800]);
 });
 
-test('autoPixelSize: about 300 virtual pixels of height on desktop screens', () => {
-  assert.equal(autoPixelSize(1440, 900), 3);
-  assert.equal(autoPixelSize(1920, 1080), 4);
-  assert.equal(autoPixelSize(2560, 1440), 5);
+const auto = (...viewport) => {
+  const grid = autoGrid(...viewport);
+  return [grid.k, grid.cols, grid.rows];
+};
+
+test('autoGrid: about 450 virtual pixels of height on desktop screens', () => {
+  // [cssWidth, cssHeight, dpr] gives [k, cols, rows]
+  assert.deepEqual(auto(1440, 900, 1), [2, 720, 450]);
+  assert.deepEqual(auto(1920, 1080, 1), [2, 960, 540]);
+  assert.deepEqual(auto(2560, 1440, 1), [3, 854, 480]);
 });
 
-test('autoPixelSize: a portrait phone is limited by its width', () => {
-  assert.equal(autoPixelSize(390, 844), 2);
+test('autoGrid: the same picture on a high-density screen', () => {
+  assert.deepEqual(auto(1440, 900, 2), [4, 720, 450]);
+  assert.deepEqual(auto(1280, 720, 1.5), [2, 960, 540]);
+  assert.deepEqual(auto(1920, 1080, 2), [5, 768, 432]);
 });
 
-test('autoPixelSize: never below 2 or above 5', () => {
-  assert.equal(autoPixelSize(280, 500), 2);
-  assert.equal(autoPixelSize(3840, 2160), 5);
+test('autoGrid: a portrait phone is limited by its width, about 290 virtual pixels', () => {
+  assert.deepEqual(auto(390, 844, 3), [4, 293, 633]);
+  assert.deepEqual(auto(412, 915, 2.625), [4, 271, 601]);
+});
+
+test('autoGrid: a virtual pixel is never smaller than 2 device pixels', () => {
+  assert.deepEqual(auto(390, 844, 1), [2, 195, 422]);
 });
 
 const room = { w: 6, h: 2.7, d: 4.4 };

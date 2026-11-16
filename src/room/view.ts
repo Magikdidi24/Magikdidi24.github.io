@@ -26,12 +26,18 @@ export function gridSize(cssWidth: number, cssHeight: number, dpr: number, pixel
   return { k, cols, rows, cssWidth: (cols * k) / dpr, cssHeight: (rows * k) / dpr };
 }
 
+/** Virtual pixels of height the room is drawn with, and the least width (portrait phones). */
+const AUTO_ROWS = 450;
+const AUTO_COLS = 290;
+
 /**
- * Pixel size, in CSS pixels, that shows about 300 virtual pixels of height
- * and at least 190 of width (portrait phones), kept between 2 and 5.
+ * The default grid for a viewport: about AUTO_ROWS virtual pixels of height,
+ * at least AUTO_COLS of width, and never less than 2 device pixels per
+ * virtual pixel, below which it stops reading as pixel art.
  */
-export function autoPixelSize(cssWidth: number, cssHeight: number): number {
-  return Math.min(5, Math.max(2, Math.round(Math.min(cssHeight / 300, cssWidth / 190))));
+export function autoGrid(cssWidth: number, cssHeight: number, dpr: number): Grid {
+  const pixelSize = Math.min(cssHeight / AUTO_ROWS, cssWidth / AUTO_COLS);
+  return gridSize(cssWidth, cssHeight, dpr, Math.max(pixelSize, 2 / dpr));
 }
 
 /**
