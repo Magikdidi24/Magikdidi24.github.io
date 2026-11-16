@@ -14,8 +14,10 @@ export interface Props {
   image?: string;
   type?: 'website' | 'article';
   noindex?: boolean;
+  /** No skip link, header or footer: the 3D room page brings its own controls. */
+  bare?: boolean;
 }
-const props = Astro.props;
+const { bare = false, ...seo } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -27,15 +29,15 @@ const props = Astro.props;
     <meta name="theme-color" content="#0f141a" media="(prefers-color-scheme: dark)" />
     <link rel="preload" href={fontUrl} as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <SEO {...props} />
+    <SEO {...seo} />
     <slot name="head" />
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to content</a>
-    <Header />
+    {!bare && <a class="skip-link" href="#main">Skip to content</a>}
+    {!bare && <Header />}
     <main id="main" tabindex="-1">
       <slot />
     </main>
-    <Footer />
+    {!bare && <Footer />}
   </body>
 </html>

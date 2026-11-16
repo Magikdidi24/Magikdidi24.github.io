@@ -1,11 +1,13 @@
 ---
 import { person } from '../data/site';
 
+/* The sections live on the text version of the home page; "/" is the 3D room. */
 const nav = [
-  { href: '/#work', label: 'Work' },
-  { href: '/#projects', label: 'Projects' },
-  { href: '/#about', label: 'About' },
-  { href: '/#contact', label: 'Contact' },
+  { href: '/classic/#work', label: 'Work' },
+  { href: '/classic/#projects', label: 'Projects' },
+  { href: '/classic/#about', label: 'About' },
+  { href: '/classic/#contact', label: 'Contact' },
+  { href: '/', label: '3D room' },
 ];
 ---
 <header class="site-header wrap">
@@ -43,7 +45,8 @@ const nav = [
   ul {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2) var(--space-5);
+    /* Five links fit on one row from 360px. */
+    gap: var(--space-2) var(--space-4);
     padding: 0;
     list-style: none;
   }

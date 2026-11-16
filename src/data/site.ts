@@ -16,11 +16,12 @@ export const person = {
   /** One line, used in the hero and in meta descriptions. */
   intro: 'AI engineering student at EPITA, on exchange in Tokyo.',
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',
-  availability: {
-    sentence: 'Looking for a 6-month AI engineering internship from March 2027.',
-    start: 'March 2027',
-    duration: '6 months',
-    areas: ['computer vision', 'multimodal or generative models', 'ML tooling'],
+  /* After the exchange: the end-of-studies internship, found.
+     TODO(Samuel): company and role, once they can be announced. */
+  nextStep: {
+    sentence: 'Feb 2027: end-of-studies internship, more soon',
+    company: null as string | null,
+    role: null as string | null,
   },
 } as const;
 

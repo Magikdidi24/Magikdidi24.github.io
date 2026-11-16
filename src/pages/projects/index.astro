@@ -1,7 +1,8 @@
 ---
 /*
   /projects/: every public project from projects.ts, one section each with
-  id={slug} (the home page links here), then the smaller repositories.
+  id={slug} (the text version of the home page links here), then the smaller
+  repositories.
 */
 import Base from '../../layouts/Base.astro';
 import ProjectEntry from '../../components/projects/ProjectEntry.astro';
@@ -14,7 +15,7 @@ const description =
 <Base title="Projects, Samuel Berthelot" description={description} type="website">
   <div class="wrap page">
     <header class="page-head">
-      <p class="back"><a href="/#projects">Back to the home page</a></p>
+      <p class="back"><a href="/classic/#projects">Back to the projects list</a></p>
       <h1>Projects</h1>
       <p class="lede">Public repositories from my GitHub: course projects at EPITA, my TIPE from classes préparatoires, and personal projects.</p>
     </header>
