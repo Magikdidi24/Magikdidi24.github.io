@@ -3,7 +3,7 @@
   render loop. A frame is drawn only when the camera moved, the viewport
   changed or something called invalidate().
 */
-import { BasicShadowMap, NoToneMapping, WebGLRenderer } from 'three';
+import { NoToneMapping, PCFShadowMap, WebGLRenderer } from 'three';
 import { createRig, type Rig } from './camera.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
 import { createScene, ROOM, type RoomScene } from './scene.ts';
@@ -26,7 +26,8 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   /* The palette colours must reach the screen unchanged. */
   renderer.toneMapping = NoToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = BasicShadowMap;
+  /* Filtered: unfiltered shadows saw-tooth on 5 cm steps. The low-resolution buffer makes the edge hard again. */
+  renderer.shadowMap.type = PCFShadowMap;
   /* The pipeline calls render() several times per frame: count draw calls over the whole frame. */
   renderer.info.autoReset = false;
 

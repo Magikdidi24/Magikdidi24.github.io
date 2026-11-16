@@ -45,3 +45,9 @@ export const PALETTE = {
 } as const;
 
 export type Swatch = keyof typeof PALETTE;
+
+/** The palette as a list, each colour at its voxel index. Index 0 is the empty cell. */
+export const COLORS: readonly string[] = ['', ...Object.values(PALETTE)];
+
+/** Voxel index of each swatch: C.oak, C.paper... */
+export const C = Object.fromEntries(Object.keys(PALETTE).map((name, i) => [name, i + 1])) as Record<Swatch, number>;

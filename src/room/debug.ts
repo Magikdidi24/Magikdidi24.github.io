@@ -40,9 +40,7 @@ export function setupDebug(app: RoomApp): void {
 
   const state = {
     pixels: 'auto',
-    /* The pass types these as optional, so the panel edits copies. */
-    depthEdges: pipeline.pixelPass.depthEdgeStrength ?? 0.4,
-    normalEdges: pipeline.pixelPass.normalEdgeStrength ?? 0.3,
+    official: false,
     night: room.night,
     front: 5,
     back: 7,
@@ -65,12 +63,13 @@ export function setupDebug(app: RoomApp): void {
     pipeline.mode = (value === 'auto' || value === 'smooth' ? value : Number(value)) as PixelMode;
     app.resize();
   });
-  pixels.add(state, 'depthEdges', 0, 1, 0.05).name('depth edges').onChange((value: number) => {
-    pipeline.pixelPass.depthEdgeStrength = value;
-    app.invalidate();
-  });
-  pixels.add(state, 'normalEdges', 0, 1, 0.05).name('normal edges').onChange((value: number) => {
-    pipeline.pixelPass.normalEdgeStrength = value;
+  pixels.add(pipeline.outlinePass, 'depthEdgeStrength', 0, 1, 0.05).name('outline strength').onChange(app.invalidate);
+  pixels.add(pipeline.outlinePass, 'normalEdgeStrength', 0, 1, 0.05).name('highlight strength').onChange(app.invalidate);
+  pixels.add(pipeline.outlinePass, 'depthThreshold', 0.02, 0.4, 0.01).name('inner step (m)').onChange(app.invalidate);
+  /* Comparison with three's own pass, whose bloom needs emissive colours pushed above 1. */
+  pixels.add(state, 'official').name('official pass').onChange((on: boolean) => {
+    pipeline.useOfficialPass(on);
+    room.setGlowBoost(on ? 6 : 1);
     app.invalidate();
   });
   pixels.add(state, 'grid').listen().disable();
@@ -95,7 +94,7 @@ export function setupDebug(app: RoomApp): void {
     folder.add(preset, 'ambient', 0, 1, 0.01).onChange(relight);
     folder.add(preset, 'key', 0, 1, 0.01).onChange(relight);
     folder.add(preset, 'moon', 0, 1, 0.01).onChange(relight);
-    folder.add(preset, 'neon', 0, 3, 0.05).onChange(relight);
+    folder.add(preset, 'lamps', 0, 3, 0.05).onChange(relight);
   }
 
   const bloom = gui.addFolder('Bloom');

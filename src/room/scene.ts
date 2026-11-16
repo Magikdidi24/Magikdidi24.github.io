@@ -1,8 +1,8 @@
 /*
   The room itself: floor, back wall (north, with the window opening) and left
-  wall (west, with the door), plus the lights for day and night. Right side,
-  front and ceiling are open. Units are metres; x runs along the back wall,
-  z towards the viewer, y up.
+  wall (west, with the door), what stands in it, and the lights for day and
+  night. Right side, front and ceiling are open. Units are metres; x runs
+  along the back wall, z towards the viewer, y up.
 */
 import {
   BoxGeometry,
@@ -15,20 +15,26 @@ import {
   MeshBasicMaterial,
   MeshToonMaterial,
   NearestFilter,
+  PlaneGeometry,
   PointLight,
   RedFormat,
   Scene,
   type BufferGeometry,
   type Material,
+  type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
+import { DOOR } from './objects/door.ts';
+import { objects } from './objects/index.ts';
+import { voxelGeometry } from './voxel/geometry.ts';
+import { codeScreen, desktopScreen } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
 
 const WALL = 0.2; // wall and floor thickness
 const WINDOW = { x0: 0.1, x1: 1.0, y0: 0.9, y1: 2.1 } as const; // in the back wall
-const DOOR = { z0: 3.3, z1: 4.2, y1: 2.1 } as const; // in the left wall
 
 /** Light arriving on a surface facing the key light, then two steps down, then none. */
 const TOON_STEPS = [
@@ -40,14 +46,23 @@ const TOON_STEPS = [
 /** Lighting presets. Intensities are fractions of full light; the π factor of the diffuse BRDF is applied
     below. The dev panel edits them in place. */
 export const LIGHTING = {
-  day: { sky: '#dfe8ff', ground: '#c2a588', ambient: 0.4, key: 0.6, moon: 0, neon: 0, background: PALETTE.sky },
-  night: { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, neon: 1, background: PALETTE.night },
+  day: { sky: '#dfe8ff', ground: '#c2a588', ambient: 0.4, key: 0.6, moon: 0, lamps: 0, background: PALETTE.sky },
+  night: { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, lamps: 1, background: PALETTE.night },
 };
+
+/** The lamps of the night: where each one is, its colour and its strength at full power. */
+const LAMPS = [
+  { at: [3, 2, 1], color: PALETTE.magenta, power: 3 }, // neon, a metre from the wall so the wall itself stays under 1
+  { at: [2.8, 0.45, 1.1], color: PALETTE.cyan, power: 1.2 }, // LED strip under the desk
+  { at: [2.7, 1.2, 0.9], color: '#bcd0ff', power: 1.6 }, // the two screens
+] as const;
 
 export interface RoomScene {
   readonly scene: Scene;
   readonly night: boolean;
   setNight(night: boolean): void;
+  /** Comparison only: multiply emissive colours, for a bloom that works by brightness threshold. */
+  setGlowBoost(factor: number): void;
   dispose(): void;
 }
 
@@ -81,7 +96,6 @@ function toonRamp(): DataTexture {
 function shell(): BufferGeometry[] {
   const { w, h, d } = ROOM;
   const win = WINDOW;
-  const door = DOOR;
   return [
     /* Floor slab, under the walls too. */
     box(-WALL, -WALL, -WALL, w, 0, d, 'oak'),
@@ -98,41 +112,25 @@ function shell(): BufferGeometry[] {
     box((win.x0 + win.x1) / 2 - 0.025, win.y0, -0.125, (win.x0 + win.x1) / 2 + 0.025, win.y1, -0.075, 'walnut'),
     box(win.x0, (win.y0 + win.y1) / 2 - 0.025, -0.125, win.x1, (win.y0 + win.y1) / 2 + 0.025, -0.075, 'walnut'),
     /* Left wall around the door opening. */
-    box(-WALL, 0, 0, 0, h, door.z0, 'cream'),
-    box(-WALL, 0, door.z1, 0, h, d, 'cream'),
-    box(-WALL, door.y1, door.z0, 0, h, door.z1, 'cream'),
-    /* Door: frame, leaf set back in the wall, handle. */
-    box(-WALL, 0, door.z0 - 0.06, 0.03, door.y1 + 0.06, door.z0, 'walnut'),
-    box(-WALL, 0, door.z1, 0.03, door.y1 + 0.06, door.z1 + 0.06, 'walnut'),
-    box(-WALL, door.y1, door.z0, 0.03, door.y1 + 0.06, door.z1, 'walnut'),
-    box(-0.12, 0, door.z0, -0.07, door.y1, door.z1, 'chestnut'),
-    box(-0.07, 0.98, door.z0 + 0.08, -0.02, 1.03, door.z0 + 0.22, 'silver'),
+    box(-WALL, 0, 0, 0, h, DOOR.z0, 'cream'),
+    box(-WALL, 0, DOOR.z1, 0, h, d, 'cream'),
+    box(-WALL, DOOR.height, DOOR.z0, 0, h, DOOR.z1, 'cream'),
     /* Skirting boards. */
     box(0, 0, 0, w, 0.1, 0.03, 'stone'),
-    box(0, 0, 0.03, 0.03, 0.1, door.z0 - 0.06, 'stone'),
-    box(0, 0, door.z1 + 0.06, 0.03, 0.1, d, 'stone'),
+    box(0, 0, 0.03, 0.03, 0.1, DOOR.z0 - 0.05, 'stone'),
+    box(0, 0, DOOR.z1 + 0.05, 0.03, 0.1, d, 'stone'),
   ];
 }
 
-/* Phase 1 probes, replaced by real objects in phase 2: a 5 cm frame flat on
-   the wall (does it get an outline?), two stacked boxes at furniture scale
-   (outlines and highlights on a solid) and, below, an emissive bar (does only
-   it bloom?). */
-function probes(): BufferGeometry[] {
-  const z0 = 1.0;
-  const z1 = 1.3;
-  const y0 = 1.3;
-  const y1 = 1.7;
-  const b = 0.03;
-  return [
-    box(0, y0, z0, 0.05, y0 + b, z1, 'walnut'),
-    box(0, y1 - b, z0, 0.05, y1, z1, 'walnut'),
-    box(0, y0 + b, z0, 0.05, y1 - b, z0 + b, 'walnut'),
-    box(0, y0 + b, z1 - b, 0.05, y1 - b, z1, 'walnut'),
-    box(0, y0 + b, z0 + b, 0.04, y1 - b, z1 - b, 'paper'),
-    box(2.2, 0, 1.2, 2.8, 0.45, 1.8, 'honey'),
-    box(2.35, 0.45, 1.35, 2.55, 0.65, 1.55, 'teal'),
-  ];
+/** A flat picture facing +z: a screen. `id` is the object it belongs to in the outline pass. */
+function screen(spot: { x: number; y: number; z: number; width: number; height: number }, map: Texture, id: number): Mesh {
+  const geometry = new PlaneGeometry(spot.width, spot.height);
+  const aux = new Float32Array(geometry.getAttribute('position').count * 2);
+  for (let i = 0; i < aux.length; i += 2) aux.set([id, 1], i);
+  geometry.setAttribute('aux', new BufferAttribute(aux, 2));
+  const mesh = new Mesh(geometry, new MeshBasicMaterial({ map }));
+  mesh.position.set(spot.x, spot.y, spot.z);
+  return mesh;
 }
 
 export function createScene(): RoomScene {
@@ -142,17 +140,29 @@ export function createScene(): RoomScene {
 
   const ramp = toonRamp();
   const lit = new MeshToonMaterial({ vertexColors: true, gradientMap: ramp });
-  const room = new Mesh(mergeGeometries([...shell(), ...probes()]), lit);
+  const glow = new MeshBasicMaterial({ vertexColors: true });
+
+  const room = new Mesh(mergeGeometries(shell()), lit);
   room.castShadow = true;
   room.receiveShadow = true;
   scene.add(room);
 
-  /* Emissive colours go above 1 so that the bloom threshold picks them alone.
-     The threshold is on luminance, and magenta has little: it needs 8 times. */
-  const neonMaterial = new MeshBasicMaterial({ color: new Color(PALETTE.magenta).multiplyScalar(8) });
-  const neon = new Mesh(new BoxGeometry(1, 0.06, 0.04), neonMaterial);
-  neon.position.set(3, 2.3, 0.02);
-  scene.add(neon);
+  const ids = new Map<string, number>();
+  objects().forEach((object, index) => {
+    const id = index + 1;
+    ids.set(object.name, id);
+    const mesh = new Mesh(voxelGeometry(object.model, object.voxel, id), [lit, glow]);
+    mesh.name = object.name;
+    mesh.position.set(...object.at);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+  });
+  const screens = [
+    screen(MAIN_SCREEN, desktopScreen(), ids.get('monitor') ?? 0),
+    screen(SIDE_SCREEN, codeScreen(), ids.get('monitor-side') ?? 0),
+  ];
+  scene.add(...screens);
 
   const hemisphere = new HemisphereLight();
   /* From the open side, so the floor, the back wall and the left wall get three different tones. */
@@ -167,16 +177,18 @@ export function createScene(): RoomScene {
   key.shadow.camera.bottom = -6;
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 20;
-  key.shadow.bias = -0.0005;
-  key.shadow.normalBias = 0.02;
+  key.shadow.bias = -0.0015;
+  key.shadow.normalBias = 0.03;
   /* Through the window, at night only. */
   const moon = new DirectionalLight('#9db4ff');
   moon.position.set(-2, 5, -6);
   moon.target.position.set(ROOM.w / 2, 0, ROOM.d / 2);
-  /* A metre from the wall: closer, the wall itself would pass the bloom threshold. */
-  const neonLight = new PointLight(PALETTE.magenta, 0, 8, 2);
-  neonLight.position.set(3, 2, 1);
-  scene.add(hemisphere, key, key.target, moon, moon.target, neonLight);
+  const lamps = LAMPS.map((lamp) => {
+    const light = new PointLight(lamp.color, 0, 8, 2);
+    light.position.fromArray(lamp.at);
+    return light;
+  });
+  scene.add(hemisphere, key, key.target, moon, moon.target, ...lamps);
 
   let night = false;
   const state: RoomScene = {
@@ -194,13 +206,19 @@ export function createScene(): RoomScene {
       key.intensity = Math.PI * preset.key;
       key.castShadow = preset.key > 0;
       moon.intensity = Math.PI * preset.moon;
-      neonLight.intensity = 3 * preset.neon;
+      lamps.forEach((light, i) => (light.intensity = LAMPS[i].power * preset.lamps));
+    },
+    setGlowBoost(factor) {
+      for (const material of [glow, ...screens.map((mesh) => mesh.material as MeshBasicMaterial)]) material.color.setScalar(factor);
     },
     dispose() {
       scene.traverse((object) => {
         if (!(object instanceof Mesh)) return;
         object.geometry.dispose();
-        for (const material of [object.material].flat() as Material[]) material.dispose();
+        for (const material of [object.material].flat() as Material[]) {
+          (material as MeshBasicMaterial).map?.dispose();
+          material.dispose();
+        }
       });
       ramp.dispose();
       key.shadow.dispose();
