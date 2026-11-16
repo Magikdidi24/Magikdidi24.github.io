@@ -52,13 +52,7 @@ const MAIN = { width: 14, height: 8, x: X + 0.8 };
 const SIDE = { width: 10, height: 7, x: X + 0.2 };
 
 export const mainMonitor = (): RoomObject => ({ name: 'monitor', voxel: 0.05, at: [MAIN.x, TOP, Z + 0.1], model: monitor(MAIN.width, MAIN.height) });
-export const sideMonitor = (): RoomObject => ({
-  name: 'monitor-side',
-  voxel: 0.05,
-  at: [SIDE.x, TOP, Z + 0.1],
-  model: monitor(SIDE.width, SIDE.height),
-  decor: true,
-});
+export const sideMonitor = (): RoomObject => ({ name: 'monitor-side', voxel: 0.05, at: [SIDE.x, TOP, Z + 0.1], model: monitor(SIDE.width, SIDE.height) });
 export const MAIN_SCREEN = screenSpot(MAIN.width, MAIN.height, MAIN.x);
 export const SIDE_SCREEN = screenSpot(SIDE.width, SIDE.height, SIDE.x);
 
@@ -78,41 +72,25 @@ export function mouse(): RoomObject {
   return { name: 'mouse', voxel: 0.025, at: [X + 1.5, TOP, Z + 0.52], model: m, decor: true };
 }
 
-/** A mug of coffee, 10 cm across. */
-export function mug(): RoomObject {
-  const m = new VoxelModel(6, 4, 4);
-  m.box(0, 0, 0, 4, 4, 4, C.rust);
-  for (const [x, z] of [[0, 0], [3, 0], [0, 3], [3, 3]]) m.box(x, 0, z, 1, 4, 1, 0); // round the corners
-  m.box(1, 3, 1, 2, 1, 2, C.walnut); // coffee
-  m.box(4, 1, 1, 1, 2, 2, C.rust).set(4, 1, 1, 0).set(4, 2, 1, 0); // handle
-  return { name: 'mug', voxel: 0.025, at: [X + 1.72, TOP, Z + 0.55], model: m, decor: true };
+/** A glass of orange juice with its straw, 10 cm across. */
+export function juice(): RoomObject {
+  const m = new VoxelModel(4, 8, 4);
+  m.box(0, 0, 0, 4, 5, 4, C.amber); // the juice, seen through the glass
+  m.box(0, 5, 0, 4, 1, 4, C.silver).box(1, 5, 1, 2, 1, 2, 0); // the rim above it
+  for (const [x, z] of [[0, 0], [3, 0], [0, 3], [3, 3]]) m.box(x, 0, z, 1, 6, 1, 0); // round the corners
+  m.box(2, 4, 1, 1, 4, 1, C.red); // straw
+  return { name: 'juice', voxel: 0.025, at: [X + 1.72, TOP, Z + 0.55], model: m, decor: true };
 }
 
-/** Bedside-style lamp at the right end of the desk: a round foot, a stem and a shade that glows. 35 cm high. */
-export function lamp(): RoomObject {
-  const m = new VoxelModel(7, 14, 7);
-  m.box(1, 0, 2, 5, 1, 3, C.walnut).box(2, 0, 1, 3, 1, 5, C.walnut); // foot
-  m.box(3, 1, 3, 1, 7, 1, C.honey); // stem
-  m.box(0, 7, 0, 7, 4, 7, C.amber | EMISSIVE).box(1, 11, 1, 5, 3, 5, C.amber | EMISSIVE); // shade, narrower at the top
-  m.box(0, 7, 0, 7, 1, 7, C.honey).box(1, 13, 1, 5, 1, 5, C.honey); // its two rims
-  for (const [x, z] of [[0, 0], [6, 0], [0, 6], [6, 6]]) m.box(x, 7, z, 1, 4, 1, 0); // its corners rounded
-  m.box(1, 7, 1, 5, 1, 5, 0).box(2, 13, 2, 3, 1, 3, 0); // open at both ends
-  return { name: 'lamp', voxel: 0.025, at: [X + 1.98, TOP, Z + 0.08], model: m };
-}
-
-/**
- * The book being read, lying beside the lamp with a ribbon between its pages:
- * a thick green hardback with a tiger on its cover. 20 × 25 cm.
- */
-export function book(): RoomObject {
-  const m = new VoxelModel(8, 3, 12);
-  m.box(0, 0, 0, 8, 3, 10, C.moss); // covers and spine
-  m.box(1, 1, 0, 7, 1, 10, C.paper); // pages, on the three open sides
-  m.box(2, 2, 1, 4, 1, 2, C.paper); // title
-  m.box(2, 2, 4, 4, 1, 4, C.amber); // the tiger
-  for (const [x, z] of [[2, 5], [4, 5], [3, 7], [5, 7]]) m.set(x, 2, z, C.ink); // its stripes
-  m.box(5, 1, 10, 1, 1, 2, C.red).set(5, 0, 11, C.red); // bookmark
-  return { name: 'book', voxel: 0.025, at: [X + 1.93, TOP, Z + 0.42], model: m, turn: -12, decor: true };
+/** Desk lamp: foot, pole, and a head that shines down on the desk. */
+export function deskLamp(): RoomObject {
+  const m = new VoxelModel(6, 13, 5);
+  m.box(2, 0, 0, 4, 1, 5, C.steel); // foot
+  m.box(4, 1, 2, 1, 10, 1, C.steel); // pole
+  m.box(0, 10, 2, 5, 1, 1, C.steel); // arm
+  m.box(0, 8, 1, 3, 2, 3, C.graphite); // head
+  m.box(0, 7, 1, 3, 1, 3, C.amber | EMISSIVE); // bulb
+  return { name: 'desk-lamp', voxel: 0.025, at: [X + 1.98, TOP, Z + 0.08], model: m, decor: true };
 }
 
 /** A small speaker, `x` metres from the left end of the desk. */

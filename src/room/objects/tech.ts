@@ -72,3 +72,17 @@ export function printer(): RoomObject {
   m.box(3, 2, 13, 10, 1, 3, C.paper); // the sheet
   return { name: 'printer', voxel: 0.025, at: [5.22, 0.6, 0.1], model: m };
 }
+
+/**
+ * The sheet that the printer drops on the floor when it is clicked: "CV"
+ * over a few lines of text. It stays hidden until then. A4, voxels of 1.25 cm.
+ */
+export function cvSheet(): RoomObject {
+  const m = new VoxelModel(16, 1, 24);
+  m.box(0, 0, 0, 16, 1, 24, C.paper);
+  const ink = { k: C.ink };
+  m.slices(1, 0, 2, [['.kkkk', 'kkkkk', 'kk...', 'kk...', 'kk...', 'kk...', 'kkkkk', '.kkkk']], ink); // C
+  m.slices(7, 0, 2, [['kk....kk', 'kk....kk', '.kk..kk.', '.kk..kk.', '..kkkk..', '..kkkk..', '...kk...', '...kk...']], ink); // V
+  for (const [z, width] of [[12, 13], [14, 10], [16, 13], [18, 7], [20, 11]]) m.box(1, 0, z, width, 1, 1, C.stone); // lines of text
+  return { name: 'cv', voxel: 0.0125, at: [5, 0, 0.85], model: m, turn: 35, hidden: true };
+}

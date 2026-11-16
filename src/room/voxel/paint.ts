@@ -4,10 +4,11 @@
   sampled without smoothing.
 */
 import { CanvasTexture, NearestFilter, SRGBColorSpace } from 'three';
+import { bac } from '../../data/room.ts';
 import { BOARD, notes, strokes } from '../../data/whiteboard.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import { PALETTE, type Swatch } from './palette.ts';
-import { typeset } from './text.ts';
+import { SMALL, typeset } from './text.ts';
 
 type Rect = (x: number, y: number, w: number, h: number, color: Swatch) => void;
 type Painter = (rect: Rect) => void;
@@ -153,6 +154,33 @@ export function whiteboardNotes(): CanvasTexture {
     for (const { text, at, pen } of notes) {
       for (const [x, y] of typeset(text).pixels) rect(at[0] + x, at[1] + y, 1, 1, pen);
     }
+  });
+}
+
+/**
+ * The diploma of the baccalaureate: a tricolour band, the title, the name of
+ * its holder on as many lines as it has words, two lines of small print and
+ * a red seal. 60 × 40, one pixel is 5 mm.
+ */
+export function bacDiploma(): CanvasTexture {
+  return texture(60, 40, (rect) => {
+    rect(0, 0, 60, 40, 'paper');
+    for (const [x, y, w, h] of [[2, 2, 56, 1], [2, 37, 56, 1], [2, 2, 1, 36], [57, 2, 1, 36]]) rect(x, y, w, h, 'stone'); // border
+    (['denim', 'paper', 'red'] as const).forEach((color, i) => rect(24 + i * 4, 4, 4, 2, color));
+    /** One line in the small font, centred. */
+    const centred = (text: string, y: number) => {
+      const line = typeset(text, SMALL);
+      for (const [x, dy] of line.pixels) rect(Math.floor((60 - line.width) / 2) + x, y + dy, 1, 1, 'ink');
+    };
+    centred(bac.title, 8);
+    rect(14, 15, 32, 1, 'stone');
+    bac.holder.split(' ').forEach((word, i) => centred(word, 18 + i * 7));
+    rect(6, 33, 18, 1, 'stone');
+    rect(6, 35, 12, 1, 'stone');
+    rect(47, 32, 5, 3, 'red'); // seal, and the two ends of its ribbon
+    rect(48, 31, 3, 5, 'red');
+    rect(47, 35, 1, 2, 'red');
+    rect(51, 35, 1, 2, 'red');
   });
 }
 

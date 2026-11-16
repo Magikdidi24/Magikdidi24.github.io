@@ -16,6 +16,11 @@ export const person = {
   /** One line, used in the hero and in meta descriptions. */
   intro: 'AI engineering student at EPITA, on exchange in Tokyo.',
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',
+  /** His dog, curled up on the bed of the 3D room. */
+  dog: 'Elfy',
+  /* The CV that the printer of the 3D room hands out: a path such as "/cv.pdf".
+     TODO(Samuel): put the PDF in public/, without address or phone number. */
+  cv: null as string | null,
   /* After the exchange: the end-of-studies internship, found.
      TODO(Samuel): company and role, once they can be announced. */
   nextStep: {

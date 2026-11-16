@@ -101,7 +101,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   const tick = (now: number) => {
     frame = requestAnimationFrame(tick);
     for (const step of animations) if (!step(now)) animations.delete(step);
-    const moved = rig.controls.update();
+    const moved = rig.update();
     if (!moved && !dirty) return;
     dirty = false;
     renderer.info.reset();

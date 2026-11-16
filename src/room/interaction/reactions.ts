@@ -1,12 +1,14 @@
 /*
   What the things of the room do when they are clicked: the chair spins, a
-  screen cracks, the plant sheds its leaves... A click is a pointer released
-  where it was pressed; a drag turns the camera instead. Under
-  prefers-reduced-motion every movement jumps to its end.
+  screen cracks, the plant sheds its leaves, the printer drops a CV... A
+  click is a pointer released where it was pressed; a drag turns the camera
+  instead. Under prefers-reduced-motion every movement jumps to its end.
 */
 import { BoxGeometry, Color, InstancedMesh, Matrix4, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
+import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import type { RoomApp } from '../main.ts';
+import type { Switch } from '../scene.ts';
 import { COLOR_ONLY } from '../render/outline.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
 import { codeScreen, desktopScreen } from '../voxel/paint.ts';
@@ -60,11 +62,11 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
       timers.add(timer);
     });
 
-  /** An object that is its own mesh: turned, lifted and slid from where it stands. Degrees and metres. */
-  const pose = (name: string, turn: number, lift: number, slide = 0) => {
+  /** An object that is its own mesh: turned and moved from where it stands. Degrees and metres. */
+  const pose = (name: string, turn: number, [dx, dy, dz]: Point = [0, 0, 0]) => {
     const object = mesh(name);
     const placed = object.userData.placed as Placed;
-    placement({ ...placed, turn: (placed.turn ?? 0) + turn, at: [placed.at[0] + slide, placed.at[1] + lift, placed.at[2]] }).decompose(
+    placement({ ...placed, turn: (placed.turn ?? 0) + turn, at: [placed.at[0] + dx, placed.at[1] + dy, placed.at[2] + dz] }).decompose(
       object.position,
       object.quaternion,
       object.scale,
@@ -72,14 +74,15 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   };
 
   /** One full turn, in steps of 15 degrees, coming to rest. */
-  const spin = (name: string) => () => move(1.4, 24, (t) => pose(name, Math.round((360 * easeOut(t)) / 15) * 15, 0));
+  const spin = (name: string) => () => move(1.4, 24, (t) => pose(name, Math.round((360 * easeOut(t)) / 15) * 15));
 
-  /** Little jumps on the spot, a whole number of voxels high. */
+  /** Little jumps on the spot, in steps of 2.5 cm. */
   const hop = (name: string, hops: number, height: number) => () =>
-    move(0.3 * hops, 6 * hops, (t) => pose(name, 0, Math.round((Math.abs(Math.sin(t * Math.PI * hops)) * height) / 0.025) * 0.025));
+    move(0.3 * hops, 6 * hops, (t) => pose(name, 0, [0, Math.round((Math.abs(Math.sin(t * Math.PI * hops)) * height) / 0.025) * 0.025, 0]));
 
   /** The screen flickers, stays broken a while, then flickers back. */
   const crack = (name: string, paint: (broken: boolean) => Texture) => async () => {
+    if (room.levels.pc === 0) return; // nothing to break on a screen that is off
     const material = mesh(`${name}-picture`).material as MeshBasicMaterial;
     const intact = material.map!;
     const broken = shattered.get(name) ?? paint(true);
@@ -125,7 +128,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     };
     place(0);
     scene.add(leaves);
-    await Promise.all([move(0.4, 6, (t) => pose('plant', 0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.025)), move(1.3, 16, place, false)]);
+    await Promise.all([move(0.4, 6, (t) => pose('plant', 0, [[0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.025, 0, 0])), move(1.3, 16, place, false)]);
     void wait(FALLEN)
       .then(() => move(0.9, 6, (t) => void (material.opacity = 1 - t), false))
       .then(() => {
@@ -135,6 +138,43 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
       });
   };
 
+  /** A switch thrown at once: on if it was off, off if it was on. */
+  const toggle = (which: Switch) => () => {
+    room.setLevel(which, room.levels[which] > 0 ? 0 : 1);
+    app.invalidate();
+  };
+
+  /** The neon sign buzzes as if it were failing, then holds. Under three flashes a second. */
+  const buzz = () => move(1.6, 8, (t) => room.setLevel('neon', [1, 0.1, 0.1, 1, 0.1, 0.6, 0.1, 1, 1][Math.round(t * 8)]), false);
+
+  /** The PC goes down, or comes back: its lights and its two screens fade in a few steps. */
+  const power = () => {
+    const on = room.levels.pc === 0;
+    return move(0.35, 4, (t) => room.setLevel('pc', on ? t : 1 - t), false);
+  };
+
+  /** The status lights of the NAS blink four times. */
+  const blink = () => move(1.6, 8, (t) => room.setGlow('homelab', Math.round(t * 8) % 2 ? 0.08 : 1, 'cyan'), false);
+
+  /* The sheet of the printer, from where it stands at rest on the floor: inside the printer, out of its slot. */
+  const SLOT: Point = [0.3, 0.65, -0.7];
+  const OUT: Point = [0.3, 0.65, -0.4];
+
+  /** A sheet comes out of the printer and flutters down to the floor, where it stays. */
+  const print = async () => {
+    const rest = (mesh('cv').userData.placed as Placed).turn ?? 0;
+    pose('cv', -rest, SLOT);
+    mesh('cv').visible = true;
+    await move(0.5, 6, (t) => pose('cv', -rest, [SLOT[0], SLOT[1], SLOT[2] + (OUT[2] - SLOT[2]) * t]));
+    await move(1.2, 14, (t) => pose('cv', -rest * (1 - t), fall(OUT, [0, 0, 0], t, 0.08)));
+  };
+
+  /** The sheet on the floor hands out the CV, when there is one to hand out. */
+  const download = () => {
+    if (person.cv) Object.assign(document.createElement('a'), { href: person.cv, download: '' }).click();
+    return hop('cv', 1, 0.05)();
+  };
+
   const reactions: Record<string, () => unknown> = {
     chair: spin('chair'),
     dog: hop('dog', 2, 0.075),
@@ -142,10 +182,12 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     plant: shed,
     monitor: crack('monitor', desktopScreen),
     'monitor-side': crack('monitor-side', codeScreen),
-    lamp: () => {
-      room.setLamp(!room.lamp);
-      app.invalidate();
-    },
+    lamp: toggle('lamp'),
+    neon: buzz,
+    pc: power,
+    homelab: blink,
+    printer: print,
+    cv: download,
   };
 
   /* One reaction at a time for each object. */

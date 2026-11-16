@@ -22,9 +22,10 @@ const AZIMUTH_RANGE = 30;
 const ELEVATION_MIN = 20;
 const ELEVATION_MAX = 45;
 const MIN_ZOOM = 0.8;
-const MAX_ZOOM = 4;
-/** How far the view can be panned from the centre of the room, in metres. */
-const PAN_RADIUS = 2.5;
+/** Close enough to read the whiteboard and to see a figurine in detail. */
+const MAX_ZOOM = 8;
+/** How far the view can leave the centre of the room, in metres: little while the whole room shows, to any corner from zoom 4. */
+const PAN_RADIUS = { wide: 2.5, close: 4 };
 /** Empty space kept around the room at zoom 1. */
 const MARGIN = 1.08;
 /** Distance from the target. It changes nothing on screen: it only places the depth range. */
@@ -38,6 +39,8 @@ export interface Rig {
   zoomStep: number;
   /** Metres of depth kept in front of and behind the target. Sets the scale of the depth outlines. */
   setDepthRange(front: number, back: number): void;
+  /** Let the controls move the camera. True when the view changed. */
+  update(): boolean;
   /** Fit the room in a viewport with the aspect ratio of the pixel grid. */
   fit(grid: Grid): void;
   /** Draw from the pose aligned to the grid, then restore the true pose. */
@@ -61,7 +64,7 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
   const controls = new OrbitControls(camera, domElement);
   controls.target.copy(center);
   controls.cursor.copy(center);
-  controls.maxTargetRadius = PAN_RADIUS;
+  controls.zoomToCursor = true; // the wheel zooms on what is under the pointer
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.rotateSpeed = 0.6;
@@ -88,6 +91,12 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
     controls,
     rotationStep: 1,
     zoomStep: 0.05,
+    update() {
+      /* Zooming out brings the room back to the middle. */
+      const close = MathUtils.clamp((camera.zoom - 1) / 3, 0, 1);
+      controls.maxTargetRadius = MathUtils.lerp(PAN_RADIUS.wide, PAN_RADIUS.close, close);
+      return controls.update();
+    },
     setDepthRange(front, back) {
       camera.near = DISTANCE - front;
       camera.far = DISTANCE + back;

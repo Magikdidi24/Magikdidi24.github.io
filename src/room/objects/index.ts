@@ -4,12 +4,13 @@
   plus one, is its id in the outline pass: 0 is the room itself.
 */
 import type { VoxelModel } from '../voxel/builder.ts';
-import { bed, dog, nightstand } from './bed.ts';
-import { book, chair, desk, headphones, keyboard, lamp, mainMonitor, mouse, mug, sideMonitor, speaker } from './desk.ts';
+import { bed, book, dog, lamp, nightstand } from './bed.ts';
+import { chair, desk, deskLamp, headphones, juice, keyboard, mainMonitor, mouse, sideMonitor, speaker } from './desk.ts';
 import { door } from './door.ts';
+import { figurines } from './figurines.ts';
 import { bigPlant, rug, smallPlant } from './floor.ts';
-import { cabinet, homelab, pc, printer } from './tech.ts';
-import { bookshelf, calendar, clipboard, figurines, frames, neon, pegboard, poster, shelf, whiteboard } from './walls.ts';
+import { cabinet, cvSheet, homelab, pc, printer } from './tech.ts';
+import { bookshelf, calendar, clipboard, frames, neon, pegboard, shelf, whiteboard } from './walls.ts';
 import { windowFrame } from './window.ts';
 
 export interface RoomObject {
@@ -23,6 +24,10 @@ export interface RoomObject {
   turn?: number;
   /** It never moves and is not clickable: merged with the rest of the decor into one mesh. */
   decor?: boolean;
+  /** It is not shown until something brings it in. */
+  hidden?: boolean;
+  /** Sculpted in voxels much smaller than a pixel of the room, and shaded as a round shape. */
+  smooth?: boolean;
 }
 
 export const objects = (): RoomObject[] => [
@@ -33,10 +38,9 @@ export const objects = (): RoomObject[] => [
   bookshelf(),
   clipboard(),
   calendar(),
-  poster(),
   pegboard(),
   shelf('shelf', [3.1, 1.35, 0], 24),
-  shelf('shelf-top', [3.55, 1.9, 0], 18),
+  shelf('shelf-top', [3.45, 1.9, 0], 20, 6, 3),
   figurines(),
   neon(),
   whiteboard(),
@@ -44,6 +48,8 @@ export const objects = (): RoomObject[] => [
   bed(),
   dog(),
   nightstand(),
+  lamp(),
+  book(),
   /* Desk */
   desk(),
   chair(),
@@ -51,9 +57,8 @@ export const objects = (): RoomObject[] => [
   sideMonitor(),
   keyboard(),
   mouse(),
-  mug(),
-  lamp(),
-  book(),
+  juice(),
+  deskLamp(),
   speaker('speaker-left', 0.04),
   speaker('speaker-right', 1.56),
   headphones(),
@@ -62,6 +67,7 @@ export const objects = (): RoomObject[] => [
   cabinet(),
   homelab(),
   printer(),
+  cvSheet(),
   /* Floor */
   rug(),
   bigPlant(),

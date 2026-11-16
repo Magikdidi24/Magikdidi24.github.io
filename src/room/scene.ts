@@ -31,11 +31,12 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects } from './objects/index.ts';
-import { WHITEBOARD_SURFACE } from './objects/walls.ts';
+import { BAC_PAPER, WHITEBOARD_SURFACE } from './objects/walls.ts';
 import { WINDOW } from './objects/window.ts';
 import { COLOR_ONLY } from './render/outline.ts';
+import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { CITY, cityView, codeScreen, desktopScreen, whiteboardNotes } from './voxel/paint.ts';
+import { bacDiploma, CITY, cityView, codeScreen, desktopScreen, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
@@ -56,15 +57,25 @@ export const LIGHTING = {
   night: { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, lamps: 1, background: PALETTE.night },
 };
 
-/** The lamps of the night: where each one is, its colour and its strength at full power. */
-const LAMPS = [
-  { at: [3, 2, 1], color: PALETTE.magenta, power: 3 }, // neon, a metre from the wall so the wall itself stays under 1
-  { at: [2.8, 0.45, 1.1], color: PALETTE.cyan, power: 1.2 }, // LED strip under the desk
-  { at: [2.7, 1.2, 0.9], color: '#bcd0ff', power: 1.6 }, // the two screens
-] as const;
+/** What can be switched in the room: the bedside lamp, the neon sign, and the PC with its two screens. */
+export type Switch = 'lamp' | 'neon' | 'pc';
 
-/** The lamp of the desk, at full power: warm, and near enough to the wall to draw a pool of light on it. */
-const DESK_LAMP = { color: PALETTE.amber, power: 1.4, off: 0.3 };
+/** The objects whose glowing voxels follow each switch, and how bright they stay once it is off. */
+const SWITCHES: Record<Switch, { objects: string[]; off: number }> = {
+  lamp: { objects: ['lamp'], off: 0.3 },
+  neon: { objects: ['neon'], off: 0.12 },
+  pc: { objects: ['pc', 'monitor', 'monitor-side'], off: 0.04 },
+};
+
+/** The lamps of the night: where each one is, its colour, its strength at full power and the switch it follows. */
+const LAMPS: { at: [number, number, number]; color: string; power: number; follows?: Switch }[] = [
+  { at: [3, 2, 1], color: PALETTE.magenta, power: 3, follows: 'neon' }, // a metre from the wall so the wall itself stays under 1
+  { at: [2.8, 0.45, 1.1], color: PALETTE.cyan, power: 1.2 }, // LED strip under the desk
+  { at: [2.7, 1.2, 0.9], color: '#bcd0ff', power: 1.6, follows: 'pc' }, // the two screens
+];
+
+/** The bedside lamp: warm, and near enough to the wall to draw a pool of light on it. */
+const BEDSIDE = { color: PALETTE.amber, power: 1.4 };
 
 /** The outside view is painted on two walls of a box behind the window: one pixel of it is 2 cm. */
 const CITY_PIXEL = 0.02;
@@ -74,12 +85,14 @@ const CITY_SIDE = -1.6; // x of the wall that runs back from the room
 export interface RoomScene {
   readonly scene: Scene;
   readonly night: boolean;
-  /** Whether the lamp of the desk is on. */
-  readonly lamp: boolean;
+  /** How bright each switch is, from 0 (off) to 1. */
+  readonly levels: Readonly<Record<Switch, number>>;
   /** The name of each object, by its id in the outline pass: names[id - 1]. */
   readonly names: readonly string[];
   setNight(night: boolean): void;
-  setLamp(on: boolean): void;
+  setLevel(which: Switch, level: number): void;
+  /** Brightness of the glowing voxels of an object that is its own mesh: all of them, or those of one colour. */
+  setGlow(name: string, level: number, swatch?: Swatch): void;
   dispose(): void;
 }
 
@@ -157,16 +170,18 @@ export function createScene(): RoomScene {
   solid(new Mesh(decor.lit, lit));
   solid(new Mesh(decor.glow, glow));
   for (const object of placed.filter((o) => !o.decor)) {
-    const mesh = new Mesh(voxelGeometry(object.model, object.voxel, object.id), [lit, glow]);
+    const mesh = new Mesh(voxelGeometry(object.model, object.voxel, object.id, object.smooth), [lit, glow]);
     mesh.name = object.name;
     mesh.userData.placed = object; // where it stands, for what moves it
     mesh.applyMatrix4(placement(object));
+    mesh.visible = !object.hidden;
     solid(mesh);
   }
 
-  /* Pictures laid just in front of a face that looks at +z. The two screens
-     glow; the whiteboard is lit like the rest. Each belongs to its object. */
-  const picture = (spot: typeof MAIN_SCREEN, map: Texture, owner: string, glows: boolean) => {
+  /* Pictures laid just in front of a face: one that looks at +z, or at +x
+     with a quarter turn. The two screens glow; the whiteboard and the diploma
+     are lit like the rest. Each belongs to its object. */
+  const picture = (spot: typeof MAIN_SCREEN, map: Texture, owner: string, glows: boolean, turn = 0) => {
     const geometry = new PlaneGeometry(spot.width, spot.height);
     const aux = new Float32Array(geometry.getAttribute('position').count * 2);
     for (let i = 0; i < aux.length; i += 2) aux.set([id(owner), glows ? 1 : 0], i);
@@ -174,19 +189,32 @@ export function createScene(): RoomScene {
     const mesh = new Mesh(geometry, glows ? new MeshBasicMaterial({ map }) : new MeshToonMaterial({ map, gradientMap: ramp }));
     mesh.name = `${owner}-picture`;
     mesh.position.set(spot.x, spot.y, spot.z);
+    mesh.rotation.y = turn;
     mesh.receiveShadow = !glows;
     scene.add(mesh);
+    return mesh.material;
   };
-  picture(MAIN_SCREEN, desktopScreen(), 'monitor', true);
-  picture(SIDE_SCREEN, codeScreen(), 'monitor-side', true);
+  const screens = [picture(MAIN_SCREEN, desktopScreen(), 'monitor', true), picture(SIDE_SCREEN, codeScreen(), 'monitor-side', true)];
   picture(WHITEBOARD_SURFACE, whiteboardNotes(), 'whiteboard', false);
+  picture(BAC_PAPER, bacDiploma(), 'frames', false, Math.PI / 2);
 
-  /* The lamp of the desk has its own glow and its own light: it can be switched off. */
-  const lampMesh = scene.getObjectByName('lamp') as Mesh;
-  const lampGlow = glow.clone();
-  lampMesh.material = [lit, lampGlow];
-  const deskLamp = new PointLight(DESK_LAMP.color, 0, 4, 2);
-  deskLamp.position.copy(lampMesh.position).add({ x: 0.09, y: 0.25, z: 0.09 });
+  /* Glowing voxels are dimmed through their vertex colours: one material still serves them all. */
+  const setGlow = (name: string, level: number, swatch?: Swatch) => {
+    const mesh = scene.getObjectByName(name) as Mesh;
+    const color = mesh.geometry.getAttribute('color') as BufferAttribute;
+    const aux = mesh.geometry.getAttribute('aux');
+    const full = (mesh.userData.colors ??= color.array.slice()) as Float32Array;
+    const only = swatch && hexToLinear(PALETTE[swatch]);
+    for (let i = 0; i < color.count; i++) {
+      if (aux.getY(i) !== 1) continue;
+      if (only?.some((channel, k) => Math.abs(full[i * 3 + k] - channel) > 1e-4)) continue;
+      color.setXYZ(i, full[i * 3] * level, full[i * 3 + 1] * level, full[i * 3 + 2] * level);
+    }
+    color.needsUpdate = true;
+  };
+
+  const bedside = new PointLight(BEDSIDE.color, 0, 4, 2);
+  bedside.position.copy((scene.getObjectByName('lamp') as Mesh).position).add({ x: 0.09, y: 0.25, z: 0.09 });
 
   /* The city behind the window: a wall facing the room and one running back
      from it. Seen from above they would show over the top of the room, so a
@@ -243,22 +271,23 @@ export function createScene(): RoomScene {
     light.position.fromArray(lamp.at);
     return light;
   });
-  scene.add(hemisphere, key, key.target, moon, moon.target, ...lamps, deskLamp);
+  scene.add(hemisphere, key, key.target, moon, moon.target, ...lamps, bedside);
 
   let night = false;
-  let lamp = true;
+  const levels: Record<Switch, number> = { lamp: 1, neon: 1, pc: 1 };
   const state: RoomScene = {
     scene,
     names: placed.map((object) => object.name),
+    levels,
+    setGlow,
     get night() {
       return night;
     },
-    get lamp() {
-      return lamp;
-    },
-    setLamp(on) {
-      lamp = on;
-      lampGlow.color.setScalar(on ? 1 : DESK_LAMP.off);
+    setLevel(which, level) {
+      levels[which] = level;
+      const { objects, off } = SWITCHES[which];
+      for (const name of objects) setGlow(name, off + (1 - off) * level);
+      if (which === 'pc') for (const screen of screens) screen.color.setScalar(level); // black once off
       state.setNight(night);
     },
     setNight(value) {
@@ -271,8 +300,11 @@ export function createScene(): RoomScene {
       key.intensity = Math.PI * preset.key;
       key.castShadow = preset.key > 0;
       moon.intensity = Math.PI * preset.moon;
-      lamps.forEach((light, i) => (light.intensity = LAMPS[i].power * preset.lamps));
-      deskLamp.intensity = lamp ? DESK_LAMP.power * preset.lamps : 0;
+      lamps.forEach((light, i) => {
+        const { power, follows } = LAMPS[i];
+        light.intensity = power * preset.lamps * (follows ? levels[follows] : 1);
+      });
+      bedside.intensity = BEDSIDE.power * preset.lamps * levels.lamp;
       back.material.map = value ? views.night.back : views.day.back;
       side.material.map = value ? views.night.side : views.day.side;
     },
