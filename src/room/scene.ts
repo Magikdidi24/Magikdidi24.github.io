@@ -1,15 +1,18 @@
 /*
   The room itself: floor, back wall (north, with the window opening) and left
-  wall (west, with the door), what stands in it, and the lights for day and
-  night. Right side, front and ceiling are open. Units are metres; x runs
-  along the back wall, z towards the viewer, y up.
+  wall (west, with the door), what stands in it, what the window looks out
+  on, and the lights for day and night. Right side, front and ceiling are
+  open. Units are metres; x runs along the back wall, z towards the viewer,
+  y up.
 */
 import {
+  AlwaysStencilFunc,
   BoxGeometry,
   BufferAttribute,
   Color,
   DataTexture,
   DirectionalLight,
+  EqualStencilFunc,
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
@@ -18,6 +21,7 @@ import {
   PlaneGeometry,
   PointLight,
   RedFormat,
+  ReplaceStencilOp,
   Scene,
   type BufferGeometry,
   type Material,
@@ -27,14 +31,15 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects } from './objects/index.ts';
-import { voxelGeometry } from './voxel/geometry.ts';
-import { codeScreen, desktopScreen } from './voxel/paint.ts';
+import { WINDOW } from './objects/window.ts';
+import { COLOR_ONLY } from './render/outline.ts';
+import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
+import { CITY, cityView, codeScreen, desktopScreen } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
 
 const WALL = 0.2; // wall and floor thickness
-const WINDOW = { x0: 0.1, x1: 1.0, y0: 0.9, y1: 2.1 } as const; // in the back wall
 
 /** Light arriving on a surface facing the key light, then two steps down, then none. */
 const TOON_STEPS = [
@@ -57,12 +62,15 @@ const LAMPS = [
   { at: [2.7, 1.2, 0.9], color: '#bcd0ff', power: 1.6 }, // the two screens
 ] as const;
 
+/** The outside view is painted on two walls of a box behind the window: one pixel of it is 2 cm. */
+const CITY_PIXEL = 0.02;
+const CITY_BACK = -1.4; // z of the wall that faces the room
+const CITY_SIDE = -1.6; // x of the wall that runs back from the room
+
 export interface RoomScene {
   readonly scene: Scene;
   readonly night: boolean;
   setNight(night: boolean): void;
-  /** Comparison only: multiply emissive colours, for a bloom that works by brightness threshold. */
-  setGlowBoost(factor: number): void;
   dispose(): void;
 }
 
@@ -93,6 +101,8 @@ function toonRamp(): DataTexture {
   return texture;
 }
 
+/* Floor and walls. No box may share a face with a voxel object where both
+   faces look the same way: the two would flicker as the camera turns. */
 function shell(): BufferGeometry[] {
   const { w, h, d } = ROOM;
   const win = WINDOW;
@@ -104,13 +114,6 @@ function shell(): BufferGeometry[] {
     box(win.x1, 0, -WALL, w, h, 0, 'cream'),
     box(win.x0, 0, -WALL, win.x1, win.y0, 0, 'cream'),
     box(win.x0, win.y1, -WALL, win.x1, h, 0, 'cream'),
-    /* Window: sill, frame and one cross. */
-    box(win.x0 - 0.05, win.y0 - 0.05, -WALL, win.x1 + 0.05, win.y0, 0.1, 'walnut'),
-    box(win.x0, win.y0, -0.15, win.x0 + 0.05, win.y1, -0.05, 'walnut'),
-    box(win.x1 - 0.05, win.y0, -0.15, win.x1, win.y1, -0.05, 'walnut'),
-    box(win.x0, win.y1 - 0.05, -0.15, win.x1, win.y1, -0.05, 'walnut'),
-    box((win.x0 + win.x1) / 2 - 0.025, win.y0, -0.125, (win.x0 + win.x1) / 2 + 0.025, win.y1, -0.075, 'walnut'),
-    box(win.x0, (win.y0 + win.y1) / 2 - 0.025, -0.125, win.x1, (win.y0 + win.y1) / 2 + 0.025, -0.075, 'walnut'),
     /* Left wall around the door opening. */
     box(-WALL, 0, 0, 0, h, DOOR.z0, 'cream'),
     box(-WALL, 0, DOOR.z1, 0, h, d, 'cream'),
@@ -122,17 +125,6 @@ function shell(): BufferGeometry[] {
   ];
 }
 
-/** A flat picture facing +z: a screen. `id` is the object it belongs to in the outline pass. */
-function screen(spot: { x: number; y: number; z: number; width: number; height: number }, map: Texture, id: number): Mesh {
-  const geometry = new PlaneGeometry(spot.width, spot.height);
-  const aux = new Float32Array(geometry.getAttribute('position').count * 2);
-  for (let i = 0; i < aux.length; i += 2) aux.set([id, 1], i);
-  geometry.setAttribute('aux', new BufferAttribute(aux, 2));
-  const mesh = new Mesh(geometry, new MeshBasicMaterial({ map }));
-  mesh.position.set(spot.x, spot.y, spot.z);
-  return mesh;
-}
-
 export function createScene(): RoomScene {
   const scene = new Scene();
   const background = new Color();
@@ -141,28 +133,71 @@ export function createScene(): RoomScene {
   const ramp = toonRamp();
   const lit = new MeshToonMaterial({ vertexColors: true, gradientMap: ramp });
   const glow = new MeshBasicMaterial({ vertexColors: true });
-
-  const room = new Mesh(mergeGeometries(shell()), lit);
-  room.castShadow = true;
-  room.receiveShadow = true;
-  scene.add(room);
-
-  const ids = new Map<string, number>();
-  objects().forEach((object, index) => {
-    const id = index + 1;
-    ids.set(object.name, id);
-    const mesh = new Mesh(voxelGeometry(object.model, object.voxel, id), [lit, glow]);
-    mesh.name = object.name;
-    mesh.position.set(...object.at);
+  const solid = (mesh: Mesh) => {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     scene.add(mesh);
-  });
-  const screens = [
-    screen(MAIN_SCREEN, desktopScreen(), ids.get('monitor') ?? 0),
-    screen(SIDE_SCREEN, codeScreen(), ids.get('monitor-side') ?? 0),
-  ];
-  scene.add(...screens);
+  };
+
+  solid(new Mesh(mergeGeometries(shell()), lit));
+
+  /* The decor is two meshes for the whole room; what can be clicked stays apart. */
+  const placed = objects().map((object, index) => ({ ...object, id: index + 1 }));
+  const id = (name: string) => placed.find((object) => object.name === name)?.id ?? 0;
+  const decor = mergedGeometry(placed.filter((object) => object.decor));
+  solid(new Mesh(decor.lit, lit));
+  solid(new Mesh(decor.glow, glow));
+  for (const object of placed.filter((o) => !o.decor)) {
+    const mesh = new Mesh(voxelGeometry(object.model, object.voxel, object.id), [lit, glow]);
+    mesh.name = object.name;
+    mesh.applyMatrix4(placement(object));
+    solid(mesh);
+  }
+
+  /* Screens face +z, just in front of their panels. They glow. */
+  for (const [spot, map, owner] of [
+    [MAIN_SCREEN, desktopScreen(), 'monitor'],
+    [SIDE_SCREEN, codeScreen(), 'monitor-side'],
+  ] as const) {
+    const geometry = new PlaneGeometry(spot.width, spot.height);
+    const aux = new Float32Array(geometry.getAttribute('position').count * 2);
+    for (let i = 0; i < aux.length; i += 2) aux.set([id(owner), 1], i);
+    geometry.setAttribute('aux', new BufferAttribute(aux, 2));
+    const screen = new Mesh(geometry, new MeshBasicMaterial({ map }));
+    screen.position.set(spot.x, spot.y, spot.z);
+    scene.add(screen);
+  }
+
+  /* The city behind the window: a wall facing the room and one running back
+     from it. Seen from above they would show over the top of the room, so a
+     stencil keeps them to the window opening: the opening is drawn first,
+     invisible, after everything that can hide it. */
+  const views = {
+    day: { back: cityView('back', false), side: cityView('side', false) },
+    night: { back: cityView('back', true), side: cityView('side', true) },
+  };
+  const opening = new Mesh(
+    new PlaneGeometry(WINDOW.x1 - WINDOW.x0, WINDOW.y1 - WINDOW.y0),
+    new MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: AlwaysStencilFunc, stencilZPass: ReplaceStencilOp }),
+  );
+  opening.position.set((WINDOW.x0 + WINDOW.x1) / 2, (WINDOW.y0 + WINDOW.y1) / 2, -WALL);
+  opening.renderOrder = 1;
+  const cityHeight = CITY.height * CITY_PIXEL;
+  const cityWall = (width: number, map: Texture) => {
+    const material = new MeshBasicMaterial({ map, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: EqualStencilFunc });
+    const mesh = new Mesh(new PlaneGeometry(width * CITY_PIXEL, cityHeight), material);
+    mesh.renderOrder = 2;
+    return mesh;
+  };
+  const back = cityWall(CITY.back, views.day.back);
+  back.position.set(CITY_SIDE + (CITY.back * CITY_PIXEL) / 2, 0, CITY_BACK);
+  const side = cityWall(CITY.side, views.day.side);
+  side.position.set(CITY_SIDE, 0, -WALL - (CITY.side * CITY_PIXEL) / 2);
+  side.rotation.y = Math.PI / 2;
+  for (const mesh of [opening, back, side]) {
+    mesh.layers.set(COLOR_ONLY);
+    scene.add(mesh);
+  }
 
   const hemisphere = new HemisphereLight();
   /* From the open side, so the floor, the back wall and the left wall get three different tones. */
@@ -207,9 +242,8 @@ export function createScene(): RoomScene {
       key.castShadow = preset.key > 0;
       moon.intensity = Math.PI * preset.moon;
       lamps.forEach((light, i) => (light.intensity = LAMPS[i].power * preset.lamps));
-    },
-    setGlowBoost(factor) {
-      for (const material of [glow, ...screens.map((mesh) => mesh.material as MeshBasicMaterial)]) material.color.setScalar(factor);
+      back.material.map = value ? views.night.back : views.day.back;
+      side.material.map = value ? views.night.side : views.day.side;
     },
     dispose() {
       scene.traverse((object) => {
@@ -220,6 +254,7 @@ export function createScene(): RoomScene {
           material.dispose();
         }
       });
+      for (const map of [...Object.values(views.day), ...Object.values(views.night)]) map.dispose();
       ramp.dispose();
       key.shadow.dispose();
     },

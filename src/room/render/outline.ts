@@ -17,11 +17,13 @@
 */
 import {
   Color,
+  DepthStencilFormat,
   DepthTexture,
   HalfFloatType,
   NearestFilter,
   NoBlending,
   ShaderMaterial,
+  UnsignedInt248Type,
   Vector2,
   Vector4,
   WebGLRenderTarget,
@@ -31,6 +33,13 @@ import {
   type WebGLRenderer,
 } from 'three';
 import { FullScreenQuad, Pass } from 'three/addons/postprocessing/Pass.js';
+
+/**
+ * The layer of what is drawn in the colour render only, like a painted
+ * backdrop: it writes no depth and no id, so it gets no outline and the
+ * composite treats it as background.
+ */
+export const COLOR_ONLY = 1;
 
 const auxMaterial = () =>
   new ShaderMaterial({
@@ -181,8 +190,9 @@ export class OutlinePass extends Pass {
     super();
     this.scene = scene;
     this.camera = camera;
-    this.beauty = new WebGLRenderTarget(1, 1, { type: HalfFloatType, minFilter: NearestFilter, magFilter: NearestFilter });
-    this.beauty.depthTexture = new DepthTexture(1, 1);
+    /* With a stencil buffer: the scene uses it to show the city through the window opening only. */
+    this.beauty = new WebGLRenderTarget(1, 1, { type: HalfFloatType, minFilter: NearestFilter, magFilter: NearestFilter, stencilBuffer: true });
+    this.beauty.depthTexture = new DepthTexture(1, 1, UnsignedInt248Type, undefined, undefined, undefined, undefined, undefined, undefined, DepthStencilFormat);
     this.aux = new WebGLRenderTarget(1, 1, { minFilter: NearestFilter, magFilter: NearestFilter });
   }
 
@@ -201,8 +211,10 @@ export class OutlinePass extends Pass {
     const { scene, camera } = this;
     const uniforms = (this.quad.material as ShaderMaterial).uniforms;
 
+    camera.layers.enable(COLOR_ONLY);
     renderer.setRenderTarget(this.beauty);
     renderer.render(scene, camera);
+    camera.layers.disable(COLOR_ONLY);
 
     /* Second render: no second shadow pass, one material for everything, and
        nothing where the background is (id 0, not emissive; the composite

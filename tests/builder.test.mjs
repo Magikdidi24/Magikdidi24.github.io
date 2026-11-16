@@ -135,6 +135,23 @@ test('slices: layers of text, bottom first, one character per voxel', () => {
   assert.equal(model.get(0, 1, 0), 0);
 });
 
+test('picture: rows of text, top row first, upright in the x-y plane', () => {
+  const model = new VoxelModel(3, 2, 1).picture(0, 0, 0, ['#.o', '###'], { '#': WHITE, o: GREY });
+  // the first row is the top one: y = 1
+  assert.equal(model.get(0, 1, 0), WHITE);
+  assert.equal(model.get(1, 1, 0), 0);
+  assert.equal(model.get(2, 1, 0), GREY);
+  assert.equal(model.get(1, 0, 0), WHITE);
+});
+
+test('picture: on a side wall the rows run along z', () => {
+  const model = new VoxelModel(1, 2, 3).picture(0, 0, 0, ['#.o', '###'], { '#': WHITE, o: GREY }, 'z');
+  assert.equal(model.get(0, 1, 0), WHITE);
+  assert.equal(model.get(0, 1, 1), 0);
+  assert.equal(model.get(0, 1, 2), GREY);
+  assert.equal(model.get(0, 0, 1), WHITE);
+});
+
 test('slices: an unknown character is an error, not a silent hole', () => {
   assert.throws(() => new VoxelModel(1, 1, 1).slices(0, 0, 0, [['?']], { '#': WHITE }), /\?/);
 });

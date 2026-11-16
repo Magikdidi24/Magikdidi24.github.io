@@ -75,16 +75,29 @@ export class VoxelModel {
    * in `legend`; "." and " " leave the cell as it is.
    */
   slices(x: number, y: number, z: number, layers: string[][], legend: Record<string, number>): this {
-    layers.forEach((rows, j) =>
-      rows.forEach((row, k) =>
-        [...row].forEach((char, i) => {
-          if (char === '.' || char === ' ') return;
-          if (!(char in legend)) throw new Error(`slices: no colour for "${char}" in the legend`);
-          this.set(x + i, y + j, z + k, legend[char]);
-        }),
-      ),
-    );
+    layers.forEach((rows, j) => rows.forEach((row, k) => this.text(row, legend, (i, color) => this.set(x + i, y + j, z + k, color))));
     return this;
+  }
+
+  /**
+   * An upright picture one voxel thick, top row first. Each character is a
+   * voxel along x, or along z for a picture on a side wall.
+   */
+  picture(x: number, y: number, z: number, rows: string[], legend: Record<string, number>, along: 'x' | 'z' = 'x'): this {
+    rows.forEach((row, j) => {
+      const height = y + rows.length - 1 - j;
+      this.text(row, legend, (i, color) => (along === 'x' ? this.set(x + i, height, z, color) : this.set(x, height, z + i, color)));
+    });
+    return this;
+  }
+
+  /** Calls `put` for each character of a row that names a colour. "." and " " are skipped. */
+  private text(row: string, legend: Record<string, number>, put: (index: number, color: number) => void): void {
+    [...row].forEach((char, i) => {
+      if (char === '.' || char === ' ') return;
+      if (!(char in legend)) throw new Error(`no colour for "${char}" in the legend`);
+      put(i, legend[char]);
+    });
   }
 }
 

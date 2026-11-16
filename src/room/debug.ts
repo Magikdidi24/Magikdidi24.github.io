@@ -40,7 +40,6 @@ export function setupDebug(app: RoomApp): void {
 
   const state = {
     pixels: 'auto',
-    official: false,
     night: room.night,
     front: 5,
     back: 7,
@@ -66,12 +65,6 @@ export function setupDebug(app: RoomApp): void {
   pixels.add(pipeline.outlinePass, 'depthEdgeStrength', 0, 1, 0.05).name('outline strength').onChange(app.invalidate);
   pixels.add(pipeline.outlinePass, 'normalEdgeStrength', 0, 1, 0.05).name('highlight strength').onChange(app.invalidate);
   pixels.add(pipeline.outlinePass, 'depthThreshold', 0.02, 0.4, 0.01).name('inner step (m)').onChange(app.invalidate);
-  /* Comparison with three's own pass, whose bloom needs emissive colours pushed above 1. */
-  pixels.add(state, 'official').name('official pass').onChange((on: boolean) => {
-    pipeline.useOfficialPass(on);
-    room.setGlowBoost(on ? 6 : 1);
-    app.invalidate();
-  });
   pixels.add(state, 'grid').listen().disable();
 
   const camera = gui.addFolder('Camera');

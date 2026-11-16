@@ -6,14 +6,10 @@
     OutlinePass        colour, outlines between objects, highlights on creases
     UnrealBloomPass    a glow around the emissive pixels only
     OutputPass         linear to sRGB
-
-  three's own RenderPixelatedPass is kept beside it for comparison, off by
-  default; with it the bloom falls back to a brightness threshold.
 */
 import { ShaderMaterial, Vector2, type OrthographicCamera, type Scene, type WebGLRenderer } from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { autoGrid, gridSize, type Grid } from '../view.ts';
 import { OutlinePass } from './outline.ts';
@@ -28,9 +24,15 @@ const MAX_SMOOTH_DPR = 2;
    small, so the two widest levels would veil the whole picture: they are off. */
 const BLOOM_LEVELS = [1, 0.6, 0.15, 0, 0];
 
-/** First step of the bloom: keep the emissive pixels, as flagged in the aux buffer of the outline pass. */
+/**
+ * First step of the bloom: keep the emissive pixels, as flagged in the aux
+ * buffer of the outline pass. It replaces the brightness threshold of
+ * UnrealBloomPass, which would force emissive colours far above 1 and burn
+ * screens and neon to white.
+ */
 const emissiveOnly = () =>
   new ShaderMaterial({
+    /* UnrealBloomPass sets tDiffuse and luminosityThreshold on its first step. */
     uniforms: { tDiffuse: { value: null }, tAux: { value: null }, luminosityThreshold: { value: 0 } },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -57,8 +59,6 @@ export interface Pipeline {
   /** The current grid. Set by resize(). */
   readonly grid: Grid;
   mode: PixelMode;
-  /** Comparison only: draw with three's RenderPixelatedPass and a threshold bloom. */
-  useOfficialPass(on: boolean): void;
   /** Size the buffer and the canvas for the container and the devicePixelRatio. */
   resize(): void;
   render(): void;
@@ -71,16 +71,15 @@ export function createPipeline(renderer: WebGLRenderer, scene: Scene, camera: Or
 
   const composer = new EffectComposer(renderer);
   const outlinePass = new OutlinePass(scene, camera);
-  const officialPass = new RenderPixelatedPass(1, scene, camera, { depthEdgeStrength: 0.6 });
-  officialPass.enabled = false;
-  const bloomPass = new UnrealBloomPass(new Vector2(1, 1), 0.25, 0, 1.4);
+  const bloomPass = new UnrealBloomPass(new Vector2(1, 1), 0.25, 0, 0);
   bloomPass.compositeMaterial.uniforms.bloomFactors.value = BLOOM_LEVELS;
-  const byThreshold = { material: bloomPass.materialHighPassFilter, uniforms: bloomPass.highPassUniforms };
-  const byFlag = emissiveOnly();
-  byFlag.uniforms.tAux.value = outlinePass.auxTexture;
+  const filter = emissiveOnly();
+  filter.uniforms.tAux.value = outlinePass.auxTexture;
+  bloomPass.materialHighPassFilter.dispose();
+  bloomPass.materialHighPassFilter = filter;
+  bloomPass.highPassUniforms = filter.uniforms;
   const outputPass = new OutputPass();
   composer.addPass(outlinePass);
-  composer.addPass(officialPass);
   composer.addPass(bloomPass);
   composer.addPass(outputPass);
 
@@ -92,12 +91,6 @@ export function createPipeline(renderer: WebGLRenderer, scene: Scene, camera: Or
     mode: 'auto',
     get grid() {
       return grid;
-    },
-    useOfficialPass(on) {
-      outlinePass.enabled = !on;
-      officialPass.enabled = on;
-      bloomPass.materialHighPassFilter = on ? byThreshold.material : byFlag;
-      bloomPass.highPassUniforms = on ? byThreshold.uniforms : byFlag.uniforms;
     },
     resize() {
       const width = container.clientWidth;
@@ -118,14 +111,10 @@ export function createPipeline(renderer: WebGLRenderer, scene: Scene, camera: Or
     },
     dispose() {
       outlinePass.dispose();
-      officialPass.dispose();
-      byThreshold.material.dispose();
-      byFlag.dispose();
       bloomPass.dispose();
       outputPass.dispose();
       composer.dispose();
     },
   };
-  pipeline.useOfficialPass(false);
   return pipeline;
 }

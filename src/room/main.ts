@@ -28,6 +28,8 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   renderer.shadowMap.enabled = true;
   /* Filtered: unfiltered shadows saw-tooth on 5 cm steps. The low-resolution buffer makes the edge hard again. */
   renderer.shadowMap.type = PCFShadowMap;
+  /* Nothing that casts a shadow moves yet: the shadow map is drawn again only when asked. */
+  renderer.shadowMap.autoUpdate = false;
   /* The pipeline calls render() several times per frame: count draw calls over the whole frame. */
   renderer.info.autoReset = false;
 
@@ -37,6 +39,11 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
 
   let dirty = true;
   let frame = 0;
+  /** Draw a frame with fresh shadows: the lights changed, or the graphics context came back. */
+  const redraw = () => {
+    renderer.shadowMap.needsUpdate = true;
+    dirty = true;
+  };
 
   const app: RoomApp = {
     renderer,
@@ -55,12 +62,12 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       room.setNight(night);
       /* A glow shows less in daylight. */
       pipeline.bloomPass.strength = night ? 0.6 : 0.25;
-      dirty = true;
+      redraw();
     },
     dispose() {
       cancelAnimationFrame(frame);
       observer.disconnect();
-      canvas.removeEventListener('webglcontextrestored', app.invalidate);
+      canvas.removeEventListener('webglcontextrestored', redraw);
       rig.dispose();
       pipeline.dispose();
       room.dispose();
@@ -70,7 +77,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
 
   const observer = new ResizeObserver(() => app.resize());
   observer.observe(container);
-  canvas.addEventListener('webglcontextrestored', app.invalidate);
+  canvas.addEventListener('webglcontextrestored', redraw);
   const hour = new Date().getHours();
   app.setNight(hour < 7 || hour >= 19);
   app.resize();

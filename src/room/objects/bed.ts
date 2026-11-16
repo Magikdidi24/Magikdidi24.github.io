@@ -1,6 +1,6 @@
 /*
-  The bed, along the left wall with its headboard against the back wall,
-  and the cat that sleeps on it.
+  The bed, along the left wall with its headboard against the back wall, the
+  cat that sleeps on it, and the nightstand beside it.
 */
 import { VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
@@ -26,7 +26,7 @@ export function bed(): RoomObject {
       if (x + 3 < 19) m.set(x + 3, 9, z + 2, C.denim);
     }
   }
-  return { name: 'bed', voxel: 0.05, at: [0.05, 0, 0.05], model: m };
+  return { name: 'bed', voxel: 0.05, at: [0.05, 0, 0.05], model: m, decor: true };
 }
 
 /** A cat loaf, head towards the foot of the bed. Voxels of 2.5 cm: 25 cm wide, 40 cm long. */
@@ -93,4 +93,15 @@ export function cat(): RoomObject {
     [...Array.from({ length: 13 }, () => '..........'), '..o....o..'],
   ], legend);
   return { name: 'cat', voxel: 0.025, at: [0.4, 0.5, 0.95], model: m };
+}
+
+/** 40 cm square, 50 cm high, one drawer. */
+export function nightstand(): RoomObject {
+  const m = new VoxelModel(8, 10, 9);
+  for (const [x, z] of [[0, 0], [7, 0], [0, 7], [7, 7]]) m.box(x, 0, z, 1, 2, 1, C.walnut); // legs
+  m.box(0, 2, 0, 8, 7, 8, C.honey);
+  m.box(0, 9, 0, 8, 1, 8, C.oak); // top
+  m.box(1, 5, 7, 6, 1, 1, C.walnut); // the line under the drawer
+  m.box(3, 7, 8, 2, 1, 1, C.steel); // its handle
+  return { name: 'nightstand', voxel: 0.05, at: [1.1, 0, 0.05], model: m, decor: true };
 }
