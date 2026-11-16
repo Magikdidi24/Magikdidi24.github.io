@@ -116,18 +116,13 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}`;
     pointer-events: auto;
   }
 
+  /* One centred line of text, kept as a plain block so a link stays inline. */
   .loader,
   .fallback {
     position: absolute;
-    inset: 0;
-    display: grid;
-    place-content: center;
-    padding: var(--space-5);
+    inset: 50% var(--space-5) auto;
+    transform: translateY(-50%);
     text-align: center;
-  }
-
-  .loader[hidden] {
-    display: none;
   }
 
   .fallback {

@@ -7,6 +7,7 @@ import GUI from 'three/addons/libs/lil-gui.module.min.js';
 import Stats from 'three/addons/libs/stats.module.js';
 import type { RoomApp } from './main.ts';
 import type { PixelMode } from './render/pixel.ts';
+import { LIGHTING } from './scene.ts';
 
 export interface Measure {
   gpu: string;
@@ -33,6 +34,8 @@ export function setupDebug(app: RoomApp): void {
     state.calls = renderer.info.render.calls;
     state.triangles = renderer.info.render.triangles;
     state.grid = `${pipeline.grid.cols} x ${pipeline.grid.rows}, k = ${pipeline.grid.k}`;
+    const view = rig.view();
+    state.view = `az ${view.azimuth}, el ${view.elevation}, zoom ${view.zoom}`;
   };
 
   const state = {
@@ -43,6 +46,7 @@ export function setupDebug(app: RoomApp): void {
     night: room.night,
     front: 5,
     back: 7,
+    view: '',
     grid: '',
     calls: 0,
     triangles: 0,
@@ -80,10 +84,19 @@ export function setupDebug(app: RoomApp): void {
   camera.add(state, 'back', 4, 20, 0.5).name('depth behind (m)').onChange(depth);
   camera.add(rig, 'rotationStep', 0, 15, 0.5).name('rotation step (deg)').onChange(app.invalidate);
   camera.add(rig, 'zoomStep', 0, 0.25, 0.01).name('zoom step').onChange(app.invalidate);
+  camera.add(state, 'view').listen().disable();
   camera.add(state, 'copyView').name('copy view');
 
   const light = gui.addFolder('Light');
   light.add(state, 'night').onChange((night: boolean) => app.setNight(night));
+  const relight = () => app.setNight(room.night);
+  for (const [name, preset] of Object.entries(LIGHTING)) {
+    const folder = light.addFolder(name);
+    folder.add(preset, 'ambient', 0, 1, 0.01).onChange(relight);
+    folder.add(preset, 'key', 0, 1, 0.01).onChange(relight);
+    folder.add(preset, 'moon', 0, 1, 0.01).onChange(relight);
+    folder.add(preset, 'neon', 0, 3, 0.05).onChange(relight);
+  }
 
   const bloom = gui.addFolder('Bloom');
   bloom.add(pipeline.bloomPass, 'strength', 0, 2, 0.05).onChange(app.invalidate);

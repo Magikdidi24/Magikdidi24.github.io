@@ -37,9 +37,12 @@ const TOON_STEPS = [
   [0.5, 0.46],
 ] as const;
 
-/** Lighting presets. Intensities are fractions of full light; the π factor of the diffuse BRDF is applied below. */
-const DAY = { sky: '#dfe8ff', ground: '#c2a588', ambient: 0.4, key: 0.6, moon: 0, neon: 0, background: PALETTE.sky };
-const NIGHT = { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, neon: 1, background: PALETTE.night };
+/** Lighting presets. Intensities are fractions of full light; the π factor of the diffuse BRDF is applied
+    below. The dev panel edits them in place. */
+export const LIGHTING = {
+  day: { sky: '#dfe8ff', ground: '#c2a588', ambient: 0.4, key: 0.6, moon: 0, neon: 0, background: PALETTE.sky },
+  night: { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, neon: 1, background: PALETTE.night },
+};
 
 export interface RoomScene {
   readonly scene: Scene;
@@ -183,7 +186,7 @@ export function createScene(): RoomScene {
     },
     setNight(value) {
       night = value;
-      const preset = value ? NIGHT : DAY;
+      const preset = value ? LIGHTING.night : LIGHTING.day;
       background.set(preset.background);
       hemisphere.color.set(preset.sky);
       hemisphere.groundColor.set(preset.ground);
