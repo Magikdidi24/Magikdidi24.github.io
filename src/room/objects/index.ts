@@ -4,12 +4,12 @@
   plus one, is its id in the outline pass: 0 is the room itself.
 */
 import type { VoxelModel } from '../voxel/builder.ts';
-import { bed, cat, nightstand } from './bed.ts';
-import { chair, desk, headphones, keyboard, lamp, mainMonitor, mouse, mug, sideMonitor, speaker } from './desk.ts';
+import { bed, dog, nightstand } from './bed.ts';
+import { book, chair, desk, headphones, keyboard, lamp, mainMonitor, mouse, mug, sideMonitor, speaker } from './desk.ts';
 import { door } from './door.ts';
 import { bigPlant, rug, smallPlant } from './floor.ts';
 import { cabinet, homelab, pc, printer } from './tech.ts';
-import { bookshelf, calendar, clipboard, frames, neon, pegboard, poster, shelf, whiteboard } from './walls.ts';
+import { bookshelf, calendar, clipboard, figurines, frames, neon, pegboard, poster, shelf, whiteboard } from './walls.ts';
 import { windowFrame } from './window.ts';
 
 export interface RoomObject {
@@ -35,12 +35,14 @@ export const objects = (): RoomObject[] => [
   calendar(),
   poster(),
   pegboard(),
-  shelf(),
+  shelf('shelf', [3.1, 1.35, 0], 24),
+  shelf('shelf-top', [3.55, 1.9, 0], 18),
+  figurines(),
   neon(),
   whiteboard(),
   /* Bed corner */
   bed(),
-  cat(),
+  dog(),
   nightstand(),
   /* Desk */
   desk(),
@@ -51,6 +53,7 @@ export const objects = (): RoomObject[] => [
   mouse(),
   mug(),
   lamp(),
+  book(),
   speaker('speaker-left', 0.04),
   speaker('speaker-right', 1.56),
   headphones(),

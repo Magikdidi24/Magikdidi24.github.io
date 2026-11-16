@@ -47,7 +47,7 @@ export function bigPlant(): RoomObject {
   leaves(m, 0, 13, 2, 4, 3);
   leaves(m, 3, 14, 0, 4, 4);
   leaves(m, 2, 17, 2, 3, 4);
-  return { name: 'plant', voxel: 0.05, at: [5.72, 0, 0.05], model: m, decor: true };
+  return { name: 'plant', voxel: 0.05, at: [5.72, 0, 0.05], model: m };
 }
 
 /** A small potted plant, 15 cm across. */

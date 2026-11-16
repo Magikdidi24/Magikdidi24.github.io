@@ -7,13 +7,18 @@ import { EMISSIVE, VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
 import type { RoomObject } from './index.ts';
 
-/** The row of diplomas above the bed, on the left wall: four frames of 30 × 40 cm and a small one. */
+/**
+ * The row of frames above the bed, on the left wall: four diplomas of
+ * 30 × 40 cm, then the TOEIC certificate, wider than high, with its blue
+ * header and its seal.
+ */
 export function frames(): RoomObject {
-  const m = new VoxelModel(1, 10, 34);
+  const m = new VoxelModel(1, 10, 35);
   const frame = (z: number, y: number, width: number, height: number) =>
     m.box(0, y, z, 1, height, width, C.walnut).box(0, y + 1, z + 1, 1, height - 2, width - 2, C.paper);
   for (const z of [0, 7, 14, 21]) frame(z, 1, 6, 8);
-  frame(29, 2, 5, 6);
+  frame(28, 2, 7, 6);
+  m.box(0, 6, 29, 1, 1, 5, C.denim).set(0, 3, 33, C.mustard);
   return { name: 'frames', voxel: 0.05, at: [0, 1.25, 0.15], model: m };
 }
 
@@ -87,12 +92,46 @@ export function pegboard(): RoomObject {
   return { name: 'pegboard', voxel: 0.05, at: [1.8, 1.35, 0], model: m };
 }
 
-/** Wall shelf above the right half of the desk: a board on two brackets. */
-export function shelf(): RoomObject {
-  const m = new VoxelModel(24, 3, 4);
-  for (const x of [2, 21]) m.box(x, 0, 0, 1, 2, 1, C.walnut).box(x, 1, 1, 1, 1, 2, C.walnut); // brackets
-  m.box(0, 2, 0, 24, 1, 4, C.honey);
-  return { name: 'shelf', voxel: 0.05, at: [3.1, 1.35, 0], model: m, decor: true };
+/** A wall shelf: a board `length` voxels long on two brackets. */
+export function shelf(name: string, at: [number, number, number], length: number): RoomObject {
+  const m = new VoxelModel(length, 3, 4);
+  for (const x of [2, length - 3]) m.box(x, 0, 0, 1, 2, 1, C.walnut).box(x, 1, 1, 1, 1, 2, C.walnut); // brackets
+  m.box(0, 2, 0, length, 1, 4, C.honey);
+  return { name, voxel: 0.05, at, model: m, decor: true };
+}
+
+/**
+ * The figurines of the top shelf: manga archetypes, none of them a known
+ * character. Four on a riser at the back and four in front, each a sprite
+ * two voxels thick, top row first. Voxels of 2.5 cm: the tallest is 25 cm.
+ */
+export function figurines(): RoomObject {
+  const legend = {
+    K: C.ink, G: C.graphite, P: C.plum, W: C.paper, S: C.apricot, D: C.denim, N: C.night, R: C.rust,
+    M: C.magenta, Y: C.mustard, T: C.teal, V: C.silver, L: C.steel, E: C.moss, r: C.red, c: C.cyan | EMISSIVE,
+  };
+  const winged = ['K.......K', 'KK.PPP.KK', 'KKPPPPPKK', 'KK.SSS.KK', 'KKKSSSKKK', '.KKSSSKK.', '..KGGGK..', '...G.G...', '.RRRRRRR.'];
+  const fighter = ['.WWWW.S', 'WWWWWWS', 'WWKSKWS', '.WWWWWS', '..SSSS.', '..SSS..', '..NNN..', '..S.S..', '.WWWWW.', 'WWWWWWW'];
+  const fallen = ['...GGG...', '..GGGGG..', 'K..SSS..K', 'KK.SSS.KK', 'KKKPPPKKK', 'KKKGGGKKK', 'KK.G.G.KK', '.DDDDDDD.'];
+  const runner = ['.MMMM..', 'MMMMMM.', 'MKSKMM.', '.SSS..S', 'WWWWWWS', '.WWW...', '.WMW...', '.W.W...', 'WWWWWWW'];
+  const kid = ['.KK.', 'KKKK', 'KSSK', 'DDDD', 'EEEE'];
+  const gentleman = ['.GGG.', '.GGG.', 'GMMMG', '.KSK.', 'GGWGG', 'GGWGG', '.GGG.', '.G.G.', 'PPPPP'];
+  const robot = ['.LLL.', 'LcccL', '.LLL.', 'VLrLV', 'VLLLV', '.L.L.', '.L.L.', 'GGGGG'];
+  const swordsman = ['V.....', 'V.YYY.', 'V.YYY.', 'V.KSK.', 'STTTTT', '.TTTT.', '.TTTT.', '.T..T.', 'GGGGGG'];
+
+  const m = new VoxelModel(35, 13, 6);
+  const stand = (sprite: string[], x: number, y: number, z: number) =>
+    m.picture(x, y, z, sprite, legend).picture(x, y, z + 1, sprite, legend);
+  m.box(0, 0, 0, 35, 3, 3, C.walnut); // riser
+  stand(winged, 0, 3, 0);
+  stand(fighter, 10, 3, 0);
+  stand(fallen, 18, 3, 0);
+  stand(runner, 28, 3, 0);
+  stand(kid, 2, 0, 4);
+  stand(gentleman, 10, 0, 4);
+  stand(robot, 19, 0, 4);
+  stand(swordsman, 27, 0, 4);
+  return { name: 'figurines', voxel: 0.025, at: [3.5625, 2.05, 0.025], model: m };
 }
 
 /** The neon sign, a prompt: ">" in magenta, "_" in cyan. 65 × 45 cm. */
@@ -108,11 +147,15 @@ export function neon(): RoomObject {
   return { name: 'neon', voxel: 0.05, at: [2.7, 2.17, 0], model: m, decor: true };
 }
 
-/** Whiteboard above the cabinet, 1.15 m × 90 cm, with its tray and a marker. */
+/** Where the whiteboard hangs, and its writing surface inside one voxel of frame: centre, width and height in metres. */
+const WHITEBOARD = { x: 4.5, y: 1.05 };
+export const WHITEBOARD_SURFACE = { x: WHITEBOARD.x + 0.575, y: WHITEBOARD.y + 0.45, z: 0.05 + 0.002, width: 1.05, height: 0.8 };
+
+/** Whiteboard above the cabinet, 1.15 m × 90 cm, with its tray and four markers. What is written on it is a texture. */
 export function whiteboard(): RoomObject {
   const m = new VoxelModel(23, 18, 2);
   m.box(0, 0, 0, 23, 18, 1, C.silver).box(1, 1, 0, 21, 16, 1, C.paper);
   m.box(2, 0, 1, 19, 1, 1, C.steel); // tray
-  m.box(5, 1, 1, 3, 1, 1, C.red); // marker
-  return { name: 'whiteboard', voxel: 0.05, at: [4.5, 1.05, 0], model: m };
+  [C.ink, C.denim, C.red, C.leaf].forEach((color, i) => m.box(4 + i * 4, 1, 1, 2, 1, 1, color)); // markers
+  return { name: 'whiteboard', voxel: 0.05, at: [WHITEBOARD.x, WHITEBOARD.y, 0], model: m };
 }

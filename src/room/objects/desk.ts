@@ -88,15 +88,31 @@ export function mug(): RoomObject {
   return { name: 'mug', voxel: 0.025, at: [X + 1.72, TOP, Z + 0.55], model: m, decor: true };
 }
 
-/** Desk lamp: foot, pole, and a head that shines down on the desk. */
+/** Bedside-style lamp at the right end of the desk: a round foot, a stem and a shade that glows. 35 cm high. */
 export function lamp(): RoomObject {
-  const m = new VoxelModel(6, 13, 5);
-  m.box(2, 0, 0, 4, 1, 5, C.steel); // foot
-  m.box(4, 1, 2, 1, 10, 1, C.steel); // pole
-  m.box(0, 10, 2, 5, 1, 1, C.steel); // arm
-  m.box(0, 8, 1, 3, 2, 3, C.graphite); // head
-  m.box(0, 7, 1, 3, 1, 3, C.amber | EMISSIVE); // bulb
-  return { name: 'lamp', voxel: 0.025, at: [X + 1.98, TOP, Z + 0.08], model: m, decor: true };
+  const m = new VoxelModel(7, 14, 7);
+  m.box(1, 0, 2, 5, 1, 3, C.walnut).box(2, 0, 1, 3, 1, 5, C.walnut); // foot
+  m.box(3, 1, 3, 1, 7, 1, C.honey); // stem
+  m.box(0, 7, 0, 7, 4, 7, C.amber | EMISSIVE).box(1, 11, 1, 5, 3, 5, C.amber | EMISSIVE); // shade, narrower at the top
+  m.box(0, 7, 0, 7, 1, 7, C.honey).box(1, 13, 1, 5, 1, 5, C.honey); // its two rims
+  for (const [x, z] of [[0, 0], [6, 0], [0, 6], [6, 6]]) m.box(x, 7, z, 1, 4, 1, 0); // its corners rounded
+  m.box(1, 7, 1, 5, 1, 5, 0).box(2, 13, 2, 3, 1, 3, 0); // open at both ends
+  return { name: 'lamp', voxel: 0.025, at: [X + 1.98, TOP, Z + 0.08], model: m };
+}
+
+/**
+ * The book being read, lying beside the lamp with a ribbon between its pages:
+ * a thick green hardback with a tiger on its cover. 20 × 25 cm.
+ */
+export function book(): RoomObject {
+  const m = new VoxelModel(8, 3, 12);
+  m.box(0, 0, 0, 8, 3, 10, C.moss); // covers and spine
+  m.box(1, 1, 0, 7, 1, 10, C.paper); // pages, on the three open sides
+  m.box(2, 2, 1, 4, 1, 2, C.paper); // title
+  m.box(2, 2, 4, 4, 1, 4, C.amber); // the tiger
+  for (const [x, z] of [[2, 5], [4, 5], [3, 7], [5, 7]]) m.set(x, 2, z, C.ink); // its stripes
+  m.box(5, 1, 10, 1, 1, 2, C.red).set(5, 0, 11, C.red); // bookmark
+  return { name: 'book', voxel: 0.025, at: [X + 1.93, TOP, Z + 0.42], model: m, turn: -12, decor: true };
 }
 
 /** A small speaker, `x` metres from the left end of the desk. */
@@ -119,11 +135,13 @@ export function headphones(): RoomObject {
   return { name: 'headphones', voxel: 0.025, at: [X + 1.76, TOP, Z + 0.1], model: m, decor: true };
 }
 
-/** Gaming-style chair, pulled back from the desk and turned a little. 60 cm wide, 1.35 m high. */
+/** Gaming-style chair on casters, pulled back from the desk and turned a little. 60 cm wide, 1.35 m high. */
 export function chair(): RoomObject {
   const m = new VoxelModel(12, 27, 12);
-  m.box(1, 0, 5, 10, 1, 2, C.graphite).box(5, 0, 1, 2, 1, 10, C.graphite); // star base
-  m.box(5, 1, 5, 2, 7, 2, C.steel); // column
+  m.box(1, 1, 5, 10, 1, 2, C.steel).box(5, 1, 1, 2, 1, 10, C.steel); // star base
+  for (const [x, z] of [[1, 5], [10, 5]]) m.box(x, 0, z, 1, 1, 2, C.ink); // a caster under the end of each arm
+  for (const [x, z] of [[5, 1], [5, 10]]) m.box(x, 0, z, 2, 1, 1, C.ink);
+  m.box(5, 2, 5, 2, 6, 2, C.steel); // column
   m.box(1, 8, 1, 10, 2, 10, C.teal); // seat
   m.box(1, 9, 1, 1, 1, 10, C.ink).box(10, 9, 1, 1, 1, 10, C.ink); // its side bolsters
   m.box(1, 10, 10, 10, 17, 2, C.teal); // backrest, on the far side from the desk
@@ -131,5 +149,5 @@ export function chair(): RoomObject {
   m.box(1, 26, 10, 10, 1, 2, C.cyan); // piping along its top
   m.box(0, 19, 10, 1, 5, 2, C.teal).box(11, 19, 10, 1, 5, 2, C.teal); // shoulder wings
   for (const x of [0, 11]) m.box(x, 10, 5, 1, 2, 2, C.graphite).box(x, 12, 3, 1, 1, 6, C.graphite); // armrests
-  return { name: 'chair', voxel: 0.05, at: [2.6, 0, 1.3], model: m, turn: 25, decor: true };
+  return { name: 'chair', voxel: 0.05, at: [2.6, 0, 1.3], model: m, turn: 25 };
 }

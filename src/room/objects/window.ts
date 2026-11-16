@@ -1,6 +1,6 @@
 /*
   The window in the back wall, above the head of the bed: a frame lining the
-  opening, one cross and a sill deep enough for the cat. No pane: nothing in
+  opening, one cross and a sill deep enough for the dog. No pane: nothing in
   the scene is transparent.
 */
 import { VoxelModel } from '../voxel/builder.ts';

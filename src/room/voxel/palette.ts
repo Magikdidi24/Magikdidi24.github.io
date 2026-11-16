@@ -39,7 +39,7 @@ export const PALETTE = {
   lime: '#8dff6a', // NAS LEDs, terminal text
   /* Specials */
   red: '#e23b3b', // gem, stamp, pen
-  cat: '#e58e3a', // the cat (to be confirmed)
+  apricot: '#e4b885', // the dog's ears and tail, skin of the figurines
   sky: '#8ed0f5', // day sky
   night: '#1c1747', // night sky
 } as const;
