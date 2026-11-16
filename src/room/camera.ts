@@ -7,7 +7,7 @@
 */
 import { MathUtils, OrthographicCamera, Quaternion, Spherical, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { fitHalfHeight, pixelFraction, snap, type Grid } from './view.ts';
+import { clearOf, fitHalfHeight, pixelFraction, snap, type Grid } from './view.ts';
 
 export interface Box {
   w: number;
@@ -31,6 +31,14 @@ const MARGIN = 1.08;
 /** Distance from the target. It changes nothing on screen: it only places the depth range. */
 const DISTANCE = 20;
 
+/** Where the camera is: the point it looks at, in metres, its angles in the units of DEFAULT_VIEW, and its zoom. */
+export interface Pose {
+  target: [number, number, number];
+  azimuth: number;
+  elevation: number;
+  zoom: number;
+}
+
 export interface Rig {
   readonly camera: OrthographicCamera;
   readonly controls: OrbitControls;
@@ -45,7 +53,19 @@ export interface Rig {
   azimuth(): number;
   /** Carry the camera half a turn round the room: `t` goes from 0 to 1. At 1 it is held on its new side. */
   around(t: number): void;
-  /** Let the controls move the camera: what is left of a drag, the limits of the view. */
+  /** The true pose of the camera. */
+  pose(): Pose;
+  /** Put the camera somewhere, whatever the limits of the view. */
+  place(pose: Pose): void;
+  /** Hold the camera where it was put: the visitor cannot move it until it is let go. */
+  hold(held: boolean): void;
+  /**
+   * The pose that shows a point of the room from the opening angle, at `zoom`,
+   * in the middle of what a panel leaves free: `cover` is what the panel
+   * takes of the right side and of the foot of the viewport, in CSS pixels.
+   */
+  frame(view: { target: [number, number, number]; zoom: number }, cover: { right: number; bottom: number }, grid: Grid): Pose;
+  /** Let the controls move the camera: what is left of a drag, the limits of the view. Nothing while it is held. */
   update(): void;
   /** Fit the room in a viewport with the aspect ratio of the pixel grid. Returns the size of a pixel in the room at zoom 1, in metres. */
   fit(grid: Grid): number;
@@ -84,6 +104,7 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
   hold();
   /** The azimuth a turn round the room started from, while it lasts. */
   let turnedFrom: number | null = null;
+  let held = false;
   controls.minPolarAngle = MathUtils.degToRad(90 - ELEVATION_MAX);
   controls.maxPolarAngle = MathUtils.degToRad(90 - ELEVATION_MIN);
   controls.minZoom = MIN_ZOOM;
@@ -129,7 +150,35 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
       hold();
       controls.enabled = true;
     },
+    pose() {
+      spherical.setFromVector3(offset.copy(camera.position).sub(controls.target));
+      return {
+        target: controls.target.toArray(),
+        azimuth: MathUtils.radToDeg(spherical.theta),
+        elevation: 90 - MathUtils.radToDeg(spherical.phi),
+        zoom: camera.zoom,
+      };
+    },
+    place({ target, azimuth, elevation, zoom }) {
+      controls.target.fromArray(target);
+      spherical.set(DISTANCE, MathUtils.degToRad(90 - elevation), MathUtils.degToRad(azimuth));
+      camera.position.setFromSpherical(spherical).add(controls.target);
+      camera.lookAt(controls.target);
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+    },
+    hold(value) {
+      held = value;
+      controls.enabled = !value;
+    },
+    frame({ target, zoom }, cover, grid) {
+      const { azimuth, elevation } = DEFAULT_VIEW;
+      const unit = (2 * halfHeight) / zoom / grid.cssHeight; // a CSS pixel, in metres of the room
+      const shift = clearOf(cover, unit, MathUtils.degToRad(azimuth), MathUtils.degToRad(elevation));
+      return { target: [target[0] + shift[0], target[1] + shift[1], target[2] + shift[2]], azimuth, elevation, zoom };
+    },
     update() {
+      if (held) return; // the controls would pull the camera back inside their limits
       /* Zooming out brings the room back to the middle. */
       const close = MathUtils.clamp((camera.zoom - 1) / 3, 0, 1);
       controls.maxTargetRadius = MathUtils.lerp(PAN_RADIUS.wide, PAN_RADIUS.close, close);

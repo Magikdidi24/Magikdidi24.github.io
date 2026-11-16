@@ -8,6 +8,7 @@
     2. "aux", with one override material: the view-space normal (red, green),
        the object id (blue) and the emissive flag (alpha).
   A full-screen pass then draws the colour, with
+    - the accent colour on the edge of the object under the pointer;
     - a dark outline on a pixel that is in front of its neighbour: any step
       when the neighbour belongs to another object, a step of depthThreshold
       metres inside one object. "In front" is measured against the plane of
@@ -80,6 +81,8 @@ const compositeMaterial = () =>
       depthEdgeStrength: { value: 0 },
       normalEdgeStrength: { value: 0 },
       depthThreshold: { value: 0 },
+      hovered: { value: 0 },
+      accent: { value: new Color() },
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
@@ -99,6 +102,8 @@ const compositeMaterial = () =>
       uniform float depthEdgeStrength;
       uniform float normalEdgeStrength;
       uniform float depthThreshold;
+      uniform float hovered;
+      uniform vec3 accent;
       varying vec2 vUv;
 
       // Distance from the camera, in metres. Orthographic depth is linear.
@@ -154,6 +159,16 @@ const compositeMaterial = () =>
         vec3 normal = normalOf(aux);
         float id = idOf(aux);
 
+        // The object under the pointer: the pixels of its edge take the accent colour.
+        if (hovered > 0.0 && id == hovered) {
+          bool edge = idOf(auxAt(vec2(1.0, 0.0))) != id || idOf(auxAt(vec2(-1.0, 0.0))) != id
+            || idOf(auxAt(vec2(0.0, 1.0))) != id || idOf(auxAt(vec2(0.0, -1.0))) != id;
+          if (edge) {
+            gl_FragColor = vec4(accent, texel.a);
+            return;
+          }
+        }
+
         float dark = max(
           max(outline(vec2(1.0, 0.0), depth, normal, id), outline(vec2(-1.0, 0.0), depth, normal, id)),
           max(outline(vec2(0.0, 1.0), depth, normal, id), outline(vec2(0.0, -1.0), depth, normal, id))
@@ -177,6 +192,9 @@ export class OutlinePass extends Pass {
   normalEdgeStrength = 0.3;
   /** Inside one object, a step of this many metres gets an outline. */
   depthThreshold = 0.1;
+  /** The id of the object to outline in the accent colour: the one under the pointer. 0 for none. */
+  hovered = 0;
+  readonly accent = new Color();
 
   private readonly scene: Scene;
   private readonly camera: OrthographicCamera;
@@ -255,6 +273,8 @@ export class OutlinePass extends Pass {
     uniforms.depthEdgeStrength.value = this.depthEdgeStrength;
     uniforms.normalEdgeStrength.value = this.normalEdgeStrength;
     uniforms.depthThreshold.value = this.depthThreshold;
+    uniforms.hovered.value = this.hovered;
+    uniforms.accent.value.copy(this.accent);
 
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     if (!this.renderToScreen && this.clear) renderer.clear();

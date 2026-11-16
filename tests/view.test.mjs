@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoGrid, fitHalfHeight, gridSize, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
+import { autoGrid, clearOf, fitHalfHeight, gridSize, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -181,4 +181,32 @@ test('shownWalls: on the way round, walls change one at a time', () => {
 test('shownWalls: a wall seen edge on is not drawn', () => {
   assert.deepEqual(walls(90), ['west']);
   assert.deepEqual(walls(180), ['south']);
+});
+
+// A panel covers part of the viewport: what the camera looks at moves to the middle of what is left.
+test('clearOf: nothing covered, nothing moves', () => {
+  assert.deepEqual(clearOf({ right: 0, bottom: 0 }, 0.01, Math.PI / 4, Math.PI / 6), [0, 0, 0]);
+});
+
+test('clearOf: a panel on the right moves the target to the right of the screen by half its width', () => {
+  // Seen from the front (azimuth 0), the right of the screen is +x.
+  const [x, y, z] = clearOf({ right: 400, bottom: 0 }, 0.01, 0, Math.PI / 6);
+  near(x, 2);
+  near(y, 0);
+  near(z, 0);
+});
+
+test('clearOf: a sheet at the bottom moves the target down the screen by half its height', () => {
+  // Looking level (elevation 0), down the screen is straight down.
+  const [x, y, z] = clearOf({ right: 0, bottom: 300 }, 0.01, 0, 0);
+  near(x, 0);
+  near(y, -1.5);
+  near(z, 0);
+});
+
+test('clearOf: from the default view the two shifts follow the camera', () => {
+  const [x, y, z] = clearOf({ right: 200, bottom: 0 }, 0.01, Math.PI / 4, Math.PI / 6);
+  near(x, Math.SQRT1_2);
+  near(y, 0);
+  near(z, -Math.SQRT1_2);
 });

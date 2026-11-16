@@ -1,0 +1,47 @@
+---
+/*
+  The panel of the door: how to reach him. The address, the button that
+  copies it and the two links are those of the text version.
+*/
+import Panel from './Panel.astro';
+import CopyEmail from '../home/CopyEmail.astro';
+import { stops } from '../../data/room';
+import { person } from '../../data/site';
+
+const stop = stops.find(({ id }) => id === 'contact')!;
+const [user, domain] = person.email.split('@');
+---
+<Panel id={stop.id} title={stop.label}>
+  <p>{person.contactNote}</p>
+  <p class="email">
+    <a href={`mailto:${person.email}`}>{user}<wbr />@{domain}</a>
+  </p>
+  <div class="actions">
+    <CopyEmail email={person.email} />
+    <a href={person.links.linkedin}>LinkedIn</a>{' '}
+    <a href={person.links.github}>GitHub</a>
+  </div>
+</Panel>
+
+<style>
+  .email {
+    margin-top: var(--space-4);
+    font-size: var(--text-md);
+    font-weight: 500;
+    overflow-wrap: break-word;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
+    margin-top: var(--space-4);
+  }
+
+  .actions a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+</style>

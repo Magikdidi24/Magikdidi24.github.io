@@ -13,6 +13,8 @@ export const person = {
     site: 'https://magikdidi24.github.io',
     source: 'https://github.com/Magikdidi24/Magikdidi24.github.io',
   },
+  /** Under the Contact heading, in the text version and in the room. */
+  contactNote: 'Email is the fastest way to reach me, and I reply in English or French.',
   /** One line, used in the hero and in meta descriptions. */
   intro: 'AI engineering student at EPITA, on exchange in Tokyo.',
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',

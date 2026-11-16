@@ -1,13 +1,15 @@
 /*
-  What the things of the room do when they are clicked. The chair spins, a
-  screen cracks, the sakura sheds petals, the printer drops a CV, doors swing
-  open, the brush falls off the whiteboard, the warning light flashes, a
-  frame is shown large, the calendar opens... A click is a pointer released
-  where it was pressed; a drag turns the camera instead. Under
-  prefers-reduced-motion every movement jumps to its end.
+  What the things of the room do under the pointer. One that answers a click
+  is outlined when the pointer is over it, named beside the pointer, and
+  lifted a little if it is small. Clicked, the chair spins, a screen cracks,
+  the sakura sheds petals, the printer drops a CV, doors swing open, the
+  brush falls off the whiteboard, the warning light flashes, the calendar
+  opens... and the objects that are stops of the visit open their panel. A
+  click is a pointer released where it was pressed; a drag turns the camera
+  instead. Under prefers-reduced-motion every movement jumps to its end.
 */
 import { BoxGeometry, Color, InstancedMesh, MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
-import { enlarged, says } from '../../data/room.ts';
+import { enlarged, labels, says, stops } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import type { RoomApp } from '../main.ts';
@@ -18,6 +20,7 @@ import { MARKERS } from '../objects/walls.ts';
 import { DOORS } from '../objects/wardrobe.ts';
 import { COLOR_ONLY } from '../render/outline.ts';
 import { ROOM, type Switch } from '../scene.ts';
+import { current, go } from '../ui/route.ts';
 import { showCalendar, showPicture } from '../ui/sheets.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
 import { codeScreen, desktopScreen } from '../voxel/paint.ts';
@@ -32,6 +35,12 @@ const DROPPED = 5;
 const PETALS = 28;
 /** How bright a neon tube that has gone out still is. */
 const OUT = 0.12;
+/** How far a small object rises under the pointer, and up to which size an object counts as small. Metres. */
+const LIFT = 0.025;
+const SMALL = 0.45;
+
+/** The panel each object opens, for those that are stops of the visit. */
+const STOP: Record<string, string> = Object.fromEntries(stops.flatMap(({ id, objects }) => objects.map((name) => [name, id])));
 
 /** Where a click happened in the viewport: a picture shown large grows from there. */
 interface Spot {
@@ -111,15 +120,33 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     });
 
   const tipped = new Matrix4();
+  /** How each object that has moved is posed: its turn, how far it is from its place, and its tip. */
+  const poses = new Map<string, { turn: number; by: Point; tip: number }>();
+  /** The object under the pointer. */
+  let hovered: string | null = null;
+
+  /** An object counts as small when its largest side is: it is lifted under the pointer. */
+  const small = (name: string) => {
+    const { model, voxel } = mesh(name).userData.placed as Placed;
+    return Math.max(model.sx, model.sy, model.sz) * voxel <= SMALL;
+  };
 
   /**
    * An object that is its own mesh: turned and moved from where it stands,
    * and tipped forwards or backwards about its middle. Degrees and metres.
    */
-  const pose = (name: string, turn: number, [dx, dy, dz]: Point = [0, 0, 0], tip = 0) => {
+  const pose = (name: string, turn: number, by: Point = [0, 0, 0], tip = 0) => {
+    poses.set(name, { turn, by, tip });
+    settle(name);
+  };
+
+  /** Put an object where its pose says, a little higher if it is the small one under the pointer. */
+  const settle = (name: string) => {
+    const { turn, by: [dx, dy, dz], tip } = poses.get(name) ?? { turn: 0, by: [0, 0, 0], tip: 0 };
     const object = mesh(name);
     const placed = object.userData.placed as Placed;
-    const at: Point = [placed.at[0] + dx, placed.at[1] + dy, placed.at[2] + dz];
+    const lift = name === hovered && small(name) ? LIFT : 0;
+    const at: Point = [placed.at[0] + dx, placed.at[1] + dy + lift, placed.at[2] + dz];
     const matrix = placement({ ...placed, turn: (placed.turn ?? 0) + turn, at });
     if (tip) {
       const [x, y, z] = [at[0] + (placed.model.sx * placed.voxel) / 2, at[1], at[2] + (placed.model.sz * placed.voxel) / 2];
@@ -318,7 +345,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const enlarge = (name: keyof typeof enlarged) => async (from: Spot) => {
     await hop(name, 1, 0.025)();
     const drawn = (mesh(`${name}-picture`).material as MeshToonMaterial).map!.image as HTMLCanvasElement;
-    showPicture(enlarged[name].image ?? drawn, enlarged[name].caption, from);
+    showPicture(enlarged[name].image?.src ?? drawn, enlarged[name].caption, from);
   };
 
   /* The doors that stand open. */
@@ -404,12 +431,21 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   /** The mouse is moved in a loop on its pad. */
   const circle = (name: string) => () => move(0.9, 14, (t) => pose(name, 0, [Math.sin(t * 2 * Math.PI) * 0.035, 0, (Math.cos(t * 2 * Math.PI) - 1) * 0.025]));
 
+  /** A stop of the visit: its panel opens, the camera goes to it, and the object does what it does. */
+  const visit = (name: string, then: (from: Spot) => unknown) => (from: Spot) => {
+    go(STOP[name]);
+    return then(from);
+  };
+
+  /** A knock on the door: it rattles in its frame. */
+  const knock = () => move(0.3, 6, (t) => pose('door', 0, [0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125]));
+
   const reactions: Record<string, (from: Spot) => unknown> = {
     chair: spin('chair'),
     dog: bark,
     figurines: hop('figurines'),
     sakura: shed,
-    monitor: crack('monitor', desktopScreen, 1), // a glitch: in phase 3 it leads into the projects
+    monitor: visit('monitor', crack('monitor', desktopScreen, 0.3)), // a glitch on the way into the desktop of projects
     'monitor-side': crack('monitor-side', codeScreen, 8),
     keyboard: hop('keyboard', 1, 0.0125),
     mouse: circle('mouse'),
@@ -429,8 +465,11 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     ...Object.fromEntries(Object.keys(DOORS).map((door) => [door, () => swing(door)])),
     tripod: hop('tripod', 2),
     beacon: flash,
-    'frame-bac': enlarge('frame-bac'),
-    'frame-toeic': enlarge('frame-toeic'),
+    'frame-bac': visit('frame-bac', enlarge('frame-bac')),
+    'frame-prepa': visit('frame-prepa', hop('frame-prepa', 1, 0.025)),
+    'frame-epita': visit('frame-epita', hop('frame-epita', 1, 0.025)),
+    'frame-toeic': visit('frame-toeic', enlarge('frame-toeic')),
+    door: visit('door', knock),
     passes: enlarge('passes'),
     formulas: enlarge('formulas'),
     calendar: showCalendar,
@@ -471,24 +510,81 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     return running;
   });
 
+  /* The name of what is under the pointer, beside it. Not read out: the menu of the page lists the stops of the visit. */
+  const label = Object.assign(document.createElement('p'), { className: 'label', hidden: true });
+  label.setAttribute('aria-hidden', 'true');
+  canvas.after(label);
+
+  /** What the pointer is over, if it answers a click: outlined, named, and lifted if it is small. */
+  const hover = (name: string | null, at?: Spot) => {
+    if (name !== hovered) {
+      const before = hovered;
+      hovered = name;
+      app.hover(name);
+      canvas.style.cursor = name ? 'pointer' : '';
+      label.hidden = !name || !labels[name];
+      label.textContent = (name && labels[name]) ?? '';
+      for (const moved of [before, name]) {
+        if (!moved || !small(moved)) continue;
+        settle(moved);
+        app.invalidate(true);
+      }
+    }
+    if (at) {
+      label.style.left = `${at.x}px`;
+      label.style.top = `${at.y}px`;
+    }
+  };
+
+  /* The pointer is looked up once a frame at most: reading what is under it asks the graphics card. */
+  let pointer: Spot | null = null;
+  let looking = false;
+  const moved = (event: PointerEvent) => {
+    if (event.pointerType === 'touch') return; // a finger does not hover
+    const box = canvas.getBoundingClientRect();
+    pointer = { x: event.clientX - box.left, y: event.clientY - box.top };
+    if (looking) return;
+    looking = true;
+    requestAnimationFrame(() => {
+      looking = false;
+      if (!pointer || !running) return;
+      const name = app.pick(pointer.x + box.left, pointer.y + box.top);
+      hover(name && name in reactions ? name : null, pointer);
+    });
+  };
+  const left = () => {
+    pointer = null;
+    hover(null);
+  };
+
   let pressed: Spot | null = null;
   const down = (event: PointerEvent) => {
     pressed = event.isPrimary && event.button === 0 ? { x: event.clientX, y: event.clientY } : null;
   };
   const up = (event: PointerEvent) => {
     const at = { x: event.clientX, y: event.clientY };
-    if (pressed && Math.hypot(at.x - pressed.x, at.y - pressed.y) <= CLICK_SLOP) react(app.pick(at.x, at.y), at);
+    if (pressed && Math.hypot(at.x - pressed.x, at.y - pressed.y) <= CLICK_SLOP) {
+      const name = app.pick(at.x, at.y);
+      /* With a panel open, a click beside the stops of the visit closes it. */
+      if (current().stop && !(name && STOP[name])) go(null);
+      else react(name, at);
+    }
     pressed = null;
   };
   const cancel = () => {
     pressed = null;
   };
+  canvas.addEventListener('pointermove', moved);
+  canvas.addEventListener('pointerleave', left);
   canvas.addEventListener('pointerdown', down);
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', cancel);
 
   return () => {
     running = false;
+    label.remove();
+    canvas.removeEventListener('pointermove', moved);
+    canvas.removeEventListener('pointerleave', left);
     canvas.removeEventListener('pointerdown', down);
     canvas.removeEventListener('pointerup', up);
     canvas.removeEventListener('pointercancel', cancel);

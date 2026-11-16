@@ -307,6 +307,48 @@ export function certificate({ title, holder }: { title: string; holder: string }
   });
 }
 
+/**
+ * The paper of a frame taller than wide: a title, a few lines under a rule,
+ * and a foot, all centred. 40 × 60, one pixel is 5 mm.
+ */
+export function schoolPaper({ title, lines, foot }: { title: string; lines: string[]; foot: string }): CanvasTexture {
+  return texture(40, 60, (rect) => {
+    rect(0, 0, 40, 60, 'paper');
+    for (const [x, y, w, h] of [[2, 2, 36, 1], [2, 57, 36, 1], [2, 2, 1, 56], [37, 2, 1, 56]]) rect(x, y, w, h, 'stone'); // border
+    centred(rect, title, 40, 8, 'denim');
+    rect(8, 16, 24, 1, 'stone');
+    lines.forEach((line, i) => centred(rect, line, 40, 21 + i * 8, 'ink'));
+    centred(rect, foot, 40, 48, 'taupe');
+  });
+}
+
+/**
+ * The paper of a diploma that is not awarded yet: its title, faint lines
+ * where the text will be, a red stamp that leans across them, the year under
+ * it, and a yellow note stuck on its corner. 40 × 60.
+ */
+export function soonPaper({ title, stamp, foot }: { title: string; stamp: string[]; foot: string }): CanvasTexture {
+  return texture(40, 60, (rect) => {
+    rect(0, 0, 40, 60, 'paper');
+    for (const [x, y, w, h] of [[2, 2, 36, 1], [2, 57, 36, 1], [2, 2, 1, 56], [37, 2, 1, 56]]) rect(x, y, w, h, 'stone'); // border
+    centred(rect, title, 40, 7, 'ink');
+    for (const y of [16, 19, 44, 47, 50]) rect(7, y, y % 2 ? 20 : 26, 1, 'linen');
+    /* The stamp climbs one pixel every four: struck by hand, not straight. */
+    const lean: Rect = (x, y, w, h, color) => {
+      for (let i = x; i < x + w; i++) rect(i, y + 4 - Math.floor(i / 4), 1, h, color);
+    };
+    lean(2, 22, 36, 1, 'red');
+    lean(2, 41, 36, 1, 'red');
+    lean(2, 22, 1, 20, 'red');
+    lean(37, 22, 1, 20, 'red');
+    stamp.forEach((word, i) => centred(lean, word, 40, 25 + i * 9, 'red', LARGE));
+    centred(rect, foot, 40, 51, 'red');
+    rect(29, 0, 11, 10, 'mustard'); // the note
+    rect(31, 3, 7, 1, 'walnut');
+    rect(31, 6, 5, 1, 'walnut');
+  });
+}
+
 /** A framed paper that only says its name, in black capitals twice the size of the large font. 60 × 40. */
 export function nameplate(name: string): CanvasTexture {
   return texture(60, 40, (rect) => {

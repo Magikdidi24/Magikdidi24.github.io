@@ -147,3 +147,18 @@ export function shownWalls(azimuth: number): Record<Wall, boolean> {
   const facing = 1e-6; // exactly edge on counts as hidden
   return { north: z > facing, south: z < -facing, west: x > facing, east: x < -facing };
 }
+
+/**
+ * A panel covers part of the viewport: `right` pixels of its right side, or
+ * `bottom` pixels of its foot. Returns how far what the camera looks at must
+ * move in the room, in metres, to sit in the middle of what is left. `unit`
+ * is the size of a pixel of the viewport in the room; the angles are those of
+ * the camera.
+ */
+export function clearOf(cover: { right: number; bottom: number }, unit: number, azimuth: number, elevation: number): [number, number, number] {
+  const across = (cover.right / 2) * unit; // towards the right of the screen
+  const down = (cover.bottom / 2) * unit; // towards its foot
+  const right = [Math.cos(azimuth), 0, -Math.sin(azimuth)];
+  const up = [-Math.sin(azimuth) * Math.sin(elevation), Math.cos(elevation), -Math.cos(azimuth) * Math.sin(elevation)];
+  return [0, 1, 2].map((k) => right[k] * across - up[k] * down) as [number, number, number];
+}

@@ -1,0 +1,62 @@
+---
+/*
+  The panel of the row of frames: one entry per diploma, from
+  src/data/room.ts. A diploma whose real document is on the site shows it,
+  small, as a link to the file; a click shows it large over the room.
+*/
+import Panel from './Panel.astro';
+import { diplomas, enlarged, stops } from '../../data/room';
+
+const stop = stops.find(({ id }) => id === 'education')!;
+const documents: Record<string, (typeof enlarged)[keyof typeof enlarged]> = enlarged;
+---
+<Panel id={stop.id} title={stop.label}>
+  <ol class="diplomas" role="list">
+    {diplomas.map((diploma) => {
+      const document = documents[diploma.frame];
+      return (
+        <li>
+          <h3>{diploma.title}</h3>
+          {diploma.org && <p class="meta">{[diploma.org, diploma.period].filter(Boolean).join(', ')}</p>}
+          {diploma.note && <p>{diploma.note}</p>}
+          {diploma.soon && <p class="soon">{diploma.soon}</p>}
+          {document?.image && (
+            <a class="document" href={document.image.src} data-enlarge={diploma.frame}>
+              <img src={document.image.src} alt={document.caption} width={document.image.width} height={document.image.height} loading="lazy" />
+            </a>
+          )}
+        </li>
+      );
+    })}
+  </ol>
+</Panel>
+
+<style>
+  .diplomas {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    padding-block: var(--space-4);
+    border-top: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-size: var(--text-md);
+  }
+
+  .soon {
+    font-weight: 600;
+  }
+
+  .document {
+    display: block;
+    margin-top: var(--space-3);
+  }
+
+  img {
+    border: 1px solid var(--rule-strong);
+  }
+</style>

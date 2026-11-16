@@ -12,6 +12,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { autoGrid, gridSize, type Grid } from '../view.ts';
+import { PALETTE } from '../voxel/palette.ts';
 import { OutlinePass } from './outline.ts';
 
 /** 'auto' picks the size from the viewport, 'smooth' is one device pixel, a number is CSS pixels. */
@@ -71,6 +72,7 @@ export function createPipeline(renderer: WebGLRenderer, scene: Scene, camera: Or
 
   const composer = new EffectComposer(renderer);
   const outlinePass = new OutlinePass(scene, camera);
+  outlinePass.accent.set(PALETTE.cyan);
   const bloomPass = new UnrealBloomPass(new Vector2(1, 1), 0.25, 0, 0);
   bloomPass.compositeMaterial.uniforms.bloomFactors.value = BLOOM_LEVELS;
   const filter = emissiveOnly();

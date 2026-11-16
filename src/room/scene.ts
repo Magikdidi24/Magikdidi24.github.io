@@ -30,19 +30,19 @@ import {
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { bac, toeic } from '../data/room.ts';
+import { bac, papers, toeic } from '../data/room.ts';
 import { BOARD } from '../data/whiteboard.ts';
 import { DEFAULT_VIEW } from './camera.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects, type RoomObject } from './objects/index.ts';
-import { BAC_PAPER, FORMULAS, PASSES, TOEIC_PAPER, WHITEBOARD_SURFACE } from './objects/walls.ts';
+import { FORMULAS, framed, PASSES, WHITEBOARD_SURFACE } from './objects/walls.ts';
 import { BEACON_LIGHT } from './objects/wardrobe.ts';
 import { WINDOW } from './objects/window.ts';
 import { COLOR_ONLY } from './render/outline.ts';
 import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, whiteboardNotes } from './voxel/paint.ts';
+import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, schoolPaper, soonPaper, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 import { shownWalls, texelFit, type Wall } from './view.ts';
 
@@ -263,8 +263,8 @@ export function createScene(): RoomScene {
     (screen) => screen.material,
   );
   const board = picture(WHITEBOARD_SURFACE, whiteboardNotes(), 'whiteboard', false);
-  picture(BAC_PAPER, certificate(bac), 'frame-bac', false, Math.PI / 2);
-  picture(TOEIC_PAPER, nameplate(toeic.title), 'frame-toeic', false, Math.PI / 2);
+  const diplomas = { 'frame-bac': certificate(bac), 'frame-prepa': schoolPaper(papers.prepa), 'frame-epita': soonPaper(papers.epita), 'frame-toeic': nameplate(toeic.title) };
+  for (const [name, paper] of Object.entries(diplomas) as [keyof typeof diplomas, Texture][]) picture(framed(name), paper, name, false, Math.PI / 2);
   const pass = boardingPass();
   for (const spot of PASSES) picture(spot, pass, 'passes', false);
   picture(FORMULAS, formulaSheet(), 'formulas', false);

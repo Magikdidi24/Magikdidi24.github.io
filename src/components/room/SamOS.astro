@@ -1,0 +1,275 @@
+---
+/*
+  The panel of the main screen: a desktop that covers the room, with an icon
+  per project. An icon opens a window: a project as /projects/ shows it, the
+  list of smaller projects, or a terminal. Icons are links to the id of what
+  they open, so each window has its own address (src/room/ui/route.ts). The
+  terminal reads the site from the attributes of its shell: nothing is
+  bundled twice.
+*/
+import ProjectEntry from '../projects/ProjectEntry.astro';
+import SmallerProjects from '../projects/SmallerProjects.astro';
+import { projects, smallerProjects } from '../../data/projects';
+import { desktop, stops, terminal } from '../../data/room';
+import { person } from '../../data/site';
+import { PALETTE, type Swatch } from '../../room/voxel/palette';
+
+const stop = stops.find(({ id }) => id === 'projects')!;
+const tints: Swatch[] = ['cyan', 'magenta', 'amber', 'lime', 'violet', 'red'];
+const tint = (i: number) => `--tint: ${PALETTE[tints[i % tints.length]]}`;
+const icons = [
+  ...projects.map(({ slug, name }) => ({ id: slug, name })),
+  { id: 'smaller-projects', name: 'Smaller projects' },
+  { id: 'terminal', name: 'Terminal' },
+];
+---
+<section class="panel samos" id={stop.id} aria-labelledby={`${stop.id}-title`} tabindex="-1" style={`--sun: ${PALETTE.magenta}`}>
+  <header class="bar">
+    <h2 id={`${stop.id}-title`}>{stop.label}</h2>
+    <button type="button" data-close>Close</button>
+  </header>
+
+  <p class="system" aria-hidden="true">{desktop.name}</p>
+
+  <ul class="icons" role="list">
+    {icons.map(({ id, name }, i) => (
+      <li>
+        <a class="icon" href={`#${id}`}>
+          <span class="glyph" style={tint(i)} aria-hidden="true"></span>
+          {name}
+        </a>
+      </li>
+    ))}
+  </ul>
+
+  {projects.map((project) => (
+    <div class="window" data-item={project.slug} data-name={project.name} tabindex="-1" hidden>
+      <p class="title">
+        <span>{project.repoName}</span>{' '}
+        <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {project.name}</span></a>
+      </p>
+      <div class="body">
+        <ProjectEntry project={project} />
+      </div>
+    </div>
+  ))}
+
+  <div class="window" data-item="smaller-projects" tabindex="-1" hidden>
+    <p class="title">
+      <span>smaller-projects</span>{' '}
+      <a href={`#${stop.id}`}>Close<span class="visually-hidden">: smaller projects</span></a>
+    </p>
+    <div class="body">
+      <SmallerProjects items={smallerProjects} />
+    </div>
+  </div>
+
+  <div class="window" data-item="terminal" id="terminal" tabindex="-1" hidden>
+    <p class="title">
+      <span>terminal</span>{' '}
+      <a href={`#${stop.id}`}>Close<span class="visually-hidden">: terminal</span></a>
+    </p>
+    <div
+      class="shell"
+      data-about={JSON.stringify([person.intro, person.focus])}
+      data-cv={person.cv ?? ''}
+      data-email={person.email}
+      data-words={JSON.stringify(terminal)}
+    >
+      <div class="log" role="log" aria-live="polite" aria-label="Terminal output">
+        <p>{terminal.greeting}</p>
+      </div>
+      <form>
+        <label for="command">$<span class="visually-hidden"> Command</span></label>
+        <input id="command" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </form>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* The desktop itself is laid out with the other panels, in src/pages/index.astro: dark, in the pixel font of the room. Its windows are paper, in the type of the site. */
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+  }
+
+  h2 {
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .bar button,
+  .title a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 2px solid currentColor;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  /* The wallpaper: a sun going down, as on the screen in the room, and the name of the system in a corner. */
+  .system {
+    position: absolute;
+    right: var(--space-5);
+    bottom: var(--space-4);
+    opacity: 0.6;
+  }
+
+  .system::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 2.5rem;
+    width: 9rem;
+    height: 4.5rem;
+    border-radius: 9rem 9rem 0 0;
+    background: repeating-linear-gradient(to bottom, var(--sun) 0 0.75rem, transparent 0.75rem 1rem);
+  }
+
+  .icons {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: var(--space-5) var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .icon {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2);
+    color: inherit;
+    text-align: center;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  .glyph {
+    width: 3rem;
+    height: 2.5rem;
+    border: 2px solid var(--room-paper);
+    background: var(--tint);
+    box-shadow: inset 0 -0.5rem 0 rgb(0 0 0 / 0.25);
+  }
+
+  .icon:hover .glyph,
+  .icon:focus-visible .glyph {
+    transform: translateY(-2px);
+  }
+
+  .window {
+    position: absolute;
+    inset: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    max-width: 68rem;
+    margin-inline: auto;
+    border: 2px solid var(--room-paper);
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .window[hidden] {
+    display: none;
+  }
+
+  .title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    background: var(--room-ink);
+    color: var(--room-paper);
+  }
+
+  .body,
+  .shell {
+    position: relative; /* what is placed out of the flow inside scrolls with the rest */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--space-5) var(--space-5);
+    font-family: var(--font);
+    font-size: var(--text-base);
+    line-height: var(--leading-body);
+  }
+
+  /* The first project of a window needs no rule above it, and the list of smaller ones no gap. */
+  .body :global(.project) {
+    border-top: 0;
+  }
+
+  .body :global(.smaller) {
+    margin-top: var(--space-6);
+  }
+
+  .shell {
+    display: flex;
+    flex-direction: column;
+    padding-top: var(--space-4);
+    background: var(--room-ink);
+    color: var(--room-paper);
+    font-family: var(--mono);
+    font-size: var(--text-sm);
+  }
+
+  .log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .log :global(p) {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  form {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--room-paper);
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+
+  @media (scripting: none) {
+    .bar button,
+    .title a,
+    .icons,
+    .system,
+    [data-item='terminal'] {
+      display: none;
+    }
+
+    .window,
+    .window[hidden] {
+      position: static;
+      display: block;
+      margin-bottom: var(--space-6);
+    }
+  }
+</style>

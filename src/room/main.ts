@@ -4,8 +4,8 @@
   changed or something called invalidate().
 */
 import { NoToneMapping, PCFShadowMap, WebGLRenderer } from 'three';
-import { createRig, type Rig } from './camera.ts';
-import { stepAt } from './interaction/motion.ts';
+import { createRig, type Pose, type Rig } from './camera.ts';
+import { easeOut, stepAt } from './interaction/motion.ts';
 import { createReactions } from './interaction/reactions.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
 import { createScene, ROOM, type RoomScene } from './scene.ts';
@@ -25,13 +25,27 @@ export interface RoomApp {
   /** Recompute the pixel grid and the camera fit, after the viewport or the pixel size changed. */
   resize(): void;
   setNight(night: boolean): void;
-  /** Go round to the other side of the room, half a turn in steps: the walls in front of the camera give way to the two behind it. */
-  turn(): void;
+  /** Draw the room with smooth edges, one buffer pixel per device pixel, or in large pixels again. */
+  setSmooth(smooth: boolean): void;
+  /** Outline an object in the accent colour, by its name: the one under the pointer. Null for none. */
+  hover(name: string | null): void;
+  /** Go round to the other side of the room, half a turn in steps: the walls in front of the camera give way to the two behind it. Not while the camera is held on a stop. */
+  turn(): Promise<void>;
+  /**
+   * Take the camera to a stop of the visit, in steps, and hold it there: the
+   * point it looks at and how close, and what the open panel covers of the
+   * viewport. With null, give the camera back to the visitor where they left it.
+   */
+  focus(view: { target: [number, number, number]; zoom: number } | null, cover?: { right: number; bottom: number }): Promise<void>;
   dispose(): void;
 }
 
 /** The half turn round the room: how long it takes, and in how many steps, of 15 degrees each. */
 const TURN = { seconds: 1.2, steps: 12 };
+/** The way to a stop of the visit, and back. */
+const GLIDE = { seconds: 0.6, steps: 12 };
+
+const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export async function start(canvas: HTMLCanvasElement, container: HTMLElement): Promise<RoomApp> {
   const renderer = new WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -51,7 +65,31 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
 
   let dirty = true;
   let frame = 0;
-  let turning = false;
+  let turning: Promise<void> | null = null;
+  /** Where the visitor left the camera, while it is held on a stop. */
+  let left: Pose | null = null;
+  /** The number of the last journey of the camera: a newer one takes over. */
+  let journeys = 0;
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+
+  /** Call `apply` with t from 0 to 1, in `steps` steps over `seconds`. */
+  const stepped = ({ seconds, steps }: { seconds: number; steps: number }, apply: (t: number) => void) =>
+    new Promise<void>((done) => {
+      let start = -1;
+      let last = 0;
+      app.animate((now) => {
+        if (start < 0) start = now;
+        const step = still.matches ? steps : stepAt((now - start) / 1000, seconds, steps);
+        if (step !== last) {
+          last = step;
+          apply(step / steps);
+          dirty = true;
+        }
+        if (step < steps) return true;
+        done();
+        return false;
+      });
+    });
   const animations = new Set<(now: number) => boolean>();
   /** Draw a frame with fresh shadows: the lights changed, or the graphics context came back. */
   const redraw = () => app.invalidate(true);
@@ -85,24 +123,40 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       pipeline.bloomPass.strength = night ? 0.6 : 0.25;
       redraw();
     },
+    setSmooth(smooth) {
+      pipeline.mode = smooth ? 'smooth' : 'auto';
+      app.resize();
+    },
+    hover(name) {
+      pipeline.outlinePass.hovered = name === null ? 0 : room.names.indexOf(name) + 1;
+      dirty = true;
+    },
     turn() {
-      if (turning) return;
-      turning = true;
-      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      let start = -1;
-      let last = 0;
-      app.animate((now) => {
-        if (start < 0) start = now;
-        const step = still ? TURN.steps : stepAt((now - start) / 1000, TURN.seconds, TURN.steps);
-        if (step !== last) {
-          last = step;
-          rig.around(step / TURN.steps);
-          dirty = true;
-        }
-        if (step < TURN.steps) return true;
-        turning = false;
-        return false;
+      if (left) return Promise.resolve();
+      turning ??= stepped(TURN, (t) => rig.around(t)).then(() => void (turning = null));
+      return turning;
+    },
+    async focus(view, cover = { right: 0, bottom: 0 }) {
+      const journey = ++journeys;
+      if (view && rig.behind) await app.turn(); // the stops are on the walls of the opening view
+      if (journey !== journeys || (!view && !left)) return;
+      const from = rig.pose();
+      const to = view ? rig.frame(view, cover, pipeline.grid) : left!;
+      if (view) left ??= from;
+      rig.hold(true);
+      await stepped(GLIDE, (t) => {
+        if (journey !== journeys) return;
+        const eased = easeOut(t);
+        rig.place({
+          target: [0, 1, 2].map((k) => mix(from.target[k], to.target[k], eased)) as Pose['target'],
+          azimuth: mix(from.azimuth, to.azimuth, eased),
+          elevation: mix(from.elevation, to.elevation, eased),
+          zoom: mix(from.zoom, to.zoom, eased),
+        });
       });
+      if (journey !== journeys || view) return;
+      left = null;
+      rig.hold(false);
     },
     dispose() {
       cancelAnimationFrame(frame);

@@ -14,28 +14,27 @@ const FRAMES = { y: 1.25, z: 0.1 };
 
 /**
  * One frame of the row above the bed, `z` metres along it: 40 × 30 cm when
- * wide, 30 × 40 cm otherwise. A wide one carries a paper, drawn as a texture,
- * and is its own object, to be clicked; the others are part of the decor.
+ * wide, 30 × 40 cm otherwise. Each carries a paper, drawn as a texture, and
+ * is its own object, to be clicked.
  */
 function frame(name: string, z: number, wide: boolean): RoomObject {
   const [width, height] = wide ? [8, 6] : [6, 8];
   const m = new VoxelModel(1, height, width);
   m.box(0, 0, 0, 1, height, width, C.walnut).box(0, 1, 1, 1, height - 2, width - 2, C.paper);
-  return { name, voxel: 0.05, at: [0, FRAMES.y + (wide ? 0.1 : 0.05), FRAMES.z + z], model: m, decor: !wide, wall: 'west' };
+  return { name, voxel: 0.05, at: [0, FRAMES.y + (wide ? 0.1 : 0.05), FRAMES.z + z], model: m, wall: 'west' };
 }
 
-/** The baccalaureate, the preparatory classes, EPITA, then the TOEIC certificate. */
-export const frames = (): RoomObject[] => [
-  frame('frame-bac', 0, true),
-  frame('frame-prepa', 0.45, false),
-  frame('frame-epita', 0.8, false),
-  frame('frame-toeic', 1.15, true),
-];
+/** Where each frame hangs along the row, and whether it is wide: the baccalaureate, the preparatory classes, EPITA, then the TOEIC certificate. */
+const ROW = { 'frame-bac': [0, true], 'frame-prepa': [0.45, false], 'frame-epita': [0.8, false], 'frame-toeic': [1.15, true] } as const;
 
-/** The paper of a wide frame, facing the room: centre, width and height in metres. */
-const paper = (z: number) => ({ x: 0.05 + 0.002, y: FRAMES.y + 0.25, z: FRAMES.z + z + 0.2, width: 0.3, height: 0.2 });
-export const BAC_PAPER = paper(0);
-export const TOEIC_PAPER = paper(1.15);
+export const frames = (): RoomObject[] => Object.entries(ROW).map(([name, [z, wide]]) => frame(name, z, wide));
+
+/** The paper of a frame, facing the room: centre, width and height in metres. */
+export function framed(name: keyof typeof ROW) {
+  const [z, wide] = ROW[name];
+  const [width, height] = wide ? [0.3, 0.2] : [0.2, 0.3];
+  return { x: 0.05 + 0.002, y: FRAMES.y + 0.25, z: FRAMES.z + z + (wide ? 0.2 : 0.15), width, height };
+}
 
 /** Clipboard hung on the side of the wardrobe that faces the door: a board, a sheet and its clip. Voxels of 2.5 cm. */
 export function clipboard(): RoomObject {
