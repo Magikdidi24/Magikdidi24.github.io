@@ -1,19 +1,148 @@
 ---
 /*
-  Home page: the 3D room. The text version of the site is at /classic/.
+  Home page: the 3D room. The static HTML is the name, the link to the text
+  version (/classic/) and a loading line; the room is drawn by src/room/, which
+  is loaded after the first paint. Without WebGL the visitor is sent to the
+  text version.
 */
+import '@fontsource/silkscreen/latin-400.css';
 import Base from '../layouts/Base.astro';
 import { person } from '../data/site';
+import { PALETTE } from '../room/voxel/palette';
 
 const title = 'Samuel Berthelot, AI engineering student in Tokyo';
 const description = `${person.intro} ${person.focus}`;
 if (description.length > 160) {
   throw new Error(`Home meta description is ${description.length} characters; keep it under 160.`);
 }
+const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}`;
 ---
 <Base title={title} description={description} bare>
-  <div class="room">
-    <h1>{person.name}</h1>
-    <p><a href="/classic/">Text version</a></p>
+  <div class="room" id="room" style={colors}>
+    <canvas
+      class="view"
+      role="img"
+      aria-label="A bedroom drawn in 3D pixel art. What it shows is also in the text version of this site."
+    ></canvas>
+    <header class="hud">
+      <h1>{person.name}</h1>
+      <a href="/classic/">Text version</a>
+    </header>
+    <p class="loader" role="status">Loading the room</p>
+    <noscript>
+      <p class="fallback">This page is a 3D room and needs JavaScript. <a href="/classic/">Read the text version</a>.</p>
+    </noscript>
   </div>
 </Base>
+
+<script>
+  const root = document.getElementById('room') as HTMLElement;
+  const canvas = root.querySelector('canvas') as HTMLCanvasElement;
+  const loader = root.querySelector('.loader') as HTMLElement;
+  const textVersion = (root.querySelector('.hud a') as HTMLAnchorElement).href;
+
+  /* The post-processing chain needs WebGL2 and half-float render targets. */
+  function supported(): boolean {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) return false;
+    const ok = !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'));
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return ok;
+  }
+
+  const toTextVersion = () => location.replace(textVersion + location.hash);
+
+  if (!supported()) {
+    toTextVersion();
+  } else {
+    /* After the first paint, so the name and the links show before three.js loads. */
+    requestAnimationFrame(async () => {
+      try {
+        const { start } = await import('../room/main.ts');
+        await start(canvas, root);
+        loader.hidden = true;
+      } catch (error) {
+        if (import.meta.env.DEV) throw error;
+        toTextVersion();
+      }
+    });
+  }
+</script>
+
+<style>
+  .room {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--room-ink);
+    color: var(--room-paper);
+    font-family: 'Silkscreen', var(--mono);
+    font-size: 1rem; /* twice the 8px grid of the pixel font */
+    line-height: 1;
+  }
+
+  /* Sized by the pixel pipeline: it can be wider than the room by less than
+     one virtual pixel, so it must not shrink to fit. */
+  .view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+  }
+
+  .hud {
+    position: absolute;
+    inset: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    pointer-events: none;
+  }
+
+  h1,
+  .hud a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    background: var(--room-ink);
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1;
+    pointer-events: auto;
+  }
+
+  .loader,
+  .fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    padding: var(--space-5);
+    text-align: center;
+  }
+
+  .loader[hidden] {
+    display: none;
+  }
+
+  .fallback {
+    font-family: var(--font);
+    line-height: var(--leading-body);
+  }
+
+  :focus-visible {
+    outline-color: var(--room-paper);
+  }
+
+  @media (scripting: none) {
+    .view,
+    .loader {
+      display: none;
+    }
+  }
+</style>

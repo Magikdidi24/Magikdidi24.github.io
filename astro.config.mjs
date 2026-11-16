@@ -8,4 +8,7 @@ export default defineConfig({
   integrations: [sitemap()],
   build: { format: 'directory' },
   devToolbar: { enabled: false },
+  // three.js alone is about 590 kB minified (145 kB gzipped), in a chunk the
+  // home page loads after its first paint.
+  vite: { build: { chunkSizeWarningLimit: 700 } },
 });
