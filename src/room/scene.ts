@@ -36,6 +36,7 @@ import { DEFAULT_VIEW } from './camera.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects, type RoomObject } from './objects/index.ts';
+import { FRONTS } from './objects/library.ts';
 import { FORMULAS, framed, PASSES, WHITEBOARD_SURFACE } from './objects/walls.ts';
 import { BEACON_LIGHT, TABLE_NUMBER } from './objects/wardrobe.ts';
 import { WINDOW } from './objects/window.ts';
@@ -44,6 +45,7 @@ import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
 import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, schoolPaper, soonPaper, tableCard, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
+import { shelfPicture } from './voxel/spines.ts';
 import { lightTurn, shownWalls, texelFit, type Wall } from './view.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
@@ -235,9 +237,9 @@ export function createScene(): RoomScene {
     solid(mesh, object.wall);
   }
 
-  /* Pictures laid just in front of a face: one that looks at +z, or at +x
-     with a quarter turn. The two screens glow; papers are lit like the rest.
-     Each belongs to its object and moves with it. */
+  /* Pictures laid just in front of a face: one that looks at +z, or another
+     way with a turn about y. The two screens glow; papers are lit like the
+     rest. Each belongs to its object and moves with it. */
   const picture = (spot: Paper, map: Texture, owner: string, glows: boolean, turn = 0) => {
     const geometry = new PlaneGeometry(spot.width, spot.height, spot.bend ? 32 : 1, 1);
     if (spot.bend) {
@@ -272,6 +274,7 @@ export function createScene(): RoomScene {
   for (const spot of PASSES) picture(spot, pass, 'passes', false);
   picture(FORMULAS, formulaSheet(), 'formulas', false);
   picture(TABLE_NUMBER, tableCard(tableNumber), 'table-number', false);
+  for (const front of FRONTS) picture(front, shelfPicture(front.shelf), front.name, false, front.turn);
 
   /* The lights of an object: its glowing voxels, each with the vertices that draw it. A face is four vertices in a row. */
   const lightsOf = (mesh: Mesh): number[][] => {

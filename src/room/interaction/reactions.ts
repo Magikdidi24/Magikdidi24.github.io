@@ -10,13 +10,14 @@
   instead. Under prefers-reduced-motion every movement jumps to its end.
 */
 import { BoxGeometry, Color, InstancedMesh, MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
+import { manga } from '../../data/manga.ts';
 import { enlarged, labels, says, stops } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import type { RoomApp } from '../main.ts';
 import { ON_NIGHTSTAND } from '../objects/bed.ts';
 import { SAKURA_CROWN, SAKURA_FOOT } from '../objects/floor.ts';
-import { pulled } from '../objects/library.ts';
+import { pulled, seriesOn } from '../objects/library.ts';
 import { MARKERS } from '../objects/walls.ts';
 import { DOORS } from '../objects/wardrobe.ts';
 import { COLOR_ONLY } from '../render/outline.ts';
@@ -537,6 +538,14 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   label.setAttribute('aria-hidden', 'true');
   canvas.after(label);
 
+  /** What to call the thing under the pointer: a bookcase gives the title of the series whose spine is there. */
+  const named = (name: string, at?: Spot): string | undefined => {
+    if (!at || !(name in GROUPS) || GROUPS[name] !== 'library') return labels[name];
+    const box = canvas.getBoundingClientRect();
+    const { origin, direction } = app.ray(at.x + box.left, at.y + box.top);
+    return manga[seriesOn(name, origin, direction)]?.title ?? labels[name];
+  };
+
   /** What the pointer is over, if it answers a click: outlined, named, and lifted if it is small. */
   const hover = (name: string | null, at?: Spot) => {
     if (name !== hovered) {
@@ -544,14 +553,15 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
       hovered = name;
       app.hover(name);
       canvas.style.cursor = name ? 'pointer' : '';
-      label.hidden = !name || !labels[name];
-      label.textContent = (name && labels[name]) ?? '';
       for (const moved of [before, name]) {
         if (!moved || !small(moved)) continue;
         settle(moved);
         app.invalidate(true);
       }
     }
+    const text = name ? named(name, at) : undefined;
+    label.hidden = !text;
+    label.textContent = text ?? '';
     if (at) {
       label.style.left = `${at.x}px`;
       label.style.top = `${at.y}px`;

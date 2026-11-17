@@ -3,7 +3,7 @@
   render loop. A frame is drawn only when the camera moved, the viewport
   changed or something called invalidate().
 */
-import { NoToneMapping, PCFShadowMap, WebGLRenderer } from 'three';
+import { NoToneMapping, PCFShadowMap, Vector3, WebGLRenderer } from 'three';
 import { createRig, type Pose, type Rig } from './camera.ts';
 import { easeInOut } from './interaction/motion.ts';
 import { createReactions } from './interaction/reactions.ts';
@@ -22,6 +22,8 @@ export interface RoomApp {
   animate(step: (now: number) => boolean): void;
   /** The name of the object drawn under a point of the viewport, if there is one. */
   pick(clientX: number, clientY: number): string | null;
+  /** The line of sight through a point of the viewport: where it starts and the way it goes, in metres. */
+  ray(clientX: number, clientY: number): { origin: [number, number, number]; direction: [number, number, number] };
   /** Recompute the pixel grid and the camera fit, after the viewport or the pixel size changed. */
   resize(): void;
   setNight(night: boolean): void;
@@ -108,6 +110,11 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       const pixel = pixelAt(pipeline.grid, clientX - box.left, clientY - box.top);
       if (!pixel) return null;
       return room.names[pipeline.outlinePass.idAt(renderer, pixel.x, pixel.y) - 1] ?? null;
+    },
+    ray(clientX, clientY) {
+      const box = canvas.getBoundingClientRect();
+      const origin = new Vector3(((clientX - box.left) / box.width) * 2 - 1, 1 - ((clientY - box.top) / box.height) * 2, -1).unproject(rig.camera);
+      return { origin: origin.toArray(), direction: rig.camera.getWorldDirection(new Vector3()).toArray() };
     },
     resize() {
       pipeline.resize();
