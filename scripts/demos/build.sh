@@ -1,15 +1,18 @@
 #!/bin/sh
-# Builds the two programs that can be played in the 3D room, from Samuel's own
-# repositories at the commits below: public/room/demos/fluid.wasm (C) and
-# chess.wasm (Rust). Their sources are compiled as they are; web.c and web.rs
-# stand for the main() of each, which opened a window.
+# Builds the programs that can be played in the 3D room, from Samuel's own
+# repositories at the commits below, into public/room/demos: the liquid
+# simulator (C), the chess engine (Rust) and five small C programs. Their
+# sources are compiled as they are. fluid/web.c and chess/web.rs stand for the
+# main() of the first two, which opened a window; sdl2/web.c stands for SDL2
+# under the small programs, whose main() runs as it is.
 #
 #   sh scripts/demos/build.sh
 #
-# Needs git, clang, wasm-ld, and rustc with its wasm32-wasip1 standard library
-# and wasi-libc. On Fedora: dnf install clang lld rust-std-static-wasm32-wasip1
-# wasi-libc-static. Where they are not installed, WASM_LD, RUST_SYSROOT and
-# WASI_LIBC can point to unpacked copies.
+# Needs git, clang, wasm-ld, wasm-opt, and rustc with its wasm32-wasip1
+# standard library and wasi-libc. On Fedora: dnf install clang lld binaryen
+# rust-std-static-wasm32-wasip1 wasi-libc-static. Where they are not
+# installed, WASM_LD, WASM_OPT, RUST_SYSROOT and WASI_LIBC can point to
+# unpacked copies.
 set -eu
 
 FLUID=13c9fd639907a3a478ead94226839043d45cd450
@@ -18,6 +21,7 @@ CHESS=3dabad1833ed21d3fea38767bcf217fc553ffd96
 here=$(cd "$(dirname "$0")" && pwd)
 out=$here/../../public/room/demos
 wasm_ld=${WASM_LD:-wasm-ld}
+wasm_opt=${WASM_OPT:-wasm-opt}
 wasi_libc=${WASI_LIBC:-/usr/wasm32-wasi/lib/wasm32-wasi}
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -47,5 +51,24 @@ rustc --edition 2024 --target wasm32-wasip1 --crate-type cdylib --crate-name che
   --remap-path-prefix "$work/engine=src" \
   -C opt-level=3 -C panic=abort -C strip=symbols -C lto=fat -C codegen-units=1 \
   -C linker="$wasm_ld" -L "$wasi_libc" -o "$out/chess.wasm" "$work/engine/web.rs"
+
+# A small program: its main.c under what stands for SDL2. Its loop never
+# returns, so Asyncify rewrites the result: the program can be put aside when
+# it sleeps or waits for events, and the page keeps its turn.
+small() {
+  fetch "$1" "$2" "$3"
+  clang --target=wasm32 -O2 -nostdlib -fno-builtin -mbulk-memory \
+    -I "$here/sdl2/include" -I "$work/$1" -c "$here/sdl2/web.c" -o "$work/$1.o"
+  "$wasm_ld" --no-entry --strip-all -z stack-size=1048576 -o "$work/$1.raw.wasm" "$work/$1.o"
+  "$wasm_opt" --enable-bulk-memory --enable-bulk-memory-opt --enable-nontrapping-float-to-int \
+    --enable-sign-ext --enable-mutable-globals \
+    --asyncify --pass-arg=asyncify-imports@env.sleep,env.poll -O2 "$work/$1.raw.wasm" -o "$out/$1.wasm"
+}
+
+small snake Snake_in_C 61efdb7096c7ba500f5834a70c7ee0b0d4188abc
+small pong Pong_in_C 20daf51c63b4d4015b9bdb8a39f2ab7206eabdb8
+small life Game_of_life_in_C c6fcb6e5ba44cf0f3ea6c3251f1fa995aa366591
+small cube 3Dcube_in_C d4b6ae67a4dff6268c66f372b958f35ecb104841
+small ball Bouncy_in_C 9e95a882c354092d225848b052e9ed7370d50683
 
 ls -l "$out"

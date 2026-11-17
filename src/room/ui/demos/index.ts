@@ -1,13 +1,15 @@
 /*
-  The projects that can be played in their window of the desktop. Each one
-  starts the first time its window shows; its code and its program are only
-  loaded then.
+  The projects that can be played in their window of the desktop: the liquid
+  simulator, the chess engine and the small C programs. Each one is got ready
+  the first time its window shows; its code and its program are only loaded
+  then.
 */
 import { onRoute } from '../route.ts';
 
 const PROGRAMS: Record<string, () => Promise<{ mount(root: HTMLElement): Promise<() => void> }>> = {
   fluid: () => import('./fluid.ts'),
   chess: () => import('./chess.ts'),
+  program: () => import('./program.ts'),
 };
 
 async function start(root: HTMLElement): Promise<() => void> {

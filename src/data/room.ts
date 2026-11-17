@@ -158,6 +158,18 @@ export const demos = {
     pressure: 'Pressure view',
     empty: 'Empty the grid',
   },
+  /* The small C programs: each runs as it is, main() and loop included. */
+  program: {
+    hint: 'This is the C program itself, running in the page: its main() and its loop, unchanged. Click its picture so that it hears the keyboard.',
+    picture: 'The window of the program',
+    run: 'Run the program',
+    again: 'Run it again',
+    ended: 'The program has ended.',
+    keys: 'The keys it reads',
+    keyNames: { ' ': 'Space', ArrowLeft: 'Left', ArrowUp: 'Up', ArrowDown: 'Down', ArrowRight: 'Right' } as Record<string, string>,
+    terminal: 'What it prints to its terminal',
+    code: 'Code on GitHub',
+  },
   chess: {
     title: 'Play against the engine',
     hint: 'This is the Rust engine itself, running in the page. You play White; it thinks for about a second.',
@@ -182,6 +194,21 @@ export const demos = {
     },
   },
 };
+
+/**
+ * The small C programs that run in a window of the desktop, by the name of
+ * their repository in src/data/projects.ts: the file of the program in
+ * public/room/demos, and the keys it reads, for the buttons under its
+ * picture. The id of its window comes from the name of the repository.
+ */
+export const programs: { repo: string; file: string; keys: string[] }[] = [
+  { repo: 'Snake_in_C', file: 'snake', keys: ['ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight'] },
+  { repo: 'Pong_in_C', file: 'pong', keys: ['z', 's', 'ArrowUp', 'ArrowDown'] },
+  { repo: 'Game_of_life_in_C', file: 'life', keys: [' '] },
+  { repo: '3Dcube_in_C', file: 'cube', keys: [] },
+  { repo: 'Bouncy_in_C', file: 'ball', keys: [' '] },
+];
+export const windowOf = (repo: string) => repo.toLowerCase().replaceAll('_', '-');
 
 /** The desktop of projects, on the main screen. */
 export const desktop = { name: 'SamOS' };

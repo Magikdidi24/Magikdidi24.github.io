@@ -3,7 +3,8 @@
   The panel of the main screen: a desktop that covers the room, with an icon
   per project. An icon opens a window: a project as /projects/ shows it, the
   list of smaller projects, or a terminal. Two projects can be played in
-  their window: the program itself runs there (src/room/ui/demos). Icons are links to the id of what
+  their window, and five small programs have a window of their own: the
+  program itself runs there (src/room/ui/demos). Icons are links to the id of what
   they open, so each window has its own address (src/room/ui/route.ts); the
   window of a project carries the id of that project, so that a page opened
   straight on it shows the window from its top. The
@@ -13,17 +14,24 @@
 import ProjectEntry from '../projects/ProjectEntry.astro';
 import Chess from './demos/Chess.astro';
 import Fluid from './demos/Fluid.astro';
+import Program from './demos/Program.astro';
 import SmallerProjects from '../projects/SmallerProjects.astro';
 import { projects, smallerProjects } from '../../data/projects';
-import { desktop, stops, terminal } from '../../data/room';
+import { desktop, programs, stops, terminal, windowOf } from '../../data/room';
 import { person } from '../../data/site';
 import { PALETTE, type Swatch } from '../../room/voxel/palette';
 
 const stop = stops.find(({ id }) => id === 'projects')!;
 const tints: Swatch[] = ['cyan', 'magenta', 'amber', 'lime', 'violet', 'red'];
 const tint = (i: number) => `--tint: ${PALETTE[tints[i % tints.length]]}`;
+/* The small programs that run in a window of their own, each with what the site says of it. */
+const playable = programs.flatMap(({ repo, file, keys }) => {
+  const item = smallerProjects.find(({ repoName }) => repoName === repo);
+  return item ? [{ id: windowOf(repo), item, file, keys }] : [];
+});
 const icons = [
   ...projects.map(({ slug, name }) => ({ id: slug, name })),
+  ...playable.map(({ id, item }) => ({ id, name: item.name })),
   { id: 'smaller-projects', name: 'Smaller projects' },
   { id: 'terminal', name: 'Terminal' },
 ];
@@ -57,6 +65,18 @@ const icons = [
         {project.slug === 'fluid-simulation' && <Fluid />}
         {project.slug === 'chess-board' && <Chess />}
         <ProjectEntry project={project} anchor={false} />
+      </div>
+    </div>
+  ))}
+
+  {playable.map(({ id, item, file, keys }) => (
+    <div class="window" id={id} data-item={id} data-name={item.name} tabindex="-1" hidden>
+      <p class="title">
+        <span>{item.repoName}</span>{' '}
+        <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {item.name}</span></a>
+      </p>
+      <div class="body">
+        <Program item={item} file={file} keys={keys} />
       </div>
     </div>
   ))}

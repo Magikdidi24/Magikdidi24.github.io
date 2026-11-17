@@ -90,3 +90,105 @@ test('fluid: twenty liquids on a grid of 45 by 45, water poured on a floor stays
   assert.ok(water.length > 5, 'it has spread');
   assert.ok(water.every(([, , y]) => y >= 42 * 20), 'and lies just above the floor');
 });
+
+/*
+  The small C programs: main.c of each, with its own loop, under what stands
+  for SDL2. They are run here by the runner of the page, with a host that
+  records what they draw and print, and takes them up again at once.
+*/
+const { createRunner, KEYS } = await import('../src/room/ui/demos/runner.ts');
+
+/** Run a small program. `turn(n, runner)` is called each time it is put aside, before it is taken up again; it stops after `turns`. */
+async function program(name, turns, turn = () => {}) {
+  const seen = { size: null, fills: [], texts: [], printed: '', ended: null, frames: [] };
+  let resume = null;
+  const host = {
+    size: (width, height) => (seen.size = [width, height]),
+    fill: (x, y, w, h, color) => seen.fills.push([x, y, w, h, color]),
+    text: (x, y, text) => seen.texts.push([x, y, text]),
+    print: (text) => (seen.printed += text),
+    now: () => 1_800_000_000,
+    wait: (milliseconds, next) => {
+      seen.frames.push(milliseconds);
+      resume = next;
+    },
+    ended: (code) => (seen.ended = code),
+  };
+  const module = await WebAssembly.compile(await readFile(new URL(`../public/room/demos/${name}.wasm`, import.meta.url)));
+  const runner = await createRunner(module, host);
+  runner.start();
+  for (let n = 0; n < turns && resume && seen.ended === null; n++) {
+    const next = resume;
+    resume = null;
+    turn(n, runner, seen);
+    seen.fills = [];
+    next();
+  }
+  return seen;
+}
+
+const GREEN = 0x00ff00;
+
+test('snake: left alone it runs into the right wall, twenty steps from the middle, and the program ends', async () => {
+  const seen = await program('snake', 100);
+  assert.deepEqual(seen.size, [1200, 900]);
+  assert.equal(seen.ended, 0);
+  assert.equal(seen.frames.length, 20);
+  assert.ok(seen.frames.every((milliseconds) => milliseconds === 150), 'it sleeps 150 ms between two steps');
+});
+
+test('snake: the up arrow turns it, and it dies on the top wall instead', async () => {
+  const heads = [];
+  const seen = await program('snake', 100, (n, runner, { fills }) => {
+    if (n === 0) runner.key(KEYS.ArrowUp);
+    heads.push(fills.filter(([, , , , color]) => color === GREEN).length);
+  });
+  assert.equal(seen.ended, 0);
+  assert.equal(seen.frames.length, 17, 'fifteen rows up from the middle');
+  assert.equal(heads[0], 3, 'a snake of three cells');
+});
+
+test('pong: nobody plays, the ball goes out and the score is printed', async () => {
+  const seen = await program('pong', 400);
+  assert.deepEqual(seen.size, [800, 800]);
+  assert.equal(seen.ended, null, 'the game goes on');
+  assert.match(seen.printed, / Score player 1 : \d+\n Score player 2 : \d+\n/);
+});
+
+test('pong: a player reaches ten points and the program exits', async () => {
+  const seen = await program('pong', 20000);
+  assert.equal(seen.ended, 0);
+  assert.match(seen.printed, /Player [12] Win\n/);
+});
+
+test('life: it waits without sleeping, a click turns a cell on, the space bar starts it', async () => {
+  const texts = [];
+  const seen = await program('life', 12, (n, runner, state) => {
+    /* A blinker: three cells in a row. */
+    if (n < 3) runner.click(210 + n * 20, 110);
+    if (n === 5) runner.key(KEYS[' ']);
+    texts.push(state.texts.at(-2)?.[2], state.texts.at(-1)?.[2]);
+  });
+  assert.deepEqual(seen.size, [1920, 1080]);
+  assert.ok(seen.frames.slice(0, 5).every((milliseconds) => milliseconds === 0), 'paused, it only gives the page its turn');
+  assert.ok(seen.frames.at(-1) === 1, 'running, it sleeps a millisecond a generation');
+  assert.deepEqual(seen.texts.at(-2).slice(2), ['Generation: ' + (seen.frames.filter((ms) => ms === 1).length - 1)]);
+  assert.deepEqual(seen.texts.at(-1).slice(2), ['Population: 3'], 'a blinker keeps its three cells');
+});
+
+test('cube: 1,200 points drawn on a black screen at every frame', async () => {
+  const seen = await program('cube', 5, (n, runner, { fills }) => n > 0 && assert.equal(fills.length, 1201));
+  assert.deepEqual(seen.size, [900, 600]);
+  assert.ok(seen.frames.every((milliseconds) => milliseconds === 20));
+});
+
+test('ball: it falls, prints where it is, and the space bar gives it colours', async () => {
+  const colours = [];
+  const seen = await program('ball', 6, (n, runner, { fills }) => {
+    if (n === 2) runner.key(KEYS[' ']);
+    colours.push(new Set(fills.map(([, , , , color]) => color)).size);
+  });
+  assert.deepEqual(seen.size, [1200, 900]);
+  assert.match(seen.printed, /^a 250\.000000  , 0\.300000\n/);
+  assert.ok(colours[1] <= 3 && colours[5] > 100, 'white on black, then every colour');
+});
