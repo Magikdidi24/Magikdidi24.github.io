@@ -1,0 +1,101 @@
+---
+/*
+  The liquid simulator, to play with in its window of the desktop of
+  projects. The names of the liquids come from src/data/projects.ts, in the
+  order of the program; their colours come from the program itself
+  (src/room/ui/demos/fluid.ts).
+*/
+import { projects } from '../../../data/projects';
+import { demos } from '../../../data/room';
+
+const words = demos.fluid;
+const figure = projects.find(({ slug }) => slug === 'fluid-simulation')?.figure;
+const liquids = figure?.kind === 'liquids' ? figure.liquids : [];
+---
+<section class="demo" data-demo="fluid" data-wasm="/room/demos/fluid.wasm" data-words={JSON.stringify({ loading: demos.loading, failed: demos.failed })} aria-labelledby="fluid-demo">
+  <h3 id="fluid-demo">{words.title}</h3>
+  <p>{words.hint}</p>
+  <p class="state" role="status"></p>
+  <div class="play">
+    <canvas width="900" height="900" tabindex="0" aria-label={words.picture}></canvas>
+    <div class="side">
+      <div class="tools" role="group" aria-label={words.tools}>
+        {liquids.map(({ name }, i) => (
+          <button type="button" data-liquid={i} aria-pressed={i === 0 ? 'true' : 'false'}>{name}</button>
+        ))}
+        <button type="button" data-liquid="-1" aria-pressed="false">{words.wall}</button>
+        <button type="button" data-eraser aria-pressed="false">{words.eraser}</button>
+      </div>
+      <div class="actions">
+        <button type="button" data-pressure aria-pressed="false">{words.pressure}</button>
+        <button type="button" data-empty>{words.empty}</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .play {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr); /* never wider than its window */
+    gap: var(--space-4);
+    margin-top: var(--space-3);
+  }
+
+  canvas {
+    width: 100%;
+    max-width: min(34rem, 70vh);
+    height: auto;
+    border: 2px solid var(--ink);
+    background: #000;
+    image-rendering: pixelated;
+    touch-action: none; /* a finger draws, it does not scroll the window */
+    cursor: crosshair;
+  }
+
+  .tools,
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .actions {
+    margin-top: var(--space-3);
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule-strong);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  /* A liquid shows its colour, as the program draws it. */
+  button[data-liquid]::before {
+    content: '';
+    width: 0.875rem;
+    height: 0.875rem;
+    border: 1px solid var(--ink);
+    background: var(--swatch, transparent);
+  }
+
+  button[aria-pressed='true'] {
+    border-color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+
+  @media (min-width: 60rem) {
+    .play {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+</style>

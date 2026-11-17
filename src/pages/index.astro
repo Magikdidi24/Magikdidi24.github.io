@@ -74,6 +74,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
 <script>
   import { stops } from '../data/room.ts';
+  import { setupDemos } from '../room/ui/demos/index.ts';
   import { setupPanels } from '../room/ui/panels.ts';
   import { current, onRoute } from '../room/ui/route.ts';
 
@@ -86,6 +87,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
   /* The panels follow the hash from now on, room or no room. They start under the HUD: the style sheet needs its height. */
   const panels = setupPanels(root);
+  setupDemos(root);
   new ResizeObserver(() => root.style.setProperty('--hud', `${hud.offsetHeight}px`)).observe(hud);
   onRoute(() => {
     menu.open = false;

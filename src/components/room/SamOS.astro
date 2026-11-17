@@ -2,12 +2,15 @@
 /*
   The panel of the main screen: a desktop that covers the room, with an icon
   per project. An icon opens a window: a project as /projects/ shows it, the
-  list of smaller projects, or a terminal. Icons are links to the id of what
+  list of smaller projects, or a terminal. Two projects can be played in
+  their window: the program itself runs there (src/room/ui/demos). Icons are links to the id of what
   they open, so each window has its own address (src/room/ui/route.ts). The
   terminal reads the site from the attributes of its shell: nothing is
   bundled twice.
 */
 import ProjectEntry from '../projects/ProjectEntry.astro';
+import Chess from './demos/Chess.astro';
+import Fluid from './demos/Fluid.astro';
 import SmallerProjects from '../projects/SmallerProjects.astro';
 import { projects, smallerProjects } from '../../data/projects';
 import { desktop, stops, terminal } from '../../data/room';
@@ -49,6 +52,8 @@ const icons = [
         <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {project.name}</span></a>
       </p>
       <div class="body">
+        {project.slug === 'fluid-simulation' && <Fluid />}
+        {project.slug === 'chess-board' && <Chess />}
         <ProjectEntry project={project} />
       </div>
     </div>
@@ -217,6 +222,12 @@ const icons = [
     margin-top: var(--space-6);
   }
 
+  /* What can be played comes first, set apart from what is said of the project. */
+  .body :global(.demo) {
+    padding-block: var(--space-5);
+    border-bottom: 1px solid var(--rule);
+  }
+
   .shell {
     display: flex;
     flex-direction: column;
@@ -261,7 +272,8 @@ const icons = [
     .title a,
     .icons,
     .system,
-    [data-item='terminal'] {
+    [data-item='terminal'],
+    .body :global(.demo) {
       display: none;
     }
 

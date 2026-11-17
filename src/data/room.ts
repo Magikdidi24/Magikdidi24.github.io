@@ -140,6 +140,49 @@ export const labels: Record<string, string> = {
   'manga-south': 'Manga',
 };
 
+/**
+ * The words of the projects that can be played in their window of the
+ * desktop: the program itself runs in the page, compiled to WebAssembly
+ * (scripts/demos). `{depth}` and `{positions}` are filled in by the engine.
+ */
+export const demos = {
+  loading: 'Loading the program.',
+  failed: 'The program could not start in this browser.',
+  fluid: {
+    title: 'Try it',
+    hint: 'This is the C program itself, running in the page. Pick a liquid and draw with the mouse or a finger; the right button erases. The keys of the original work when the picture has the focus.',
+    picture: 'The grid of the simulator: draw on it.',
+    tools: 'What to draw',
+    wall: 'Wall',
+    eraser: 'Eraser',
+    pressure: 'Pressure view',
+    empty: 'Empty the grid',
+  },
+  chess: {
+    title: 'Play against the engine',
+    hint: 'This is the Rust engine itself, running in the page. You play White; it thinks for about a second.',
+    board: 'Chess board',
+    newGame: 'New game',
+    yourMove: 'Your move.',
+    thinking: 'The engine is thinking.',
+    check: 'Check.',
+    searched: 'Depth {depth}, {positions} positions searched.',
+    promote: 'Promote to',
+    empty: 'empty',
+    colours: ['white', 'black'],
+    pieces: ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'],
+    /* How a game ends, by the status the engine gives. The first two are a checkmate, by who is mated. */
+    results: {
+      mated: 'Checkmate: the engine wins.',
+      mates: 'Checkmate: you win.',
+      2: 'Stalemate: a draw.',
+      3: 'A draw by the 50-move rule.',
+      4: 'A draw: not enough material to mate.',
+      5: 'A draw by repetition.',
+    },
+  },
+};
+
 /** The desktop of projects, on the main screen. */
 export const desktop = { name: 'SamOS' };
 

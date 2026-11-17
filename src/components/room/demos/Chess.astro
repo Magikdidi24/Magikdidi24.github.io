@@ -1,0 +1,139 @@
+---
+/*
+  The chess engine, to play against in its window of the desktop of projects.
+  The board is 64 buttons, a8 first, as the engine numbers its squares; the
+  script (src/room/ui/demos/chess.ts) puts the pieces on them.
+*/
+import { demos } from '../../../data/room';
+
+const words = demos.chess;
+const squares = Array.from({ length: 64 }, (_, i) => `${'abcdefgh'[i % 8]}${8 - Math.floor(i / 8)}`);
+---
+<section class="demo" data-demo="chess" data-wasm="/room/demos/chess.wasm" data-words={JSON.stringify({ ...words, loading: demos.loading, failed: demos.failed })} aria-labelledby="chess-demo">
+  <h3 id="chess-demo">{words.title}</h3>
+  <p>{words.hint}</p>
+  <div class="play">
+    <div class="board" role="group" aria-label={words.board}>
+      {squares.map((name, i) => (
+        <button type="button" class:list={['square', { dark: (i + Math.floor(i / 8)) % 2 === 1 }]} data-square={i} data-name={name} aria-label={name}></button>
+      ))}
+    </div>
+    <div class="side">
+      <p class="state" role="status"></p>
+      <p class="search"></p>
+      <div class="promotion" role="group" aria-label={words.promote} hidden>
+        <span>{words.promote}</span>
+        {[2, 3, 4, 5].map((piece) => (
+          <button type="button" data-promotion={piece}>{words.pieces[piece - 1]}</button>
+        ))}
+      </div>
+      <button type="button" data-new>{words.newGame}</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .play {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr); /* never wider than its window */
+    gap: var(--space-4);
+    margin-top: var(--space-3);
+  }
+
+  .board {
+    display: grid;
+    grid-template: repeat(8, 1fr) / repeat(8, 1fr);
+    width: min(30rem, 70vh); /* its own size: it has nothing inside to take one from */
+    max-width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid var(--ink);
+  }
+
+  .square {
+    position: relative;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: #efe4cf center / 100% no-repeat;
+    image-rendering: pixelated;
+    cursor: pointer;
+  }
+
+  .square.dark {
+    background-color: #8aa174;
+  }
+
+  /* The last move, the piece in hand, and where it may go. */
+  .square:global(.last) {
+    box-shadow: inset 0 0 0 3px #dba23f;
+  }
+
+  .square:global(.held) {
+    box-shadow: inset 0 0 0 3px #1a1423;
+  }
+
+  .square:global(.target)::after {
+    content: '';
+    position: absolute;
+    inset: 36%;
+    border-radius: 50%;
+    background: #1a1423;
+    opacity: 0.55;
+  }
+
+  .square:focus-visible {
+    outline: 3px solid #1a1423;
+    outline-offset: -3px;
+    z-index: 1;
+  }
+
+  .side {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+  }
+
+  .state {
+    font-weight: 600;
+  }
+
+  .search {
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    min-height: 1.5em;
+  }
+
+  .promotion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .promotion[hidden] {
+    display: none;
+  }
+
+  .side button {
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule-strong);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    justify-self: start;
+  }
+
+  .promotion button {
+    text-transform: capitalize;
+  }
+
+  @media (min-width: 60rem) {
+    .play {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+</style>
