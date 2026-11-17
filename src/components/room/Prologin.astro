@@ -1,0 +1,18 @@
+---
+/*
+  The panel of the clipboard: Prologin, from site.ts.
+*/
+import Panel from './Panel.astro';
+import Digits from '../home/Digits.astro';
+import { stops } from '../../data/room';
+import { experience, prologin } from '../../data/site';
+
+const stop = stops.find(({ id }) => id === 'prologin')!;
+const entry = experience.find(({ id }) => id === 'prologin')!;
+---
+<Panel id={stop.id} title={stop.label}>
+  <h3>{entry.title}</h3>
+  <p class="meta">{entry.org}, {entry.place}, {entry.period.label}</p>
+  <p>{entry.summary}</p>
+  <p><Digits text={prologin.record} /></p>
+</Panel>

@@ -4,9 +4,10 @@
   hash decides (route.ts); this file only follows it. It needs no 3D: the
   panels open before the room is drawn, and without it.
 */
-import { enlarged } from '../../data/room.ts';
+import { desktop, enlarged, finds, milestone } from '../../data/room.ts';
+import { markFound, onFound } from './found.ts';
 import { current, follow, go, onRoute, type Route } from './route.ts';
-import { showPicture } from './sheets.ts';
+import { showCalendar, showPicture } from './sheets.ts';
 import { run, type World } from './terminal.ts';
 
 export interface Panels {
@@ -24,6 +25,10 @@ export function setupPanels(root: HTMLElement): Panels {
   const show = (route: Route, before?: Route) => {
     for (const panel of panels) panel.toggleAttribute('data-open', panel.id === route.stop);
     for (const pane of windows) pane.hidden = pane.dataset.item !== route.item;
+    /* A window covers the desktop from its top, wherever the desktop had been scrolled to. */
+    const desk = panels.find((panel) => panel.id === route.stop && route.item);
+    if (desk) desk.scrollTop = 0;
+    if (route.stop) markFound(route.stop);
     if (route.stop && !before?.stop) {
       /* A link of the menu is gone once the menu shuts: its button stands for it. */
       const active = document.activeElement as HTMLElement | null;
@@ -42,12 +47,40 @@ export function setupPanels(root: HTMLElement): Panels {
   show(follow(panels.map((panel) => panel.id), windows.map((pane) => pane.dataset.item!)));
   onRoute(show);
 
+  /* What the desktop lists of the room stays locked until it has been found there, and its list of things to do ticks it off. */
+  const places = [...root.querySelectorAll<HTMLElement>('[data-find]')];
+  const tasks = [...root.querySelectorAll<HTMLInputElement>('[data-task]')];
+  const todo = root.querySelector<HTMLDetailsElement>('.todo');
+  const count = root.querySelector<HTMLElement>('.todo .count');
+  const hint = root.querySelector<HTMLElement>('.places .hint');
+  /* On a narrow screen the list comes before the icons: folded, so that it does not push them out of sight. */
+  if (todo) todo.open = matchMedia('(min-width: 64rem)').matches;
+  onFound((found) => {
+    for (const place of places) {
+      const locked = !found.has(place.dataset.find!);
+      place.toggleAttribute('data-locked', locked);
+      place.setAttribute('aria-disabled', String(locked));
+      if (!locked) place.removeAttribute('data-asked');
+    }
+    for (const task of tasks) task.checked = found.has(task.dataset.task!);
+    if (count) count.textContent = desktop.count.replace('{found}', String(found.size)).replace('{all}', String(finds.length));
+    if (hint) hint.textContent = '';
+  });
+
   root.addEventListener('click', (event) => {
     const target = event.target as Element;
     const picture = target.closest<HTMLAnchorElement>('a[data-enlarge]');
     const link = target.closest<HTMLAnchorElement>('a[href^="#"]');
+    const locked = target.closest<HTMLElement>('[data-locked]');
     if (target.closest('[data-close]')) {
       go(null);
+    } else if (locked) {
+      /* It says what to do in the room to open it: under its name, and aloud. */
+      event.preventDefault();
+      for (const place of places) place.toggleAttribute('data-asked', place === locked);
+      if (hint) hint.textContent = `${desktop.locked} ${finds.find(({ id }) => id === locked.dataset.find)!.task}.`;
+    } else if (target.closest('[data-calendar]')) {
+      showCalendar(milestone.year);
     } else if (picture) {
       event.preventDefault();
       showPicture(picture.href, enlarged[picture.dataset.enlarge as keyof typeof enlarged].caption, { x: event.clientX, y: event.clientY });

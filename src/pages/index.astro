@@ -9,9 +9,15 @@
 */
 import '@fontsource/silkscreen/latin-400.css';
 import Base from '../layouts/Base.astro';
+import Compiler from '../components/room/Compiler.astro';
 import Education from '../components/room/Education.astro';
+import OpenSource from '../components/room/OpenSource.astro';
+import Prologin from '../components/room/Prologin.astro';
 import Reach from '../components/room/Reach.astro';
+import Research from '../components/room/Research.astro';
 import SamOS from '../components/room/SamOS.astro';
+import Skills from '../components/room/Skills.astro';
+import Tokyo from '../components/room/Tokyo.astro';
 import { stops } from '../data/room';
 import { person } from '../data/site';
 import { PALETTE } from '../room/voxel/palette';
@@ -24,7 +30,8 @@ if (description.length > 160) {
 const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --room-red: ${PALETTE.red}`;
 ---
 <Base title={title} description={description} bare>
-  <div class="room" id="room" style={colors}>
+  <!-- data-time follows the Night button: the window is a stop of the visit at night only. -->
+  <div class="room" id="room" style={colors} data-time="day">
     <canvas
       class="view"
       role="img"
@@ -36,7 +43,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
         <details class="menu">
           <summary>Objects</summary>
           <ul role="list">
-            {stops.map(({ id, label }) => <li><a href={`#${id}`}>{label}</a></li>)}
+            {stops.map(({ id, label, night }) => <li data-when={night ? 'night' : undefined}><a href={`#${id}`}>{label}</a></li>)}
           </ul>
         </details>
         <!-- Shown once the room is drawn: see the script below. -->
@@ -52,8 +59,15 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
       <p class="fallback">The room is drawn in 3D and needs JavaScript. What its objects open is below, and <a href="/classic/">the text version</a> has the rest.</p>
     </noscript>
 
-    <Education />
+    <!-- One panel for each stop of the visit, in the order of the menu. -->
+    <Research />
+    <Compiler />
+    <OpenSource />
     <SamOS />
+    <Skills />
+    <Education />
+    <Tokyo />
+    <Prologin />
     <Reach />
 
     <!-- Opened by a click in the room (src/room/ui/sheets.ts): a picture shown large, and the calendar. -->
@@ -78,7 +92,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
   import { sound } from '../room/audio.ts';
   import { setupDemos } from '../room/ui/demos/index.ts';
   import { setupPanels } from '../room/ui/panels.ts';
-  import { current, onRoute } from '../room/ui/route.ts';
+  import { current, go, onRoute } from '../room/ui/route.ts';
 
   const root = document.getElementById('room') as HTMLElement;
   const canvas = root.querySelector('canvas') as HTMLCanvasElement;
@@ -133,6 +147,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     const lit = (dark: boolean) => {
       night.setAttribute('aria-pressed', String(dark));
       document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      root.dataset.time = dark ? 'night' : 'day';
     };
     const saved = chosen(NIGHT);
     if (saved) app.setNight(saved === '1');
@@ -141,6 +156,8 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
       app.setNight(!app.room.night);
       lit(app.room.night);
       choose(NIGHT, app.room.night);
+      /* What is a stop at night only shuts as the day comes back. */
+      if (!app.room.night && stops.find(({ id }) => id === current().stop)?.night) go(null);
     };
     /* The sounds of the room are off until asked for. */
     const heard = (on: boolean) => {
@@ -162,8 +179,17 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
     /* The camera goes to the stop whose panel is open, clear of that panel, and comes back when it closes. */
     const frame = (route = current()) => {
-      const view = stops.find(({ id }) => id === route.stop)?.view ?? null;
-      void app.focus(view, panels.cover()).then(() => turn.setAttribute('aria-pressed', String(app.rig.behind)));
+      const stop = stops.find(({ id }) => id === route.stop);
+      /* A stop of the night opened by day, from its address: night falls for it, without being remembered. */
+      if (stop?.night && !app.room.night) {
+        app.setNight(true);
+        lit(true);
+      }
+      const view = stop?.view ?? null;
+      const cover = panels.cover();
+      /* Beside a panel, the buttons of the HUD lie over the top of what is left: three rows of them on a phone. */
+      const top = cover.right || cover.bottom ? hud.offsetHeight : 0;
+      void app.focus(view, { ...cover, top }).then(() => turn.setAttribute('aria-pressed', String(app.rig.behind)));
     };
     onRoute(frame);
     frame();
@@ -281,9 +307,12 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     top: 100%;
     left: 0;
     min-width: 100%;
+    max-height: calc(100dvh - var(--hud)); /* a long list on a low screen scrolls */
     margin: var(--space-1) 0 0;
     padding: 0;
+    overflow-y: auto;
     list-style: none;
+    pointer-events: auto;
   }
 
   .menu a {
@@ -311,14 +340,14 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
   }
 
   /* A few words over an object of the room, put there by a click, and the name of the one under the pointer (src/room/interaction/reactions.ts). */
-  .room :global(.bubble),
-  .room :global(.label) {
+  .room > :global(.bubble),
+  .room > :global(.label) {
     position: absolute;
     margin: 0;
     pointer-events: none;
   }
 
-  .room :global(.bubble) {
+  .room > :global(.bubble) {
     padding: var(--space-2) var(--space-3);
     border: 2px solid var(--room-ink);
     background: var(--room-paper);
@@ -326,14 +355,28 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     transform: translate(-50%, calc(-100% - 0.5rem));
   }
 
-  .room :global(.label) {
+  /* A picture in a bubble: the music note of a speaker. */
+  .room > :global(.bubble svg) {
+    display: block;
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: currentColor;
+    shape-rendering: crispEdges;
+  }
+
+  /* What belongs to the night is not listed by day. */
+  .room[data-time='day'] :global([data-when='night']) {
+    display: none;
+  }
+
+  .room > :global(.label) {
     padding: var(--space-2);
     background: var(--room-ink);
     white-space: nowrap;
     transform: translate(1rem, 1rem);
   }
 
-  .room :global(.label[hidden]) {
+  .room > :global(.label[hidden]) {
     display: none;
   }
 
@@ -369,6 +412,11 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     font-family: 'Silkscreen', var(--mono);
     font-size: 1rem;
     line-height: 1.2;
+  }
+
+  /* An open window covers the desktop: the desktop does not scroll under it. */
+  .room :global(.panel.samos:has(.window:not([hidden]))) {
+    overflow: hidden;
   }
 
   /* On a narrow screen a panel is a sheet at the foot of the room. */
@@ -450,7 +498,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
       animation: dim 0.3s ease-out;
     }
 
-    .room :global(.bubble) {
+    .room > :global(.bubble) {
       animation: pop 0.2s steps(4);
     }
 
@@ -573,6 +621,22 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     transform: translate(-50%, -50%);
   }
 
+  /* The month that is circled: the ring takes the width of its name, and what it is for is written under it. */
+  .months :global(caption .marked) {
+    display: inline-block;
+  }
+
+  .months :global(caption .marked svg) {
+    width: calc(100% + 1.5rem);
+    height: 2.25rem;
+  }
+
+  .months :global(caption .note) {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--room-red);
+  }
+
   .months :global(.marked path) {
     fill: none;
     stroke: var(--room-red);
@@ -611,6 +675,11 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
       width: auto;
       max-height: none;
       border: 0;
+    }
+
+    /* No hour without the room: what belongs to the night is listed too. */
+    .room[data-time='day'] :global([data-when='night']) {
+      display: revert;
     }
   }
 </style>

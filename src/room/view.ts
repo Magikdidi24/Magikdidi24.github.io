@@ -174,15 +174,34 @@ export function lightTurn(azimuth: number, turned: number): number {
 }
 
 /**
- * A panel covers part of the viewport: `right` pixels of its right side, or
- * `bottom` pixels of its foot. Returns how far what the camera looks at must
- * move in the room, in metres, to sit in the middle of what is left. `unit`
- * is the size of a pixel of the viewport in the room; the angles are those of
- * the camera.
+ * Where the camera looks on its way from one view to another, t from 0 to 1,
+ * given the zoom it started with and the one it has reached. The point it
+ * goes to comes to the middle of the screen at a steady pace: moved in a
+ * straight line through the room while the zoom grows, it would first swing
+ * away, to the edge of the screen on a wide one, before it came back.
  */
-export function clearOf(cover: { right: number; bottom: number }, unit: number, azimuth: number, elevation: number): [number, number, number] {
+export function glide(from: [number, number, number], to: [number, number, number], t: number, fromZoom: number, zoom: number): [number, number, number] {
+  const left = ((1 - t) * fromZoom) / zoom; // what is left of the way, as the screen shows it
+  return [0, 1, 2].map((k) => to[k] + (from[k] - to[k]) * left) as [number, number, number];
+}
+
+/** What is laid over the viewport, in CSS pixels: a panel over its right side or its foot, and the bar of buttons over its top. */
+export interface Cover {
+  right: number;
+  bottom: number;
+  top?: number;
+}
+
+/**
+ * A panel covers part of the viewport: `right` pixels of its right side, or
+ * `bottom` pixels of its foot, and the bar of buttons `top` pixels of its
+ * top. Returns how far what the camera looks at must move in the room, in
+ * metres, to sit in the middle of what is left. `unit` is the size of a pixel
+ * of the viewport in the room; the angles are those of the camera.
+ */
+export function clearOf(cover: Cover, unit: number, azimuth: number, elevation: number): [number, number, number] {
   const across = (cover.right / 2) * unit; // towards the right of the screen
-  const down = (cover.bottom / 2) * unit; // towards its foot
+  const down = ((cover.bottom - (cover.top ?? 0)) / 2) * unit; // towards its foot
   const right = [Math.cos(azimuth), 0, -Math.sin(azimuth)];
   const up = [-Math.sin(azimuth) * Math.sin(elevation), Math.cos(elevation), -Math.cos(azimuth) * Math.sin(elevation)];
   return [0, 1, 2].map((k) => right[k] * across - up[k] * down) as [number, number, number];

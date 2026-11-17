@@ -1,0 +1,47 @@
+---
+/*
+  The panel of the meteorite: the research at LRE, from site.ts, with the
+  photon figure of the text version and its results. The figure is a
+  simulation, and its caption says so: no data of the lab is on the site.
+*/
+import Panel from './Panel.astro';
+import PhotonFigure from '../PhotonFigure.astro';
+import Digits from '../home/Digits.astro';
+import { stops } from '../../data/room';
+import { research } from '../../data/site';
+
+const stop = stops.find(({ id }) => id === 'research')!;
+---
+<Panel id={stop.id} title={stop.label}>
+  <h3>{research.title}</h3>
+  <p class="meta">{research.org}, {research.period}</p>
+  <p>{research.summary}</p>
+  <PhotonFigure variant="inline" />
+  <ul class="results" role="list">
+    {research.results.map((result) => (
+      <li>
+        <p class="result"><Digits text={'value' in result ? result.value : `${result.before} to ${result.after}`} /></p>
+        <p class="meta">{result.metric}. {result.data}.</p>
+      </li>
+    ))}
+  </ul>
+  <p class="meta">{research.note}</p>
+  <p><a class="go" href={`/work/${research.slug}/`}>Read the case study</a></p>
+</Panel>
+
+<style>
+  /* The results of the text version, one under the other: its table is too wide for a panel. */
+  .results {
+    padding: 0;
+    list-style: none;
+  }
+
+  .results li {
+    padding-block: var(--space-3);
+    border-top: 1px solid var(--rule);
+  }
+
+  .result {
+    font-weight: 600;
+  }
+</style>

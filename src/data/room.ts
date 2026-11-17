@@ -5,9 +5,14 @@
 */
 import { flight } from './pegboard.ts';
 import type { Framing } from '../room/view.ts';
-import { baccalaureate, education, languages, person, preparatory } from './site.ts';
+import type { Swatch } from '../room/voxel/palette.ts';
+import { baccalaureate, education, experience, languages, openSource, person, preparatory, research, skills } from './site.ts';
 
 const [firstName] = person.name.split(' ');
+/** The city he lives in: what the window looks out on by day. */
+const [home] = person.home.split(',');
+/** In capitals without accents: the pixel font has none. */
+const plain = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
 const school = (id: (typeof education)[number]['id']) => education.find((entry) => entry.id === id)!;
 const [cpge, epita] = [school('cpge'), school('epita')];
 
@@ -20,13 +25,52 @@ export interface Stop {
   label: string;
   objects: string[];
   view: Framing;
+  /** It is a stop at night only: by day its object opens nothing, and says a word instead (see `says`). */
+  night?: true;
+  /** What the list of things to do says of it, on the desktop of the main screen. None for that desktop itself. */
+  task?: string;
 }
 
+/* In the order of the menu, which is also that of the page without JavaScript: the work, the projects, the studies, the rest. */
 export const stops: Stop[] = [
-  { id: 'education', label: 'Diplomas', objects: ['frame-bac', 'frame-prepa', 'frame-epita', 'frame-toeic'], view: { target: [0, 1.5, 0.88], zoom: 3 } },
+  { id: 'research', label: 'Research', objects: ['meteorite'], view: { target: [3.56, 1.58, 0.1], across: 0.9 }, task: 'Find the rock that fell from space' },
+  /* The book on the nightstand is about compilers. Seen from the foot of the bed, to face its cover. */
+  { id: 'compiler', label: 'Compiler work', objects: ['book'], view: { target: [1.72, 0.64, 0.36], across: 1.4, azimuth: 12, elevation: 30 }, task: 'Open the book on the nightstand' },
+  {
+    id: 'open-source',
+    label: 'Open source',
+    objects: ['pegboard', 'badges', 'bonsai', 'gem'],
+    view: { target: [2.8, 1.68, 0.05], across: 1.6 },
+    task: 'Look at what hangs on the pegboard',
+  },
   /* The camera comes round to face the main screen, which fills the viewport from side to side. */
   { id: 'projects', label: 'Projects', objects: ['monitor'], view: { target: [3.05, 1.08, 0.3], across: 1.3, azimuth: 0, elevation: 8 } },
-  { id: 'contact', label: 'Contact', objects: ['door'], view: { target: [0, 1.1, 3.75], zoom: 2.2 } },
+  /* From higher up: the keys are read from above. */
+  { id: 'skills', label: 'Skills', objects: ['keyboard'], view: { target: [3.05, 0.78, 0.62], across: 0.9, elevation: 50 }, task: 'Press a key of the keyboard' },
+  {
+    id: 'education',
+    label: 'Diplomas',
+    objects: ['frame-bac', 'frame-prepa', 'frame-toeic', 'frame-epita'],
+    view: { target: [0, 1.5, 0.88], zoom: 3 },
+    task: 'Look at the frames above the bed',
+  },
+  /* The window looks out on Tokyo by night only: by day it shows Paris, and says so. */
+  { id: 'tokyo', label: 'Tokyo', night: true, objects: ['window'], view: { target: [0.55, 1.5, 0], zoom: 2.6 }, task: 'Look out of the window at night' },
+  /* Close, and nearly face on: the sheet is to be read. */
+  { id: 'prologin', label: 'Prologin', objects: ['clipboard'], view: { target: [0.3, 1.28, 3.28], across: 1.1, azimuth: 20 }, task: 'Read the clipboard on the wardrobe' },
+  { id: 'contact', label: 'Contact', objects: ['door'], view: { target: [0, 1.1, 3.75], zoom: 2.2 }, task: 'Knock on the door' },
+];
+
+/**
+ * What there is to find in the room: every stop of the visit but the desktop
+ * of the main screen, which lists them, then two things that open no panel,
+ * the CV that the printer hands out and the calendar. Each stays locked on
+ * that desktop until it has been found.
+ */
+export const finds: { id: string; label: string; night?: true; task: string }[] = [
+  ...stops.flatMap(({ id, label, night, task }) => (task ? [{ id, label, night, task }] : [])),
+  { id: 'cv', label: 'CV', task: 'Print something' },
+  { id: 'calendar', label: 'Calendar', task: 'See what the calendar has circled' },
 ];
 
 /** The framed diploma of the baccalaureate: its title, and the name written on it. */
@@ -37,8 +81,8 @@ const certified = languages.find(({ name }) => name === 'English')?.level.match(
 export const toeic = { title: 'TOEIC', line: certified?.[1], score: certified?.[2] };
 
 /**
- * The diplomas of the row of frames, as the panel lists them: the frame of
- * each one, then what is known of it. `soon` is what the stamp says on a
+ * The diplomas of the row of frames, as the panel lists them and as they
+ * hang, from left to right: the frame of each one, then what is known of it. `soon` is what the stamp says on a
  * diploma that is not awarded yet.
  */
 export const diplomas = [
@@ -51,12 +95,11 @@ export const diplomas = [
     soon: null,
   },
   { frame: 'frame-prepa', title: cpge.title, org: `${cpge.org}, ${cpge.place}`, period: cpge.period.label, note: `${cpge.summary} ${preparatory.outcome}`, soon: null },
-  { frame: 'frame-epita', title: epita.title, org: epita.org, period: epita.period.label, note: epita.summary, soon: `Coming soon, ${epita.period.end}` },
   { frame: 'frame-toeic', title: toeic.title, org: null, period: null, note: toeic.line ?? null, soon: null },
+  { frame: 'frame-epita', title: epita.title, org: epita.org, period: epita.period.label, note: epita.summary, soon: `Coming soon, ${epita.period.end}` },
 ] as const;
 
-/** What the two portrait frames show, in capitals without accents: the pixel font has none. */
-const plain = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
+/** What the two portrait frames show. */
 export const papers = {
   prepa: { title: plain(cpge.title.match(/MP2I.*$/)?.[0] ?? cpge.title).replace(' AND ', ' '), lines: plain(cpge.org).split(' '), foot: `${cpge.period.start}-${cpge.period.end}` },
   epita: { title: plain(epita.org), stamp: plain('Coming soon').split(' '), foot: epita.period.end },
@@ -65,11 +108,47 @@ export const papers = {
 /** The day circled on the calendar that opens over the room. */
 export const birthday = { ...person.birthday, label: `${firstName}'s birthday` };
 
+/** The month circled on it, and on the page of the calendar that hangs in the room: when the internship starts. */
+const [year, month] = person.nextStep.start.split('-').map(Number);
+export const milestone = {
+  year,
+  month,
+  title: new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric' }).format(new Date(year, month - 1)),
+  label: person.nextStep.sentence,
+};
+
+/**
+ * The keys of the keyboard that light up: one for each skill, then one for
+ * each language he speaks, in the colour of its group.
+ */
+const TINTS: Swatch[] = ['cyan', 'magenta', 'violet', 'lime'];
+export const spoken = { group: 'Spoken languages', color: 'amber' as Swatch };
+export const keycaps: { name: string; group: string; color: Swatch }[] = [
+  ...skills.flatMap(({ group, items }, i) => items.map((name) => ({ name, group, color: TINTS[i] }))),
+  ...languages.map(({ name }) => ({ name, ...spoken })),
+];
+
+/**
+ * What is written on the things that the stops of the visit hang in the
+ * room, in the capitals of the pixel font: the card in front of the
+ * meteorite, the tags and the label on the pegboard, the sheet of the
+ * clipboard, the page of the wall calendar, the display of the power supply.
+ */
+const { width, height, channels } = research.cube;
+export const written = {
+  specimen: { name: 'CHONDRITE', size: `${width}x${height}x${channels}` },
+  merged: { word: 'MERGED', numbers: openSource.prs.filter(({ status }) => status === 'merged').map(({ number }) => `#${number}`) },
+  bonsai: 'TREE-SITTER', // the parser generator his fork is a grammar for
+  contest: { title: plain(experience.find(({ id }) => id === 'prologin')!.org), stamp: 'REVIEWED' },
+  page: plain(milestone.title),
+  uptime: 'UPTIME',
+};
+
 /** What is printed on the table number that stands on the wardrobe: two lines, a number, a name. */
 export const tableNumber = { invite: ['INSTALLEZ', 'VOUS'], number: '14', brand: 'KFC' };
 
-/** What is said in a bubble over an object when it is clicked. */
-export const says = { dog: 'Woof!', nightstand: 'Locked', muted: 'Sound is off' } as const;
+/** What is said in a bubble over an object when it is clicked: the window says it by day, when it opens no panel. */
+export const says = { dog: 'Woof!', window: home, nightstand: 'Locked', muted: 'Sound is off', off: 'The PC is off' } as const;
 
 /**
  * What a click shows large: the words that say what each picture is, and
@@ -97,28 +176,28 @@ export const labels: Record<string, string> = {
   dog: person.dog,
   chair: 'Chair',
   'monitor-side': 'Second screen',
-  keyboard: 'Keyboard',
   mouse: 'Mouse',
   'speaker-left': 'Speaker',
   'speaker-right': 'Speaker',
   dock: 'Controllers',
   lamp: 'Lamp',
   nightstand: 'Nightstand',
-  book: 'Book',
-  neon: 'Neon sign',
   pc: 'PC',
   homelab: 'NAS',
   printer: 'Printer',
   cv: 'CV',
+  whiteboard: 'Whiteboard',
+  eraser: 'Whiteboard',
+  neon: 'Neon sign',
   cabinet: 'Cabinet',
   'cabinet-door-left': 'Cabinet',
   'cabinet-door-right': 'Cabinet',
-  'console-grey': 'Cartridge console',
-  'console-black': 'Disc console',
-  'console-cube': 'Cube console',
-  'console-white': 'White console',
-  handheld: 'Handheld',
-  'handheld-wide': 'Wide handheld',
+  'console-grey': 'NES',
+  'console-black': 'PlayStation',
+  'console-cube': 'GameCube',
+  'console-white': 'Wii',
+  handheld: 'Game Boy',
+  'handheld-wide': 'Nintendo DS',
   wardrobe: 'Wardrobe',
   'wardrobe-door-north': 'Wardrobe',
   'wardrobe-door-south': 'Wardrobe',
@@ -127,21 +206,17 @@ export const labels: Record<string, string> = {
   passes: 'Boarding passes',
   formulas: 'Formula sheet',
   calendar: 'Calendar',
-  whiteboard: 'Whiteboard',
-  eraser: 'Whiteboard',
   figurines: 'Figurines',
   gon: 'Gon',
   ichigo: 'Ichigo',
   gundam: 'Gundam',
   duo: 'Figurines',
-  meteorite: 'Meteorite',
   raspberry: 'Raspberry Pi 4',
   daruma: 'Daruma',
   'lucky-cat': 'Lucky cat',
   car: 'Hypercar',
   tiger: 'Tiger',
   'stamp-book': 'Stamp book',
-  sakura: 'Sakura',
   'manga-east': 'Manga',
   'manga-south': 'Manga',
 };
@@ -219,8 +294,16 @@ export const programs: { repo: string; file: string; keys: string[]; cell?: numb
 ];
 export const windowOf = (repo: string) => repo.toLowerCase().replaceAll('_', '-');
 
-/** The desktop of projects, on the main screen. */
-export const desktop = { name: 'SamOS' };
+/**
+ * The desktop of projects, on the main screen: its name, the file that says
+ * who he is, the heading over what there is to find in the room, the title
+ * of the list of things to do, what a locked icon answers, and the count
+ * under the list. `{found}` and `{all}` are filled in by the page.
+ */
+export const desktop = { name: 'SamOS', about: 'about.txt', places: 'In the room', todo: 'To do', locked: 'Locked. To do first:', count: '{found} of {all} found' };
+
+/** What a speaker shows over itself when it is clicked: said aloud for those who do not see it. */
+export const music = 'Music';
 
 /** The words of its terminal. */
 export const terminal = {

@@ -7,7 +7,7 @@
 */
 import { MathUtils, OrthographicCamera, Quaternion, Spherical, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { clearOf, fitHalfHeight, pixelFraction, snap, type Framing, type Grid } from './view.ts';
+import { clearOf, fitHalfHeight, pixelFraction, snap, type Cover, type Framing, type Grid } from './view.ts';
 
 export interface Box {
   w: number;
@@ -64,9 +64,9 @@ export interface Rig {
   /**
    * The pose that shows a point of the room as `view` says, in the middle of
    * what a panel leaves free: `cover` is what the panel takes of the right
-   * side and of the foot of the viewport, in CSS pixels.
+   * side and of the foot of the viewport, and the bar of buttons of its top.
    */
-  frame(view: Framing, cover: { right: number; bottom: number }, grid: Grid): Pose;
+  frame(view: Framing, cover: Cover, grid: Grid): Pose;
   /** Let the controls move the camera: what is left of a drag, the limits of the view. Nothing while it is held. */
   update(): void;
   /** Fit the room in a viewport with the aspect ratio of the pixel grid. Returns the size of a pixel in the room at zoom 1, in metres. */

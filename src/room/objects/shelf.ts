@@ -225,9 +225,15 @@ function stampBook(): VoxelModel {
   return m;
 }
 
+/** Where the meteorite stands on the shelf, from its left end, in metres. */
+const METEORITE = 0.29;
+
+/** The card that stands in front of the meteorite, leaning back against its base: centre, size and lean, in metres and degrees. */
+export const SPECIMEN_CARD = { x: LOWER_SHELF.x + METEORITE + 0.06875, y: LOWER_SHELF.top + 0.0205, z: 0.185, width: 0.15, height: 0.05, lean: 35 };
+
 export const shelfThings = (): RoomObject[] => [
   on('duo', duo(), 0.01, FINER / 2),
-  on('meteorite', meteorite(), 0.29),
+  on('meteorite', meteorite(), METEORITE),
   on('raspberry', raspberry(), 0.455, FINER / 2),
   on('daruma', daruma(), 0.54),
   on('lucky-cat', luckyCat(), 0.66),

@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoGrid, clearOf, fitHalfHeight, gridSize, lightTurn, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
+import { autoGrid, clearOf, fitHalfHeight, glide, gridSize, lightTurn, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -204,6 +204,18 @@ test('clearOf: a sheet at the bottom moves the target down the screen by half it
   near(z, 0);
 });
 
+test('clearOf: what covers the top of the viewport moves the target up the screen by half its height', () => {
+  const [x, y, z] = clearOf({ right: 0, bottom: 0, top: 200 }, 0.01, 0, 0);
+  near(x, 0);
+  near(y, 1);
+  near(z, 0);
+});
+
+test('clearOf: a sheet at the foot and a bar at the top, as on a phone: the target sits between them', () => {
+  const [, y] = clearOf({ right: 0, bottom: 300, top: 100 }, 0.01, 0, 0);
+  near(y, -1);
+});
+
 test('clearOf: from the default view the two shifts follow the camera', () => {
   const [x, y, z] = clearOf({ right: 200, bottom: 0 }, 0.01, Math.PI / 4, Math.PI / 6);
   near(x, Math.SQRT1_2);
@@ -230,4 +242,36 @@ test('lightTurn: during a turn round the room it goes round with the camera, wit
 test('lightTurn: a camera that faces a wall squarely is not thrown into the quarter before', () => {
   near(lightTurn(-1e-12, 0), 0);
   near(lightTurn(degrees(90) - 1e-12, 0), Math.PI / 2);
+});
+
+/* The camera on its way to the main screen: from the opening view at zoom 1 to the screen at zoom 9. */
+const HERE = [3, 1.35, 2.2];
+const THERE = [3.05, 1.08, 0.3];
+const far = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+/** How far a point of the room is from the middle of the screen, in metres of the room times the zoom: what the eye sees. */
+const offCentre = (point, t, fromZoom, toZoom) => {
+  const zoom = fromZoom + (toZoom - fromZoom) * t;
+  return far(point, glide(HERE, THERE, t, fromZoom, zoom)) * zoom;
+};
+
+test('glide: it starts where the camera looked and ends where it goes', () => {
+  assert.deepEqual(glide(HERE, THERE, 0, 1, 1), HERE);
+  assert.deepEqual(glide(HERE, THERE, 1, 1, 9), THERE);
+});
+
+test('glide: on the way in, what the camera goes to comes to the middle of the screen and never swings away from it', () => {
+  let last = offCentre(THERE, 0, 1, 9);
+  for (let t = 0.05; t <= 1.0001; t += 0.05) {
+    const now = offCentre(THERE, t, 1, 9);
+    assert.ok(now <= last + 1e-9, `at ${t.toFixed(2)} it is ${now.toFixed(3)} from the middle, after ${last.toFixed(3)}`);
+    last = now;
+  }
+  near(last, 0);
+});
+
+test('glide: on the way out, what the camera leaves moves off steadily, without a jump at the start', () => {
+  /* The same journey backwards: from the screen at zoom 9 to the opening view at zoom 1. */
+  const leaving = (t) => { const zoom = 9 + (1 - 9) * t; return far(THERE, glide(THERE, HERE, t, 9, zoom)) * zoom; };
+  near(leaving(0), 0);
+  near(leaving(0.5), leaving(1) / 2, 1e-9);
 });

@@ -24,12 +24,13 @@ const run = (from: number, every: number, length: number, pitches: number[], wav
 
 /**
  * What each console plays as it is switched on, by the name of its object.
- * Written for the room: none is the sound of a real console.
+ * Written for the room, in the manner of each machine: none is the sound
+ * that the real console makes.
  */
 export const JINGLES: Record<string, Note[]> = {
-  /* A cartridge console: a square wave climbs over a held bass, as on eight bits. */
+  /* The NES: a square wave climbs over a held bass, as on eight bits. */
   'console-grey': [note(0, 0.95, 130.81, 'triangle', 0.3), ...run(0, 0.1, 0.1, [659.25, 783.99, 1046.5, 1318.51], 'square', 0.1), note(0.42, 0.1, 1174.66, 'square', 0.1), note(0.52, 0.45, 1567.98, 'square', 0.1)],
-  /* A disc console: a low note that rises an octave, a chord that opens over it, two high bells. */
+  /* The PlayStation: a low note that rises an octave, a chord that opens over it, two high bells. */
   'console-black': [
     note(0, 2.2, [55, 110], 'sine', 0.5),
     note(0.5, 1.8, 220, 'triangle', 0.14),
@@ -38,15 +39,15 @@ export const JINGLES: Record<string, Note[]> = {
     note(1.5, 0.8, 1318.51, 'sine', 0.1),
     note(1.75, 0.65, 1760, 'sine', 0.08),
   ],
-  /* A cube: notes that bounce up, something that drops, and a chord to land on. */
+  /* The GameCube: notes that bounce up, something that drops, and a chord to land on. */
   'console-cube': [
     ...run(0, 0.11, 0.08, [523.25, 659.25, 783.99, 659.25, 880, 783.99, 1046.5], 'triangle', 0.22),
     note(0.8, 0.18, [880, 220], 'sine', 0.3),
     ...[261.63, 329.63, 392, 523.25].map((pitch) => note(1, 0.5, pitch, 'triangle', 0.12)),
   ],
-  /* A handheld: three quick notes, the last one left to ring. */
+  /* The Game Boy: three quick notes, the last one left to ring. */
   handheld: [...run(0, 0.07, 0.06, [783.99, 1046.5], 'square', 0.1), note(0.14, 0.55, 1318.51, 'square', 0.1), note(0.14, 0.55, 2637.02, 'sine', 0.05)],
-  /* A white console: a breath that rises, then two soft chimes a fifth apart. */
+  /* The Wii: a breath that rises, then two soft chimes a fifth apart. */
   'console-white': [
     note(0, 0.5, [300, 900], 'sine', 0.18),
     note(0.55, 0.5, 523.25, 'triangle', 0.18),
@@ -54,7 +55,7 @@ export const JINGLES: Record<string, Note[]> = {
     note(0.95, 0.7, 783.99, 'triangle', 0.18),
     note(0.95, 0.7, 1567.98, 'sine', 0.07),
   ],
-  /* A wide handheld: two bells, then a short climb. */
+  /* The Nintendo DS: two bells, then a short climb. */
   'handheld-wide': [
     note(0, 0.25, 1318.51, 'sine', 0.16),
     note(0, 0.25, 2637.02, 'sine', 0.05),

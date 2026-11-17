@@ -2,47 +2,51 @@
   What the things of the room do under the pointer. One that answers a click
   is outlined when the pointer is over it, named beside the pointer, and
   lifted a little if it is small. Clicked, the chair spins, a screen cracks,
-  the sakura sheds petals, the printer drops a CV, doors swing open, an old
-  console plays the sound it makes as it starts, the brush falls off the
-  whiteboard, the warning light flashes, the calendar
-  opens... and the objects that are stops of the visit open their panel: for
-  the main screen, the chair rolls out of the way of the camera. A
+  the printer drops a CV, doors swing open, an old
+  console plays the sound it makes as it starts, a speaker shows a music
+  note, the brush falls off the whiteboard, the PC goes down, the warning
+  light flashes, the calendar opens... and the objects that are stops of
+  the visit open their panel: for the main screen, the chair rolls out of the
+  way of the camera, and the keyboard lights the key of each skill under the
+  pointer. A
   click is a pointer released where it was pressed; a drag turns the camera
   instead. Under prefers-reduced-motion every movement jumps to its end.
 */
-import { BoxGeometry, Color, InstancedMesh, MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
+import { MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
 import { manga } from '../../data/manga.ts';
-import { enlarged, labels, says, stops } from '../../data/room.ts';
+import { enlarged, keycaps, labels, milestone, music, says, stops } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import { play as sing, sound } from '../audio.ts';
 import type { RoomApp } from '../main.ts';
 import { ON_NIGHTSTAND } from '../objects/bed.ts';
-import { SAKURA_CROWN, SAKURA_FOOT } from '../objects/floor.ts';
+import { capOf, keyAt } from '../objects/desk.ts';
 import { pulled, seriesOn } from '../objects/library.ts';
 import { MARKERS } from '../objects/walls.ts';
 import { CONSOLES } from '../objects/tech.ts';
 import { DOORS } from '../objects/wardrobe.ts';
-import { COLOR_ONLY } from '../render/outline.ts';
-import { ROOM, type Switch } from '../scene.ts';
+import type { Switch } from '../scene.ts';
+import { markFound } from '../ui/found.ts';
 import { current, go, onRoute } from '../ui/route.ts';
 import { showCalendar, showPicture } from '../ui/sheets.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
 import { codeScreen } from '../voxel/paint.ts';
-import { PALETTE } from '../voxel/palette.ts';
 import { easeOut, flutter, stepAt, tumble, type Point } from './motion.ts';
 
 /** A pointer that moved further than this between press and release was dragging. CSS pixels. */
 const CLICK_SLOP = 5;
-/** Seconds that what fell stays on the floor: petals, then what dropped off the whiteboard or out of a bookcase. */
-const FALLEN = 10;
+/** Seconds that what fell stays on the floor: what dropped off the whiteboard or out of a bookcase. */
 const DROPPED = 5;
-const PETALS = 28;
 /** How bright a neon tube that has gone out still is, and the light of a console that is off. */
 const OUT = 0.12;
 /** How far a small object rises under the pointer, and up to which size an object counts as small. Metres. */
 const LIFT = 0.025;
 const SMALL = 0.45;
+/** A key that carries a skill: how bright it is at rest, and how far it goes down under the pointer, in metres. */
+const KEY = { rest: 0.55, depth: 0.003 };
+/** A pair of quavers, in pixels: what a speaker shows over itself while it plays. */
+const NOTE = '<svg viewBox="0 0 9 9" aria-hidden="true"><path d="M3 0h6v2H3zM3 2h1v5H3zM8 2h1v4H8zM1 6h3v3H1zM6 5h3v3H6z"/></svg>';
+
 
 /** The panel each object opens, for those that are stops of the visit. */
 const STOP: Record<string, string> = Object.fromEntries(stops.flatMap(({ id, objects }) => objects.map((name) => [name, id])));
@@ -130,8 +134,9 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   /** The object under the pointer. */
   let hovered: string | null = null;
 
-  /** An object counts as small when its largest side is: it is lifted under the pointer. */
+  /** An object counts as small when its largest side is: it is lifted under the pointer. Not the keyboard: its keys answer the pointer one by one. */
   const small = (name: string) => {
+    if (name === 'keyboard') return false;
     const { model, voxel } = mesh(name).userData.placed as Placed;
     return Math.max(model.sx, model.sy, model.sz) * voxel <= SMALL;
   };
@@ -165,15 +170,22 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
 
   const corner = new Vector3();
 
-  /** A few words in a bubble over an object, for a moment. Screen readers hear them too. */
-  const say = (name: string, words: string) => {
+  /** A bubble over an object, for a moment: a few words, or a picture with the words that stand for it. Screen readers hear them. */
+  const bubble = (name: string, content: string, seconds: number) => {
     const { at, model, voxel } = mesh(name).userData.placed as Placed;
     corner.set(at[0] + (model.sx * voxel) / 2, at[1] + model.sy * voxel, at[2] + (model.sz * voxel) / 2).project(app.rig.camera);
-    const bubble = Object.assign(document.createElement('p'), { className: 'bubble', role: 'status', textContent: words });
-    bubble.style.left = `${((corner.x + 1) / 2) * app.pipeline.grid.cssWidth}px`;
-    bubble.style.top = `${((1 - corner.y) / 2) * app.pipeline.grid.cssHeight}px`;
-    canvas.after(bubble);
-    void wait(1.4).then(() => bubble.remove());
+    const box = Object.assign(document.createElement('p'), { className: 'bubble', role: 'status', innerHTML: content });
+    box.style.left = `${((corner.x + 1) / 2) * app.pipeline.grid.cssWidth}px`;
+    box.style.top = `${((1 - corner.y) / 2) * app.pipeline.grid.cssHeight}px`;
+    canvas.after(box);
+    void wait(seconds).then(() => box.remove());
+  };
+  const say = (name: string, words: string) => bubble(name, words, 1.4);
+
+  /** A speaker plays: it jumps to the beat, a music note over it for a few seconds. */
+  const tune = (name: string) => () => {
+    bubble(name, `${NOTE}<span class="visually-hidden">${music}</span>`, 2.5);
+    return hop(name, 2, 0.025)();
   };
 
   /** One full turn, in steps of 15 degrees, coming to rest. */
@@ -196,66 +208,6 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     await flicker(broken, intact);
     await wait(seconds);
     await flicker(intact, broken);
-  };
-
-  /* A petal. It is drawn in the colour render only, without depth, so it can
-     fade out: nothing else in the room is transparent. */
-  const petal = new BoxGeometry(0.035, 0.01, 0.035);
-  const matrix = new Matrix4();
-  const axis = new Vector3();
-
-  /**
-   * The sakura shivers and lets petals go, a few at a time. Each one leaves
-   * the crown and flutters down its own way, to rest on the floor around the
-   * foot of the tree; they lie there, then fade. Free to shiver again once
-   * they have landed.
-   */
-  const shed = async () => {
-    const material = (mesh('sakura').material as [MeshToonMaterial, MeshBasicMaterial])[0].clone();
-    material.vertexColors = false; // a petal takes the colour of its instance
-    material.transparent = true;
-    material.depthWrite = false;
-    const petals = new InstancedMesh(petal, material, PETALS);
-    petals.layers.set(COLOR_ONLY);
-    petals.receiveShadow = true;
-    petals.frustumCulled = false; // its bounds would be those of the first frame
-    const around = (reach: number): [number, number] => {
-      const bearing = between(0, 2 * Math.PI);
-      return [SAKURA_FOOT.x + Math.cos(bearing) * reach, SAKURA_FOOT.z + Math.sin(bearing) * reach];
-    };
-    const paths = Array.from({ length: PETALS }, (_, i) => {
-      petals.setColorAt(i, new Color(i % 3 ? PALETTE.blossom : PALETTE.sakura));
-      const [x0, z0] = around(between(0.05, SAKURA_CROWN.reach));
-      const [x1, z1] = around(between(0.3, 0.95));
-      const heading = between(0, 2 * Math.PI);
-      return {
-        from: [x0, between(SAKURA_CROWN.from, SAKURA_CROWN.to), z0] as Point,
-        to: [Math.min(x1, ROOM.w - 0.3), 0.005, Math.min(z1, ROOM.d - 0.3)] as Point, // clear of the bookcases
-        delay: between(0, 0.45),
-        swing: { reach: between(0.05, 0.12), swings: between(1.5, 3), along: [Math.cos(heading), Math.sin(heading)] as const },
-        turned: between(0, 2 * Math.PI),
-      };
-    });
-    const place = (t: number) => {
-      paths.forEach(({ from, to, delay, swing, turned }, i) => {
-        const own = Math.min(1, Math.max(0, (t - delay) / 0.55)); // each one leaves at its own time
-        const { at, lean } = flutter(from, to, own, swing);
-        /* It turns on itself, and tips into its glide. */
-        matrix.makeRotationY(turned + own * 2).premultiply(tipped.makeRotationAxis(axis.set(-swing.along[1], 0, swing.along[0]), lean * 0.9));
-        petals.setMatrixAt(i, matrix.setPosition(at[0], at[1], at[2]));
-      });
-      petals.instanceMatrix.needsUpdate = true;
-    };
-    place(0);
-    scene.add(petals);
-    await Promise.all([move(0.4, 6, (t) => pose('sakura', 0, [[0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125, 0, 0])), move(3.6, 44, place, false)]);
-    void wait(FALLEN)
-      .then(() => move(0.9, 6, (t) => void (material.opacity = 1 - t), false))
-      .then(() => {
-        scene.remove(petals);
-        petals.dispose();
-        material.dispose();
-      });
   };
 
   /** A switch thrown at once: on if it was off, off if it was on. */
@@ -329,6 +281,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
 
   /** The printer works, its green light blinking: a sheet slides out of it and flutters down to the floor, to and fro, where it stays. */
   const print = async () => {
+    markFound('cv');
     const rest = (mesh('cv').userData.placed as Placed).turn ?? 0;
     void blink('printer', 'lime', 3.2)();
     pose('cv', -rest, SLOT);
@@ -404,6 +357,35 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     return hop('dog', 2, 0.075)();
   };
 
+
+  /* The keys that carry a skill: the lights of each. Dim at rest; the one under the pointer goes down and lights up. */
+  const caps = keycaps.map((_, index) => room.lights('keyboard', capOf(index)));
+  let keyed = -1;
+  const glow = (index: number, level: number) => {
+    for (const light of caps[index]) room.setGlow('keyboard', level, light);
+  };
+  const key = (index: number) => {
+    if (index === keyed) return;
+    if (keyed >= 0) {
+      glow(keyed, KEY.rest);
+      room.press('keyboard', caps[keyed], 0);
+    }
+    if (index >= 0) {
+      glow(index, 1);
+      room.press('keyboard', caps[index], KEY.depth);
+    }
+    keyed = index;
+    app.invalidate();
+  };
+  room.setGlow('keyboard', KEY.rest);
+
+  /** The skill keys light up, a group after the other, then fall back. */
+  const wave = () => {
+    const groups = [...new Set(keycaps.map(({ group }) => group))];
+    const light = (group?: string) => () => keycaps.forEach((cap, index) => glow(index, cap.group === group || index === keyed ? 1 : KEY.rest));
+    return play([...groups.map((group): [number, () => void] => [260, light(group)]), [0, light()]]);
+  };
+
   /**
    * What is on the whiteboard lets go: the magnetic brush, and one or two of
    * the markers, never the same. They drop past the cabinet to the floor,
@@ -453,7 +435,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const circle = (name: string) => () => move(0.9, 14, (t) => pose(name, 0, [Math.sin(t * 2 * Math.PI) * 0.035, 0, (Math.cos(t * 2 * Math.PI) - 1) * 0.025]));
 
   /** A stop of the visit: its panel opens, the camera goes to it, and the object does what it does. */
-  const visit = (name: string, then: (from: Spot) => unknown) => (from: Spot) => {
+  const visit = (name: string, then: (from: Spot) => unknown = () => undefined) => (from: Spot) => {
     go(STOP[name]);
     return then(from);
   };
@@ -473,6 +455,9 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     });
   };
 
+  /** By day the window is no stop of the visit: it looks out on another city, and only names it. */
+  const byDay = (name: string) => name === 'window' && !room.night;
+
   /** A knock on the door: it rattles in its frame. */
   const knock = () => move(0.3, 6, (t) => pose('door', 0, [0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125]));
 
@@ -483,17 +468,16 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     gon: hop('gon', 1, 0.025),
     ichigo: hop('ichigo', 1, 0.025),
     gundam: hop('gundam', 2, 0.025),
-    sakura: shed,
-    monitor: visit('monitor', () => undefined), // the camera goes into it: see `clear` for the chair
+    monitor: (from) => (room.levels.pc === 0 ? say('monitor', says.off) : visit('monitor')(from)), // the camera goes into it, unless the PC is off: see `clear` for the chair
     'monitor-side': crack('monitor-side', codeScreen, 8),
-    keyboard: hop('keyboard', 1, 0.0125),
+    keyboard: visit('keyboard', wave),
     mouse: circle('mouse'),
-    'speaker-left': hop('speaker-left', 2, 0.025),
-    'speaker-right': hop('speaker-right', 2, 0.025),
+    'speaker-left': tune('speaker-left'),
+    'speaker-right': tune('speaker-right'),
     dock: hop('dock', 1, 0.025),
     lamp: toggle('lamp'),
     nightstand: locked,
-    book: hop('book', 1, 0.025),
+    book: visit('book', hop('book', 1, 0.025)),
     neon: buzz,
     pc: power,
     homelab: blink('homelab', 'cyan', 2),
@@ -512,12 +496,18 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     door: visit('door', knock),
     passes: enlarge('passes'),
     formulas: enlarge('formulas'),
-    calendar: showCalendar,
+    pegboard: visit('pegboard'),
+    badges: visit('badges', hop('badges', 1, 0.025)),
+    bonsai: visit('bonsai', hop('bonsai', 2, 0.025)),
+    gem: visit('gem', hop('gem', 1, 0.025)),
+    clipboard: visit('clipboard', hop('clipboard', 1, 0.025)),
+    window: (from) => (byDay('window') ? say('window', says.window) : visit('window')(from)),
+    calendar: () => showCalendar(milestone.year),
     whiteboard: drop,
     eraser: drop,
     ...Object.fromEntries(MARKERS.map((color) => [`marker-${color}`, drop])),
     duo: hop('duo'),
-    meteorite: hop('meteorite', 1, 0.025),
+    meteorite: visit('meteorite', hop('meteorite', 1, 0.025)),
     raspberry: hop('raspberry', 1, 0.025),
     daruma: rock('daruma'),
     'lucky-cat': hop('lucky-cat', 3, 0.025),
@@ -538,8 +528,20 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     void Promise.resolve(reaction(from)).finally(() => busy.delete(thing));
   };
 
-  onRoute((route) => clear(route.stop === STOP.monitor));
+  onRoute((route) => {
+    clear(route.stop === STOP.monitor);
+    /* The desktop opened another way than by its screen, from the menu or an address: the PC comes back on for it. */
+    if (route.stop === STOP.monitor && room.levels.pc === 0) void power();
+  });
   clear(current().stop === STOP.monitor);
+
+
+  /* The display of the power supply counts the minutes the page has been open. */
+  const uptime = window.setInterval(() => {
+    const minutes = Math.floor(performance.now() / 60000);
+    room.showUptime(`${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`);
+    app.invalidate();
+  }, 60000);
 
   /* The dock blinks for as long as its controllers charge. */
   let charging = true;
@@ -558,11 +560,25 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   label.setAttribute('aria-hidden', 'true');
   canvas.after(label);
 
-  /** What to call the thing under the pointer: a bookcase gives the title of the series whose spine is there. */
-  const named = (name: string, at?: Spot): string | undefined => {
-    if (!at || !(name in GROUPS) || GROUPS[name] !== 'library') return labels[name];
+  /** The line of sight through a point of the canvas. */
+  const sight = (at: Spot) => {
     const box = canvas.getBoundingClientRect();
-    const { origin, direction } = app.ray(at.x + box.left, at.y + box.top);
+    return app.ray(at.x + box.left, at.y + box.top);
+  };
+
+  /** The skill key under the pointer, by its place in `keycaps`. -1 for none. */
+  const keyUnder = (name: string | null, at?: Spot) => {
+    if (name !== 'keyboard' || !at) return -1;
+    const { origin, direction } = sight(at);
+    return keyAt(origin, direction);
+  };
+
+  /** What to call the thing under the pointer: a bookcase gives the title of the series whose spine is there, the keyboard the skill of the key, the window the city it shows by day. */
+  const named = (name: string, at?: Spot): string | undefined => {
+    if (name === 'keyboard') return keycaps[keyUnder(name, at)]?.name ?? labels[name];
+    if (byDay(name)) return says.window;
+    if (!at || GROUPS[name] !== 'library') return labels[name];
+    const { origin, direction } = sight(at);
     return manga[seriesOn(name, origin, direction)]?.title ?? labels[name];
   };
 
@@ -579,6 +595,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
         app.invalidate(true);
       }
     }
+    key(keyUnder(name, at));
     const text = name ? named(name, at) : undefined;
     label.hidden = !text;
     label.textContent = text ?? '';
@@ -641,7 +658,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     canvas.removeEventListener('pointerup', up);
     canvas.removeEventListener('pointercancel', cancel);
     for (const timer of timers) clearTimeout(timer);
+    clearInterval(uptime);
     for (const texture of shattered.values()) texture.dispose();
-    petal.dispose();
   };
 }

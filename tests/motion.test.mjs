@@ -27,7 +27,7 @@ test('easeOut: from 0 to 1, fast then slow', () => {
   assert.ok(easeOut(0.75) - easeOut(0.5) < easeOut(0.5) - easeOut(0.25));
 });
 
-// Something light on its way down: a petal, a sheet of paper.
+// Something light on its way down: a sheet of paper.
 const from = [5.9, 0.9, 0.3];
 const to = [5.7, 0.01, 1.1];
 const swing = { reach: 0.15, swings: 2.5, along: [0, 1] };

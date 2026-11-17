@@ -349,7 +349,7 @@ export const projects: Project[] = [
       'Asks whether monthly absence hours at a courier company in Brazil can be forecast (740 absences, July 2007 to July 2010), then explains and classifies absence durations instead.',
     context: 'EPITA time series course project, team of two', // rapport.tex: two authors; oral.tex: two presenters
     year: '2026', // defense in June 2026 (oral.tex), report built 4 Jul 2026
-    stack: ['Python', 'pandas', 'statsmodels', 'scikit-learn', 'Jupyter', 'LaTeX'],
+    stack: ['Python', 'pandas', 'statsmodels', 'scikit-learn', 'Jupyter'],
     highlights: [
       // rapport.tex, sections 1 and 2; note.txt
       'Rebuilt a 37-month series from records that have no date column, then studied trend, seasonality and stationarity with moving averages, three decompositions (additive, multiplicative, STL) and ADF and KPSS tests.',

@@ -25,7 +25,7 @@ export interface Swing {
 }
 
 /**
- * Where a petal or a sheet of paper is on its way down, t from 0 to 1. It
+ * Where a sheet of paper is on its way down, t from 0 to 1. It
  * does not drop straight: it glides to one side, stalls and is held up for an
  * instant, then glides back, as a dead leaf does. The swings die down and it
  * comes to rest flat on its spot. `lean` is how far it tilts into its glide,

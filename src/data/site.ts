@@ -27,6 +27,7 @@ export const person = {
   /* After the exchange: the end-of-studies internship, found.
      TODO(Samuel): company and role, once they can be announced. */
   nextStep: {
+    start: '2027-03',
     sentence: 'Mar 2027: end-of-studies internship, more soon',
     company: null as string | null,
     role: null as string | null,
@@ -71,6 +72,9 @@ export const experience = [
       "Write and review problems for the qualifiers and finals of France's national programming contest for young people.",
   },
 ] as const;
+
+/* What he has done at Prologin so far, as he gave it. Shown in the 3D room. */
+export const prologin = { record: 'Wrote 3 problems, reviewed more than 5.' } as const;
 
 export const education = [
   {
@@ -122,10 +126,10 @@ export const languages = [
 ] as const;
 
 export const skills = [
-  { group: 'Languages', items: ['Python', 'C', 'C++', 'Rust', 'Ruby', 'Go', 'Java', 'SQL', 'Bash'] },
+  { group: 'Languages', items: ['Python', 'C', 'C++', 'Rust', 'Ruby', 'Java', 'SQL', 'Bash'] },
   { group: 'Machine learning and numerics', items: ['PyTorch', 'NumPy', 'Hugging Face Transformers', 'Jupyter'] },
   { group: 'Methods', items: ['Inverse problems', 'convex optimization', 'image reconstruction', 'parsing and static analysis'] },
-  { group: 'Tools', items: ['Git', 'Docker', 'LaTeX'] },
+  { group: 'Tools', items: ['Git', 'Docker'] },
 ] as const;
 
 /* Research at LRE. Public level of detail only: the code, report and slides
@@ -216,6 +220,6 @@ export const coursework = [
   { name: '42sh', stack: ['C'], summary: 'A POSIX shell.' },
   { name: 'MyMalloc', stack: ['C'], summary: 'A malloc implementation.' },
   { name: 'MyFind', stack: ['C'], summary: 'A reimplementation of the find command.' },
-  { name: 'IDVOC', stack: ['Go', 'Docker'], summary: 'Microservices in Go, run with Docker.' },
+  { name: 'IDVOC', stack: ['Docker'], summary: 'Microservices, run with Docker.' },
   { name: 'JWS', stack: ['Java', 'Quarkus'], summary: 'A REST backend built with Quarkus.' },
 ] as const;

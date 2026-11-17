@@ -42,6 +42,13 @@ import { FullScreenQuad, Pass } from 'three/addons/postprocessing/Pass.js';
  */
 export const COLOR_ONLY = 1;
 
+/**
+ * The layer of what is drawn in the aux render only: it has an id and no
+ * colour, so the pointer finds an object where nothing of it is painted, as
+ * in the opening of the window.
+ */
+export const ID_ONLY = 2;
+
 const auxMaterial = () =>
   new ShaderMaterial({
     blending: NoBlending,
@@ -256,7 +263,9 @@ export class OutlinePass extends Pass {
     renderer.shadowMap.autoUpdate = false;
     renderer.setClearColor(0x000000, 0);
     renderer.setRenderTarget(this.aux);
+    camera.layers.enable(ID_ONLY);
     renderer.render(scene, camera);
+    camera.layers.disable(ID_ONLY);
     scene.background = background;
     scene.overrideMaterial = overrideMaterial;
     renderer.shadowMap.autoUpdate = autoUpdate;

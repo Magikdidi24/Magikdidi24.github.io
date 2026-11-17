@@ -9,7 +9,7 @@ import { easeInOut } from './interaction/motion.ts';
 import { createReactions } from './interaction/reactions.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
 import { createScene, ROOM, type RoomScene } from './scene.ts';
-import { pixelAt, type Framing } from './view.ts';
+import { glide, pixelAt, type Cover, type Framing } from './view.ts';
 
 export interface RoomApp {
   readonly renderer: WebGLRenderer;
@@ -38,7 +38,7 @@ export interface RoomApp {
    * looks, and what the open panel covers of the viewport. With null, give
    * the camera back to the visitor where they left it.
    */
-  focus(view: Framing | null, cover?: { right: number; bottom: number }): Promise<void>;
+  focus(view: Framing | null, cover?: Cover): Promise<void>;
   dispose(): void;
 }
 
@@ -150,11 +150,12 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       rig.hold(true);
       await travel(GLIDE, (eased) => {
         if (journey !== journeys) return;
+        const zoom = mix(from.zoom, to.zoom, eased);
         rig.place({
-          target: [0, 1, 2].map((k) => mix(from.target[k], to.target[k], eased)) as Pose['target'],
+          target: glide(from.target, to.target, eased, from.zoom, zoom),
           azimuth: mix(from.azimuth, to.azimuth, eased),
           elevation: mix(from.elevation, to.elevation, eased),
-          zoom: mix(from.zoom, to.zoom, eased),
+          zoom,
         });
       });
       if (journey !== journeys || view) return;

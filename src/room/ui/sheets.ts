@@ -4,8 +4,9 @@
   the browser dims the room behind them, keeps the keyboard inside them and
   closes them on Escape.
 */
-import { birthday } from '../../data/room.ts';
+import { birthday, milestone } from '../../data/room.ts';
 import { weeks } from './calendar.ts';
+import { markFound } from './found.ts';
 
 const sheet = (id: string) => document.getElementById(id) as HTMLDialogElement;
 
@@ -38,8 +39,8 @@ export function showPicture(picture: HTMLCanvasElement | string, caption: string
   void image.decode().then(show, show);
 }
 
-/** A ring drawn by hand around a day, in a square of 44: it overshoots where it closes. */
-const RING = '<svg viewBox="0 0 44 44" aria-hidden="true"><path pathLength="100" d="M12 9C23 2 38 7 37 21C36 35 15 39 7 28C1 18 9 5 26 6"/></svg>';
+/** A ring drawn by hand around a day or the name of a month, in a square of 44 that takes the shape of what it circles: it overshoots where it closes. */
+const RING = '<svg viewBox="0 0 44 44" preserveAspectRatio="none" aria-hidden="true"><path pathLength="100" d="M12 9C23 2 38 7 37 21C36 35 15 39 7 28C1 18 9 5 26 6"/></svg>';
 
 const MONTH = new Intl.DateTimeFormat('en', { month: 'long' });
 const DAY = { short: new Intl.DateTimeFormat('en', { weekday: 'narrow' }), long: new Intl.DateTimeFormat('en', { weekday: 'long' }) };
@@ -47,7 +48,13 @@ const DAY = { short: new Intl.DateTimeFormat('en', { weekday: 'narrow' }), long:
 /** One month as a table: its name, the days of the week, then its weeks. */
 function month(year: number, index: number, today: Date): HTMLTableElement {
   const table = document.createElement('table');
-  table.createCaption().textContent = MONTH.format(new Date(year, index - 1));
+  const name = Object.assign(document.createElement('span'), { textContent: MONTH.format(new Date(year, index - 1)) });
+  table.createCaption().append(name);
+  if (year === milestone.year && index === milestone.month) {
+    name.className = 'marked';
+    name.insertAdjacentHTML('beforeend', RING);
+    name.after(Object.assign(document.createElement('span'), { className: 'note', textContent: milestone.label }));
+  }
   const head = table.createTHead().insertRow();
   for (let d = 1; d <= 7; d++) {
     const monday = new Date(2024, 0, d); // 1 January 2024 was a Monday
@@ -72,13 +79,13 @@ function month(year: number, index: number, today: Date): HTMLTableElement {
   return table;
 }
 
-/** Open the calendar on the current year. Its two buttons move it by a year. */
-export function showCalendar(): void {
+/** Open the calendar on a year: the current one unless told. Its two buttons move it by a year. */
+export function showCalendar(from?: number): void {
   const dialog = sheet('calendar');
   const label = dialog.querySelector('#calendar-year')!;
   const months = dialog.querySelector('.months')!;
   const today = new Date();
-  let year = today.getFullYear();
+  let year = from ?? today.getFullYear();
   const draw = () => {
     label.textContent = String(year);
     months.replaceChildren(...Array.from({ length: 12 }, (_, i) => month(year, i + 1, today)));
@@ -91,4 +98,5 @@ export function showCalendar(): void {
   }
   draw();
   dialog.showModal();
+  markFound('calendar');
 }

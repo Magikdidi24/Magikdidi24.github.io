@@ -30,20 +30,42 @@ import {
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { bac, papers, tableNumber, toeic } from '../data/room.ts';
+import { bac, milestone, papers, tableNumber, toeic, written } from '../data/room.ts';
 import { BOARD } from '../data/whiteboard.ts';
 import { DEFAULT_VIEW } from './camera.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects, type RoomObject } from './objects/index.ts';
 import { FRONTS } from './objects/library.ts';
-import { FORMULAS, framed, PASSES, WHITEBOARD_SURFACE } from './objects/walls.ts';
+import { SPECIMEN_CARD } from './objects/shelf.ts';
+import { UPS_DISPLAY } from './objects/tech.ts';
+import { BONSAI_LABEL, CALENDAR_PAGE, CLIPBOARD_SHEET, FORMULAS, framed, PASSES, TAGS, WHITEBOARD_SURFACE } from './objects/walls.ts';
 import { BEACON_LIGHT, TABLE_NUMBER } from './objects/wardrobe.ts';
 import { WINDOW } from './objects/window.ts';
-import { COLOR_ONLY } from './render/outline.ts';
+import { COLOR_ONLY, ID_ONLY } from './render/outline.ts';
+import { weeks } from './ui/calendar.ts';
 import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, schoolPaper, soonPaper, tableCard, whiteboardNotes } from './voxel/paint.ts';
+import {
+  boardingPass,
+  calendarPage,
+  certificate,
+  CITY,
+  cityView,
+  codeScreen,
+  contestSheet,
+  desktopScreen,
+  formulaSheet,
+  label,
+  nameplate,
+  schoolPaper,
+  soonPaper,
+  specimenCard,
+  tableCard,
+  tag,
+  uptimeScreen,
+  whiteboardNotes,
+} from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 import { shelfPicture } from './voxel/spines.ts';
 import { lightTurn, shownWalls, texelFit, type Wall } from './view.ts';
@@ -113,6 +135,9 @@ interface Paper {
   lean?: number;
 }
 
+/** A box of voxels of a model: its corner, then its size. */
+export type VoxelBox = readonly [number, number, number, number, number, number];
+
 export interface RoomScene {
   readonly scene: Scene;
   readonly night: boolean;
@@ -135,10 +160,14 @@ export interface RoomScene {
    */
   fitBoard(pixel: number, grid: { cols: number; rows: number }): void;
   setLevel(which: Switch, level: number): void;
-  /** The lights of an object that is its own mesh, by number: its glowing voxels, all of them or those of one colour. */
-  lights(name: string, which?: Swatch): number[];
+  /** The lights of an object that is its own mesh, by number: its glowing voxels, all of them, those of one colour, or those in a box of its model (corner, then size, in voxels). */
+  lights(name: string, which?: Swatch | VoxelBox): number[];
   /** Brightness of the lights of an object that is its own mesh: all of them, those of one colour, or one by its number. */
   setGlow(name: string, level: number, which?: Swatch | number): void;
+  /** Push lights of an object down by `depth` metres, by their numbers: a key that is pressed. 0 lets them up. */
+  press(name: string, which: number[], depth: number): void;
+  /** What the display of the power supply shows: how long the page has been open. */
+  showUptime(time: string): void;
   dispose(): void;
 }
 
@@ -274,6 +303,13 @@ export function createScene(): RoomScene {
   for (const spot of PASSES) picture(spot, pass, 'passes', false);
   picture(FORMULAS, formulaSheet(), 'formulas', false);
   picture(TABLE_NUMBER, tableCard(tableNumber), 'table-number', false);
+  /* What the stops of the visit hang in the room: the tags and the label of the pegboard, the card of the meteorite, the sheet of the clipboard, the page of the calendar. */
+  [written.merged.word, ...written.merged.numbers].forEach((word, i) => picture(TAGS[i], tag(word), 'badges', false));
+  picture(BONSAI_LABEL, label(written.bonsai), 'bonsai', false);
+  picture(SPECIMEN_CARD, specimenCard(written.specimen), 'meteorite', false);
+  picture(CLIPBOARD_SHEET, contestSheet(written.contest), 'clipboard', false);
+  picture(CALENDAR_PAGE, calendarPage(written.page, weeks(milestone.year, milestone.month)), 'calendar', false);
+  const uptime = picture(UPS_DISPLAY, uptimeScreen(written.uptime, '0:00'), 'homelab', true).material as MeshBasicMaterial;
   for (const front of FRONTS) picture(front, shelfPicture(front.shelf), front.name, false, front.turn);
 
   /* The lights of an object: its glowing voxels, each with the vertices that draw it. A face is four vertices in a row. */
@@ -290,6 +326,7 @@ export function createScene(): RoomScene {
       const cell = `${inside('getX')},${inside('getY')},${inside('getZ')}`;
       cells.set(cell, [...(cells.get(cell) ?? []), i, i + 1, i + 2, i + 3]);
     }
+    mesh.userData.cells = [...cells.keys()].map((cell) => cell.split(',').map(Number)); // where each light is in the model
     return (mesh.userData.lights = [...cells.values()]);
   };
 
@@ -330,6 +367,8 @@ export function createScene(): RoomScene {
   );
   opening.position.set((WINDOW.x0 + WINDOW.x1) / 2, (WINDOW.y0 + WINDOW.y1) / 2, -WALL);
   opening.renderOrder = 1;
+  /* The pointer finds the window in its opening too: there it has an id, and nothing painted. */
+  opening.geometry.setAttribute('aux', new BufferAttribute(new Float32Array(Array.from({ length: 4 }, () => [id('window'), 0]).flat()), 2));
   const cityHeight = CITY.height * CITY_PIXEL;
   const cityWall = (width: number, map: Texture) => {
     const material = new MeshBasicMaterial({ map, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilFunc: EqualStencilFunc });
@@ -347,6 +386,7 @@ export function createScene(): RoomScene {
     scene.add(mesh);
     attached.north.push(mesh);
   }
+  opening.layers.enable(ID_ONLY);
 
   const hemisphere = new HemisphereLight();
   /* From the open side, so the floor and the two walls that show get three different tones. */
@@ -384,7 +424,23 @@ export function createScene(): RoomScene {
     lights(name, which) {
       const mesh = scene.getObjectByName(name) as Mesh;
       const all = lightsOf(mesh).map(([vertex], i) => ({ vertex, i }));
+      if (typeof which === 'object') {
+        const [x, y, z, w, h, d] = which;
+        const cells = mesh.userData.cells as [number, number, number][];
+        return all.filter(({ i }) => cells[i].every((at, k) => at >= [x, y, z][k] && at < [x + w, y + h, z + d][k])).map(({ i }) => i);
+      }
       return all.filter(({ vertex }) => !which || colored(built(mesh), vertex, which)).map(({ i }) => i);
+    },
+    press(name, which, depth) {
+      const mesh = scene.getObjectByName(name) as Mesh;
+      const position = mesh.geometry.getAttribute('position') as BufferAttribute;
+      const rest = (mesh.userData.positions ??= position.array.slice()) as Float32Array;
+      for (const light of which) for (const i of lightsOf(mesh)[light]) position.setY(i, rest[i * 3 + 1] - depth);
+      position.needsUpdate = true;
+    },
+    showUptime(time) {
+      uptime.map?.dispose();
+      uptime.map = uptimeScreen(written.uptime, time);
     },
     get night() {
       return night;

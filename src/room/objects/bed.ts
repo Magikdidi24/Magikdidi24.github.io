@@ -117,16 +117,18 @@ export function lamp(): RoomObject {
 }
 
 /**
- * The book being read, lying in front of the lamp with a ribbon between its
- * pages: a thick green hardback with a tiger on its cover. 20 x 25 cm.
+ * The book being read, stood in front of the lamp with a ribbon between its
+ * pages: a thick green hardback about compilers, a tiger on its cover.
+ * 20 x 25 cm. It stands at the bed's side of the nightstand, its cover to
+ * the room: lying flat, the end of the desk hid it from the opening view.
  */
 export function book(): RoomObject {
-  const m = new VoxelModel(8, 3, 12);
-  m.box(0, 0, 0, 8, 3, 10, C.moss); // covers and spine
-  m.box(1, 1, 0, 7, 1, 10, C.paper); // pages, on the three open sides
-  m.box(2, 2, 1, 4, 1, 2, C.paper); // title
-  m.box(2, 2, 4, 4, 1, 4, C.amber); // the tiger
-  for (const [x, z] of [[2, 5], [4, 5], [3, 7], [5, 7]]) m.set(x, 2, z, C.ink); // its stripes
-  m.box(5, 1, 10, 1, 1, 2, C.red).set(5, 0, 11, C.red); // bookmark
-  return { name: 'book', voxel: 0.025, at: [NIGHTSTAND.x + 0.18, NIGHTSTAND.top, NIGHTSTAND.z + 0.09], model: m, turn: 8 };
+  const m = new VoxelModel(8, 11, 3);
+  m.box(0, 0, 0, 8, 10, 3, C.moss); // covers and spine
+  m.box(1, 1, 1, 7, 9, 1, C.paper); // pages, at the top and on the open side
+  m.box(2, 7, 2, 4, 1, 1, C.paper); // title
+  m.box(2, 2, 2, 4, 4, 1, C.amber); // the tiger
+  for (const [x, y] of [[2, 4], [4, 4], [3, 2], [5, 2]]) m.set(x, y, 2, C.ink); // its stripes
+  m.box(5, 9, 1, 1, 2, 1, C.red); // bookmark
+  return { name: 'book', voxel: 0.025, at: [NIGHTSTAND.x + 0.01, NIGHTSTAND.top, NIGHTSTAND.z + 0.28], model: m, turn: 8 };
 }

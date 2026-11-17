@@ -3,6 +3,7 @@
   clickable item is its own object, so each gets its own outline. Nothing
   here carries a logo: the shapes are those of what Samuel owns, no more.
 */
+import { keycaps } from '../../data/room.ts';
 import { EMISSIVE, VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
 import type { RoomObject } from './index.ts';
@@ -120,22 +121,72 @@ const KEYS = [
   [1.25, 1.25, 1.25, 6.25, 1, 1, 1, 1, 1, 1],
 ];
 
-/** A compact keyboard, 34 cm wide: white caps, grey ones around them, a red escape key. A key is 1.25 cm, voxels half of that. */
+/** Where the keyboard lies, the size of its voxels, and its own size in voxels. */
+export const KEYBOARD = { at: [WIDE.x - 27 * FINER, TOP, Z + 0.5] as Point, voxel: FINER, size: [54, 5, 24] as Point };
+
+/** The cap of key `k` of row `r`, in voxels of the keyboard: its corner, then its size. A key is three voxels wide, the last one the gap to the next; the two back rows stand higher. */
+function cap(r: number, k: number): [number, number, number, number, number, number] {
+  const before = KEYS[r].slice(0, k).reduce((sum, width) => sum + width, 0);
+  const from = 3 + Math.round(before * 3);
+  return [from, 3, 3 + r * 3, 3 + Math.round((before + KEYS[r][k]) * 3) - from - 1, r < 2 ? 2 : 1, 2];
+}
+
+/**
+ * The keys that carry a skill, in the order of `keycaps`: the row and the
+ * place of each. They are letter keys, from the row of digits down, a group
+ * after the other; a plain key is left between two groups, and a group that
+ * does not fit on what is left of a row starts the next one.
+ */
+const SKILL_KEYS = ((): [number, number][] => {
+  /** Where the letter keys of a row stop: at its first wide key after the one that starts it. */
+  const stop = (r: number) => KEYS[r].findIndex((width, k) => k > 0 && width > 1);
+  let [r, k] = [1, 1];
+  return keycaps.map(({ group }, i) => {
+    if (i > 0 && keycaps[i - 1].group !== group) {
+      k += 1;
+      if (k + keycaps.filter((each) => each.group === group).length > stop(r)) [r, k] = [r + 1, 1];
+    }
+    return [r, k++];
+  });
+})();
+
+/** The cap of the key that carries skill `index` of `keycaps`, in voxels of the keyboard. */
+export const capOf = (index: number) => cap(...SKILL_KEYS[index]);
+
+/**
+ * The skill under a line of sight, by its place in `keycaps`: the one whose
+ * cap the line comes down on, with half of the gap around it. -1 for none.
+ */
+export function keyAt(origin: Point, direction: Point): number {
+  if (direction[1] >= 0) return -1;
+  return SKILL_KEYS.findIndex(([r, k]) => {
+    const [x, y, z, w, h, d] = cap(r, k);
+    const far = (KEYBOARD.at[1] + (y + h) * FINER - origin[1]) / direction[1];
+    const px = (origin[0] + direction[0] * far - KEYBOARD.at[0]) / FINER;
+    const pz = (origin[2] + direction[2] * far - KEYBOARD.at[2]) / FINER;
+    return px >= x - 0.5 && px < x + w + 0.5 && pz >= z - 0.5 && pz < z + d + 0.5;
+  });
+}
+
+/**
+ * A compact keyboard, 34 cm wide: white caps, grey ones around them, a red
+ * escape key, and a lit cap in the colour of its group for each skill. A key
+ * is 1.25 cm, voxels half of that.
+ */
 export function keyboard(): RoomObject {
-  const m = new VoxelModel(54, 5, 24);
-  m.box(0, 0, 0, 54, 3, 24, C.graphite);
-  for (const [x, z] of [[0, 0], [53, 0], [0, 23], [53, 23]]) m.box(x, 0, z, 1, 3, 1, 0); // corners
+  const [sx, sy, sz] = KEYBOARD.size;
+  const m = new VoxelModel(sx, sy, sz);
+  m.box(0, 0, 0, sx, 3, sz, C.graphite);
+  for (const [x, z] of [[0, 0], [sx - 1, 0], [0, sz - 1], [sx - 1, sz - 1]]) m.box(x, 0, z, 1, 3, 1, 0); // corners
   KEYS.forEach((row, r) => {
-    let at = 0;
     row.forEach((width, k) => {
-      const from = 3 + Math.round(at * 3);
-      at += width;
+      const skill = SKILL_KEYS.findIndex(([sr, sk]) => sr === r && sk === k);
       const edge = k === 0 || k >= row.length - (r > 3 ? 3 : 1) || width > 1;
-      const color = r === 0 && k === 0 ? C.red : width > 6 ? C.paper : edge ? C.steel : C.paper;
-      m.box(from, 3, 3 + r * 3, 3 + Math.round(at * 3) - from - 1, r < 2 ? 2 : 1, 2, color); // the two back rows stand higher
+      const plain = r === 0 && k === 0 ? C.red : width > 6 ? C.paper : edge ? C.steel : C.paper;
+      m.box(...cap(r, k), skill < 0 ? plain : C[keycaps[skill].color] | EMISSIVE);
     });
   });
-  return { name: 'keyboard', voxel: FINER, at: [WIDE.x - 27 * FINER, TOP, Z + 0.5], model: m };
+  return { name: 'keyboard', voxel: KEYBOARD.voxel, at: KEYBOARD.at, model: m };
 }
 
 /**

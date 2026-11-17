@@ -9,12 +9,12 @@ import { bed, bedding, book, dog, lamp, nightstand } from './bed.ts';
 import { chair, desk, dock, headphones, juice, keyboard, mainMonitor, mouse, sideMonitor, speaker } from './desk.ts';
 import { door } from './door.ts';
 import { figurines } from './figurines.ts';
-import { rug, sakura } from './floor.ts';
+import { rug } from './floor.ts';
 import { library, volume } from './library.ts';
 import { LOWER_SHELF, shelfThings } from './shelf.ts';
 import { statues } from './statues.ts';
 import { cabinet, cabinetDoors, consoles, cvSheet, homelab, pc, printer } from './tech.ts';
-import { calendar, clipboard, eraser, formulas, frames, marker, MARKERS, neon, passes, pegboard, shelf, whiteboard } from './walls.ts';
+import { badges, bonsai, calendar, clipboard, eraser, formulas, frames, gem, marker, MARKERS, neon, passes, pegboard, shelf, whiteboard } from './walls.ts';
 import { beacon, tableNumber, wardrobe, wardrobeDoors } from './wardrobe.ts';
 import { windowFrame } from './window.ts';
 
@@ -52,6 +52,9 @@ export const objects = (): RoomObject[] => [
   pegboard(),
   passes(),
   formulas(),
+  badges(),
+  bonsai(),
+  gem(),
   shelf('shelf', [LOWER_SHELF.x, LOWER_SHELF.y, 0], LOWER_SHELF.length),
   ...shelfThings(),
   shelf('shelf-top', [3.45, 1.9, 0], 20, 7, 4),
@@ -90,7 +93,6 @@ export const objects = (): RoomObject[] => [
   cvSheet(),
   /* Floor */
   rug(),
-  sakura(),
   /* The two walls behind the opening view */
   ...library(),
   volume(),

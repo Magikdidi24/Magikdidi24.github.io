@@ -62,7 +62,7 @@ function door(name: string, left: boolean): RoomObject {
 
 export const cabinetDoors = (): RoomObject[] => [door('cabinet-door-left', true), door('cabinet-door-right', false)];
 
-/** The consoles of the heap in the cabinet: each one is switched on by a click. The rest of the heap is decor. */
+/** The consoles of the heap in the cabinet, by the name of their object: the NES, the PlayStation, the GameCube, the Game Boy, the Wii and the Nintendo DS. Each one is switched on by a click; the rest of the heap is decor. */
 export const CONSOLES = ['console-grey', 'console-black', 'console-cube', 'handheld', 'console-white', 'handheld-wide'];
 
 /** One thing of the heap in the cabinet: built in voxels of 1.25 cm, set down at (x, y, z) metres from the corner of the cabinet, and turned. */
@@ -87,52 +87,54 @@ function brick(shell: number, buttons: number): VoxelModel {
 }
 
 /**
- * Old game consoles and controllers, thrown in rather than put away. None is
- * a real one: a grey box that takes cartridges, a black one with a round lid,
- * a small cube with a handle, a white one with a slot, two handhelds, and
- * what goes with them. Each console has a light, or a screen, that comes on
- * when it is switched on.
+ * Old game consoles and controllers, thrown in rather than put away: a NES,
+ * a PlayStation, a GameCube, a Wii, a Game Boy and a Nintendo DS, each
+ * reduced to its shape and its colours, without its maker's mark, and what
+ * goes with them. Each console has a light, or a screen, that comes on when
+ * it is switched on. Their names under the pointer are in src/data/room.ts.
  */
 export function consoles(): RoomObject[] {
-  /* A grey console: two-tone case, a flap for the cartridge, two red buttons on its front. */
+  /* The NES: two-tone grey case, a flap for the cartridge, two red buttons on its front. */
   const grey = new VoxelModel(22, 7, 17);
   grey.box(0, 0, 0, 22, 3, 17, C.taupe).box(0, 3, 0, 22, 3, 17, C.stone);
   grey.box(3, 6, 4, 14, 1, 8, C.silver).box(4, 6, 5, 12, 1, 6, C.graphite); // flap
   grey.box(2, 1, 16, 3, 1, 1, C.red).box(6, 1, 16, 3, 1, 1, C.red).box(15, 1, 16, 5, 1, 1, C.ink).set(20, 1, 16, C.red | EMISSIVE);
 
-  /* A black one, flat, with a round lid and a light. */
+  /* The PlayStation: light grey and flat, a round lid for the disc, a button at each front corner, a green light. */
   const black = new VoxelModel(22, 5, 19);
-  black.box(0, 0, 0, 22, 4, 19, C.graphite);
-  black.ball(11, 4, 9, 7.5, 1, 7.5, C.ink);
-  black.box(2, 4, 16, 4, 1, 2, C.steel).set(18, 4, 17, C.lime | EMISSIVE);
-  for (let x = 3; x < 20; x += 2) black.box(x, 1, 18, 1, 2, 1, C.ink); // vents
+  black.box(0, 0, 0, 22, 4, 19, C.silver);
+  black.ball(11, 4, 9, 7.5, 1, 7.5, C.stone);
+  black.box(2, 4, 16, 4, 1, 2, C.stone).box(16, 4, 16, 4, 1, 2, C.stone).set(18, 4, 15, C.lime | EMISSIVE);
+  for (let x = 3; x < 20; x += 2) black.box(x, 1, 18, 1, 2, 1, C.steel); // vents
 
-  /* A cube with a handle at the back. */
+  /* The GameCube: an indigo cube with a handle at the back and a round lid. */
   const cube = new VoxelModel(13, 13, 15);
   cube.box(0, 0, 2, 13, 11, 13, C.night);
   cube.ball(6.5, 11, 8.5, 4.5, 1, 4.5, C.steel);
   cube.box(3, 4, 0, 7, 5, 2, C.graphite).box(4, 5, 0, 5, 3, 2, 0); // handle
   cube.box(2, 3, 14, 9, 1, 1, C.ink).set(11, 9, 14, C.amber | EMISSIVE);
 
-  /* A handheld: a screen that went green, a cross, two buttons. */
+  /* The Game Boy: a grey slab held upright, a screen that went green, a cross, two buttons. */
   const handheld = new VoxelModel(8, 3, 13);
   handheld.box(0, 0, 0, 8, 2, 13, C.stone);
   handheld.box(1, 2, 1, 6, 1, 5, C.taupe).box(2, 2, 2, 4, 1, 3, C.lime | EMISSIVE);
   handheld.box(1, 2, 9, 3, 1, 1, C.ink).box(2, 2, 8, 1, 1, 3, C.ink);
   handheld.set(5, 2, 9, C.rust).set(6, 2, 8, C.rust);
 
-  /* A white one, with a slot across its front and a ring of light. */
+  /* The Wii: white, with a slot across its front and a blue light. */
   const white = new VoxelModel(20, 5, 16);
   white.box(0, 0, 0, 20, 1, 16, C.silver).box(0, 1, 0, 20, 3, 16, C.paper);
   white.box(2, 2, 15, 11, 1, 1, C.graphite).set(17, 2, 15, C.cyan | EMISSIVE);
   white.box(14, 4, 3, 4, 1, 4, C.silver); // vent
 
-  /* A handheld that is held sideways: its screen between a cross and two buttons. */
-  const wide = new VoxelModel(15, 3, 7);
-  wide.box(0, 0, 0, 15, 2, 7, C.night);
-  wide.box(4, 2, 1, 7, 1, 5, C.ink).box(5, 2, 2, 5, 1, 3, C.cyan | EMISSIVE);
-  wide.box(1, 2, 3, 3, 1, 1, C.silver).box(2, 2, 2, 1, 1, 3, C.silver);
-  wide.set(12, 2, 4, C.red).set(13, 2, 2, C.red);
+  /* The Nintendo DS, left open: a screen in the lid that stands up, another in the base between a cross and four buttons. */
+  const wide = new VoxelModel(11, 7, 8);
+  wide.box(0, 0, 2, 11, 1, 6, C.silver).box(0, 0, 0, 11, 7, 2, C.silver); // base, then the lid behind it
+  wide.box(1, 1, 1, 9, 5, 1, C.ink).box(2, 2, 1, 7, 3, 1, C.cyan | EMISSIVE); // the screen of the lid
+  wide.box(3, 0, 3, 5, 1, 4, C.ink).box(4, 0, 4, 3, 1, 2, C.cyan | EMISSIVE); // the screen of the base
+  for (const [x, z] of [[1, 4], [1, 5], [1, 6], [0, 5], [2, 5]]) wide.set(x, 0, z, C.graphite); // cross
+  for (const [x, z] of [[9, 4], [9, 6], [8, 5], [10, 5]]) wide.set(x, 0, z, C.steel); // buttons
+  wide.box(0, 0, 2, 11, 1, 1, C.steel); // hinge
 
   /* Cartridges in a pile, each with its label. */
   const cartridges = new VoxelModel(7, 7, 6);
@@ -157,12 +159,15 @@ export function consoles(): RoomObject[] {
     heaped('cartridges', cartridges, 0.38, floor, 0.38, 14),
     heaped('console-cube', cube, 0.5, floor, 0.22, 24),
     heaped('controller-cube', brick(C.stone, C.red), 0.52, on(13), 0.28, -35),
-    heaped('controller-floor', brick(C.graphite, C.stone), 0.7, floor, 0.4, 38),
+    heaped('controller-floor', brick(C.graphite, C.stone), 0.66, floor, 0.36, 38), // clear of the door when it is shut
     heaped('console-white', white, 0.8, floor, 0.2, 12),
-    heaped('controller-right', brick(C.paper, C.denim), 0.93, on(5), 0.25, -48),
-    heaped('handheld-wide', wide, 0.97, floor, 0.38, -28),
+    heaped('controller-right', brick(C.paper, C.denim), 0.95, on(5), 0.2, -48),
+    heaped('handheld-wide', wide, 0.8, on(5), 0.26, -14), // on the white one, open towards the doors
   ];
 }
+
+/** Where the NAS and its UPS stand, on the cabinet. */
+const HOMELAB = { x: CABINET.x + 0.08, y: 0.6, z: 0.15 };
 
 /** The NAS, four bays, and the UPS beside it. Voxels of 2.5 cm. */
 export function homelab(): RoomObject {
@@ -176,11 +181,14 @@ export function homelab(): RoomObject {
   m.box(1, 6, 9, 3, 1, 1, C.lime | EMISSIVE).set(7, 6, 9, C.amber | EMISSIVE); // power, and a warning that stays on
   /* UPS: 15 cm wide, 25 cm high, 30 cm deep. */
   m.box(13, 0, 0, 6, 10, 12, C.steel);
-  m.box(14, 6, 11, 4, 2, 1, C.ink).box(15, 7, 11, 2, 1, 1, C.lime | EMISSIVE); // its display
+  m.box(14, 6, 11, 4, 2, 1, C.ink); // its display: what it shows is a texture
   m.set(14, 4, 11, C.amber | EMISSIVE);
   for (const y of [1, 2]) m.box(14, y, 11, 4, 1, 1, y % 2 ? C.ink : C.steel); // vents
-  return { name: 'homelab', voxel: 0.025, at: [CABINET.x + 0.08, 0.6, 0.15], model: m };
+  return { name: 'homelab', voxel: 0.025, at: [HOMELAB.x, HOMELAB.y, HOMELAB.z], model: m };
 }
+
+/** The display of the UPS, facing the room: centre, width and height in metres. */
+export const UPS_DISPLAY = { x: HOMELAB.x + 0.4, y: HOMELAB.y + 0.175, z: HOMELAB.z + 0.3 + 0.0015, width: 0.1, height: 0.05 };
 
 /** 40 cm wide, with a sheet coming out of it. Voxels of 2.5 cm. */
 export function printer(): RoomObject {

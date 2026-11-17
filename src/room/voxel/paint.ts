@@ -428,3 +428,98 @@ export function tableCard({ invite, number, brand }: { invite: string[]; number:
     stripes(81, 7);
   });
 }
+
+/** A tag of the pegboard: a word in white on violet. 31 × 9, one pixel is 5 mm. */
+export function tag(word: string): CanvasTexture {
+  return texture(31, 9, (rect) => {
+    rect(0, 0, 31, 9, 'violet');
+    centred(rect, word, 31, 2, 'paper');
+  });
+}
+
+/** A paper label: a word in black, three pixels of margin around it. */
+export function label(word: string): CanvasTexture {
+  const width = typeset(word).width + 6;
+  return texture(width, 9, (rect) => {
+    rect(0, 0, width, 9, 'paper');
+    write(rect, word, 3, 2, 'ink');
+  });
+}
+
+/** The card of a specimen: its name, and its size under it, in a thin frame. 60 × 20, one pixel is 2.5 mm. */
+export function specimenCard({ name, size }: { name: string; size: string }): CanvasTexture {
+  return texture(60, 20, (rect) => {
+    rect(0, 0, 60, 20, 'stone');
+    rect(1, 1, 58, 18, 'paper');
+    centred(rect, name, 60, 3, 'ink');
+    centred(rect, size, 60, 11, 'taupe');
+  });
+}
+
+/**
+ * The sheet of a contest problem that has been reviewed: its heading, the
+ * statement as grey lines, an example in two boxes, ticks in red pen in the
+ * margin and a red stamp struck across the foot. 70 × 110, one pixel is 2.5 mm.
+ */
+export function contestSheet({ title, stamp }: { title: string; stamp: string }): CanvasTexture {
+  return texture(70, 110, (rect) => {
+    rect(0, 0, 70, 110, 'paper');
+    const width = write(rect, title, 6, 6, 'ink', LARGE);
+    rect(6, 15, width, 1, 'ink');
+    for (const [y, w] of [[22, 52], [26, 46], [30, 54], [34, 30], [64, 54], [68, 40], [72, 48], [76, 18]]) rect(6, y, w, 1, 'stone');
+    for (const x of [6, 36]) {
+      rect(x, 42, 24, 16, 'linen'); // input, output
+      for (const [y, w] of [[45, 13], [49, 17], [53, 8]]) rect(x + 3, y, x > 6 ? w - 5 : w, 1, 'taupe');
+    }
+    for (const y of [24, 66]) {
+      rect(63, y + 2, 1, 2, 'red'); // a tick
+      rect(64, y + 3, 1, 2, 'red');
+      rect(65, y + 1, 1, 3, 'red');
+      rect(66, y - 1, 1, 3, 'red');
+    }
+    /* The stamp climbs one pixel every five: struck by hand. */
+    const lean: Rect = (x, y, w, h, color) => {
+      for (let i = x; i < x + w; i++) rect(i, y + 6 - Math.floor(i / 5), 1, h, color);
+    };
+    const wide = typeset(stamp, LARGE).width + 6;
+    const left = Math.floor((70 - wide) / 2);
+    lean(left, 84, wide, 1, 'red');
+    lean(left, 96, wide, 1, 'red');
+    lean(left, 84, 1, 13, 'red');
+    lean(left + wide - 1, 84, 1, 13, 'red');
+    write(lean, stamp, left + 3, 87, 'red', LARGE);
+  });
+}
+
+/**
+ * A page of the wall calendar: a red binding, the month circled by hand in
+ * red marker, and a square for each of its days, a week to a row, Monday
+ * first. 60 × 80, one pixel is 5 mm.
+ */
+export function calendarPage(title: string, weeks: (number | null)[][]): CanvasTexture {
+  return texture(60, 80, (rect) => {
+    rect(0, 0, 60, 80, 'paper');
+    rect(0, 0, 60, 4, 'red');
+    centred(rect, title, 60, 11, 'ink', LARGE);
+    /* The ring: not quite an ellipse, and it overshoots where it closes. */
+    for (let step = 20; step < 420; step++) {
+      const angle = (step / 180) * Math.PI;
+      const wobble = 1 + 0.05 * Math.sin(angle * 1.5) - (step > 360 ? (step - 360) * 0.002 : 0);
+      rect(Math.round(29.5 + 27 * wobble * Math.cos(angle)), Math.round(14 - 8 * wobble * Math.sin(angle)), 1, 1, 'red');
+    }
+    weeks.forEach((week, row) =>
+      week.forEach((day, column) => {
+        if (day !== null) rect(4 + column * 8, 31 + row * 8, 4, 4, column > 4 ? 'stone' : 'taupe');
+      }),
+    );
+  });
+}
+
+/** The display of the power supply: a word, and a time under it in green. 40 × 20, one pixel is 2.5 mm. */
+export function uptimeScreen(title: string, time: string): CanvasTexture {
+  return texture(40, 20, (rect) => {
+    rect(0, 0, 40, 20, 'ink');
+    write(rect, title, 3, 2, 'silver');
+    write(rect, time, 3, 10, 'lime', LARGE);
+  });
+}

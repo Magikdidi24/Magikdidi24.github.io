@@ -1,0 +1,32 @@
+---
+/*
+  The panel of the book on the nightstand, a book about compilers: the
+  compiler work at Faveod, from site.ts, with the chart of the text version
+  and the two positions he held there. The compiler is not named.
+*/
+import Panel from './Panel.astro';
+import Digits from '../home/Digits.astro';
+import PipelineChart from '../home/PipelineChart.astro';
+import { stops } from '../../data/room';
+import { compiler, experience } from '../../data/site';
+
+const stop = stops.find(({ id }) => id === 'compiler')!;
+const positions = experience.filter(({ org }) => org === compiler.org).reverse(); // the first one first
+---
+<Panel id={stop.id} title={stop.label}>
+  <h3>{compiler.title}</h3>
+  <p class="meta">{compiler.org}, {compiler.place}</p>
+  <p>{compiler.summary}</p>
+  <PipelineChart />
+  <ul>
+    {compiler.points.map((point) => <li><Digits text={point} /></li>)}
+  </ul>
+  <p class="meta">{compiler.note}</p>
+  {positions.map((position) => (
+    <Fragment>
+      <h3>{position.title}</h3>
+      <p class="meta">{position.period.label}</p>
+      <p>{position.summary}</p>
+    </Fragment>
+  ))}
+</Panel>

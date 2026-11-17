@@ -2,7 +2,11 @@
 /*
   The panel of the main screen: a desktop that covers the room, with an icon
   per project. An icon opens a window: a project as /projects/ shows it, a
-  small program, or a terminal. Two projects can be played in their window,
+  small program, a terminal, or the file that says who he is. Under them,
+  what there is to find in the room: each icon is locked until its object
+  has been found there, then it opens its panel; a list of things to do
+  says how, and ticks off what is done (src/room/ui/panels.ts keeps both up
+  to date, from src/room/ui/found.ts). Two projects can be played in their window,
   and five small programs have a window of their own: the program itself
   runs there (src/room/ui/demos). Icons are links to the id of what
   they open, so each window has its own address (src/room/ui/route.ts); the
@@ -16,7 +20,7 @@ import Chess from './demos/Chess.astro';
 import Fluid from './demos/Fluid.astro';
 import Program from './demos/Program.astro';
 import { projects, smallerProjects } from '../../data/projects';
-import { desktop, programs, stops, terminal, windowOf } from '../../data/room';
+import { desktop, finds, programs, stops, terminal, windowOf } from '../../data/room';
 import { person } from '../../data/site';
 import { PALETTE, type Swatch } from '../../room/voxel/palette';
 
@@ -32,9 +36,10 @@ const icons = [
   ...projects.map(({ slug, name }) => ({ id: slug, name })),
   ...playable.map(({ id, item }) => ({ id, name: item.name })),
   { id: 'terminal', name: 'Terminal' },
+  { id: 'about', name: desktop.about },
 ];
 ---
-<section class="panel samos" id={stop.id} aria-labelledby={`${stop.id}-title`} tabindex="-1" style={`--sun: ${PALETTE.magenta}`}>
+<section class="panel samos" id={stop.id} aria-labelledby={`${stop.id}-title`} tabindex="-1" style={`--sun: ${PALETTE.magenta}; --note: ${PALETTE.mustard}`}>
   <header class="bar">
     <h2 id={`${stop.id}-title`}>{stop.label}</h2>
     <button type="button" data-close>Close</button>
@@ -42,16 +47,56 @@ const icons = [
 
   <p class="system" aria-hidden="true">{desktop.name}</p>
 
-  <ul class="icons" role="list">
-    {icons.map(({ id, name }, i) => (
-      <li>
-        <a class="icon" href={`#${id}`}>
-          <span class="glyph" style={tint(i)} aria-hidden="true"></span>
-          {name}
-        </a>
-      </li>
-    ))}
-  </ul>
+  <div class="desk">
+    <ul class="icons apps" role="list">
+      {icons.map(({ id, name }, i) => (
+        <li>
+          <a class="icon" href={`#${id}`}>
+            <span class="glyph" style={tint(i)} aria-hidden="true"></span>
+            {name}
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <details class="todo" open>
+      <summary><span>{desktop.todo}</span><span class="count"></span></summary>
+      <ul role="list">
+        {finds.map(({ id, task }) => (
+          <li>
+            <label><input type="checkbox" data-task={id} disabled /><span>{task}</span></label>
+          </li>
+        ))}
+      </ul>
+    </details>
+
+    <div class="places">
+      <h3>{desktop.places}</h3>
+      <!-- What a locked icon answers when it is asked for, for those who do not see it written under the icon. -->
+      <p class="hint visually-hidden" role="status"></p>
+      <ul class="icons" role="list">
+        {finds.map(({ id, label, night, task }, i) => (
+          /* What is a stop at night only is listed at night only (see [data-when] in src/pages/index.astro). */
+          <li data-when={night ? 'night' : undefined}>
+            {id === 'calendar' ? (
+              <button type="button" class="icon" data-find={id} data-calendar>
+                <span class="glyph" style={tint(i)} aria-hidden="true"></span>
+                {label}
+                <span class="how" aria-hidden="true">{task}</span>
+              </button>
+            ) : (
+              /* The CV is a file to download; the rest are panels of the room. */
+              <a class="icon" href={id === 'cv' ? (person.cv ?? undefined) : `#${id}`} download={id === 'cv'} data-find={id}>
+                <span class="glyph" style={tint(i)} aria-hidden="true"></span>
+                {label}
+                <span class="how" aria-hidden="true">{task}</span>
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
 
   {projects.map((project) => (
     <div class="window" id={project.slug} data-item={project.slug} data-name={project.name} tabindex="-1" hidden>
@@ -78,6 +123,18 @@ const icons = [
       </div>
     </div>
   ))}
+
+  <div class="window" data-item="about" id="about" tabindex="-1" hidden>
+    <p class="title">
+      <span>{desktop.about}</span>{' '}
+      <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {desktop.about}</span></a>
+    </p>
+    <div class="body file">
+      <p>{person.intro}</p>
+      <p>{person.focus}</p>
+      <p><a href="/classic/#about">More about me in the text version</a></p>
+    </div>
+  </div>
 
   <div class="window" data-item="terminal" id="terminal" tabindex="-1" hidden>
     <p class="title">
@@ -149,6 +206,160 @@ const icons = [
     height: 4.5rem;
     border-radius: 9rem 9rem 0 0;
     background: repeating-linear-gradient(to bottom, var(--sun) 0 0.75rem, transparent 0.75rem 1rem);
+  }
+
+  /* The icons of the PC, then those of the room under them; beside both, on a wide screen, the list of things to do. */
+  .desk {
+    position: relative;
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  @media (min-width: 64rem) {
+    .desk {
+      grid-template: 'apps todo' auto 'places todo' 1fr / minmax(0, 1fr) 19rem;
+      align-items: start;
+    }
+
+    .apps {
+      grid-area: apps;
+    }
+
+    .todo {
+      grid-area: todo;
+    }
+
+    .places {
+      grid-area: places;
+    }
+  }
+
+  h3 {
+    margin-bottom: var(--space-4);
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  /* A note stuck on the screen: what there is to do in the room, ticked off as it is done. On a narrow screen it comes first, folded: the script shuts it there. */
+  .todo {
+    order: -1;
+    padding: var(--space-4);
+    background: var(--note);
+    color: var(--room-ink);
+  }
+
+  @media (min-width: 64rem) {
+    .todo {
+      order: 0;
+    }
+  }
+
+  .todo summary {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 1.5rem;
+    cursor: pointer;
+  }
+
+  .todo[open] summary {
+    margin-bottom: var(--space-4);
+  }
+
+  .todo ul {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .todo label {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2);
+    align-items: start;
+  }
+
+  .todo input {
+    flex: none;
+    width: 1rem;
+    min-width: 0;
+    height: 1rem;
+    min-height: 0;
+    margin: 0.1rem 0 0;
+    padding: 0;
+    border: 2px solid var(--room-ink);
+    border-radius: 0;
+    background: none;
+    appearance: none;
+  }
+
+  .todo input:checked {
+    background: var(--room-ink);
+    box-shadow: inset 0 0 0 2px var(--note);
+  }
+
+  .todo input:checked + span {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+
+  /* Locked: the icon of something that has not been found in the room yet. A padlock stands for its picture, and what to do to open it shows under its name once it has been asked for. */
+  .icon[data-locked] {
+    cursor: not-allowed;
+  }
+
+  .icon[data-locked]:not([data-asked]) {
+    opacity: 0.6;
+  }
+
+  .how {
+    display: none;
+    color: var(--note);
+  }
+
+  .icon[data-locked][data-asked] .how {
+    display: block;
+  }
+
+  .icon[data-locked] .glyph {
+    position: relative;
+    border-style: dashed;
+    background: none;
+    box-shadow: none;
+  }
+
+  .icon[data-locked] .glyph::before,
+  .icon[data-locked] .glyph::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .icon[data-locked] .glyph::before {
+    bottom: 0.3rem;
+    width: 1.25rem;
+    height: 0.875rem;
+    background: var(--room-paper);
+  }
+
+  .icon[data-locked] .glyph::after {
+    bottom: 1.175rem;
+    width: 0.75rem;
+    height: 0.5rem;
+    border: 2px solid var(--room-paper);
+    border-bottom: 0;
+  }
+
+  button.icon {
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
   }
 
   .icons {
@@ -223,6 +434,14 @@ const icons = [
     line-height: var(--leading-body);
   }
 
+  .file {
+    padding-top: var(--space-5);
+  }
+
+  .file p + p {
+    margin-top: var(--space-4);
+  }
+
   /* The first project of a window needs no rule above it. */
   .body :global(.project) {
     border-top: 0;
@@ -277,6 +496,8 @@ const icons = [
     .bar button,
     .title a,
     .icons,
+    .todo,
+    .places,
     .system,
     [data-item='terminal'],
     .body :global(.demo:not([data-demo='program'])) {
