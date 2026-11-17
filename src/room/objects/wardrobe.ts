@@ -1,7 +1,7 @@
 /*
   The wardrobe against the left wall, between the foot of the bed and the
   door: brown wood, two doors that open on a rail of clothes, shelves and
-  boxes. On top of it, a bucket of fried chicken on its tripod, kept as a
+  boxes. On top of it, the table number of a fast-food counter, kept as a
   trophy, and an orange warning light.
 */
 import { EMISSIVE, VoxelModel } from '../voxel/builder.ts';
@@ -97,37 +97,38 @@ function door(name: string, north: boolean): RoomObject {
 
 export const wardrobeDoors = (): RoomObject[] => [door('wardrobe-door-north', true), door('wardrobe-door-south', false)];
 
+/** The table number: where it stands on the wardrobe, and its size in voxels of 3.125 mm. Its two boards lean on each other, `lean` voxels each over its height. */
+const TENT = { x: 0.2, z: WARDROBE.z + 0.1, voxel: 0.003125, width: 32, height: 70, lean: 13 };
+
 /**
- * A paper bucket of fried chicken on a tripod, on top of the wardrobe: red
- * and white stripes, no name on it. Voxels of 1.25 cm, shaded as a round
- * shape: 55 cm high.
+ * A table number from a fast-food counter, on top of the wardrobe: two white
+ * boards hinged at the top, 10 cm wide and 22 cm high. What is printed on the
+ * one that faces the room is a picture (TABLE_NUMBER).
  */
-export function tripod(): RoomObject {
-  const m = new VoxelModel(28, 46, 28);
-  const middle = 14;
-  for (let leg = 0; leg < 3; leg++) {
-    const angle = (leg / 3) * 2 * Math.PI + 0.5;
-    m.limb([middle, 27, middle], [middle + Math.cos(angle) * 11, 0.5, middle + Math.sin(angle) * 11], 1.1, 1, C.silver);
-  }
-  m.ball(middle, 27, middle, 3, 2, 3, C.graphite); // where the legs meet
-  /* The bucket widens towards its rim; its stripes turn around it. */
-  for (let y = 29; y < 42; y++) {
-    const radius = 5.5 + (y - 29) * 0.22;
-    for (let z = 0; z < 28; z++) {
-      for (let x = 0; x < 28; x++) {
-        const dx = x + 0.5 - middle;
-        const dz = z + 0.5 - middle;
-        if (Math.hypot(dx, dz) > radius) continue;
-        const stripe = Math.floor(((Math.atan2(dz, dx) + Math.PI) / (2 * Math.PI)) * 12) % 2;
-        m.set(x, y, z, stripe ? C.red : C.paper);
-      }
+export function tableNumber(): RoomObject {
+  const { width, height, lean, voxel } = TENT;
+  const depth = 2 * lean + 2;
+  const m = new VoxelModel(width + 2, height + 1, depth);
+  for (let y = 0; y < height; y++) {
+    const in_ = Math.floor((y * lean) / (height - 1)); // how far each board has come in at this height
+    for (const z of [in_, depth - 2 - in_]) {
+      m.box(1, y, z, width, 1, 2, C.paper);
+      m.box(1, y, z, 1, 1, 2, C.linen).box(width, y, z, 1, 1, 2, C.linen); // the cut edge of the board
     }
   }
-  m.ball(middle, 42, middle, 9, 1.2, 9, C.paper); // rim
-  for (const [x, z, r] of [[-3, -2, 3.6], [3, -1, 3.4], [0, 3, 3.6], [-4, 3, 2.8], [4, 4, 2.6]]) m.ball(middle + x, 43, middle + z, r, 2.6, r, C.apricot); // what is in it
-  m.paint(middle - 2, 44.5, middle, 2.5, 1.2, 2.5, C.mustard).paint(middle + 3, 44, middle + 2, 2, 1.2, 2, C.mustard);
-  return { name: 'tripod', voxel: 0.0125, at: [0.12, WARDROBE.height, WARDROBE.z + 0.08], model: m, wall: 'west', smooth: true };
+  m.box(1, height, lean - 1, width, 1, 4, C.stone); // hinge
+  return { name: 'table-number', voxel, at: [TENT.x, WARDROBE.height, TENT.z], model: m, wall: 'west' };
 }
+
+/** The printed face of the table number: its middle, its size, and how far it leans back, in degrees. It lies just in front of the steps of the board. */
+export const TABLE_NUMBER = {
+  x: TENT.x + (1 + TENT.width / 2) * TENT.voxel,
+  y: WARDROBE.height + (TENT.height / 2) * TENT.voxel,
+  z: TENT.z + (2 * TENT.lean + 2 - TENT.lean / 2 + 1.1) * TENT.voxel,
+  width: TENT.width * TENT.voxel,
+  height: Math.hypot(TENT.height, TENT.lean) * TENT.voxel,
+  lean: (Math.atan2(TENT.lean, TENT.height) * 180) / Math.PI,
+};
 
 /** Where the warning light stands on the wardrobe. Its glow starts from the middle of its lens. */
 const BEACON = { x: 0.2, z: WARDROBE.z + 0.62 };

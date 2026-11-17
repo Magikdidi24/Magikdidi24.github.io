@@ -14,7 +14,7 @@ import { library, volume } from './library.ts';
 import { LOWER_SHELF, shelfThings } from './shelf.ts';
 import { cabinet, cabinetDoors, consoles, cvSheet, homelab, pc, printer } from './tech.ts';
 import { calendar, clipboard, eraser, formulas, frames, marker, MARKERS, neon, passes, pegboard, shelf, whiteboard } from './walls.ts';
-import { beacon, tripod, wardrobe, wardrobeDoors } from './wardrobe.ts';
+import { beacon, tableNumber, wardrobe, wardrobeDoors } from './wardrobe.ts';
 import { windowFrame } from './window.ts';
 
 export interface RoomObject {
@@ -42,7 +42,7 @@ export const objects = (): RoomObject[] => [
   ...frames(),
   wardrobe(),
   ...wardrobeDoors(),
-  tripod(),
+  tableNumber(),
   beacon(),
   clipboard(),
   /* Back wall */

@@ -1,9 +1,9 @@
 /*
   What stands on the lower shelf above the desk: a pair of figures on their
-  cloud, a meteorite under glass, a column of liquids, a daruma, a lucky cat,
-  an endurance car, a plush tiger and a book of temple stamps. Each is its
-  own object, sculpted in small voxels and shaded as a round shape. None of
-  the figures is a known character.
+  cloud, a meteorite under glass, a single-board computer, a daruma, a lucky
+  cat, an endurance hypercar, a plush tiger and a book of temple stamps.
+  Each is its own object, sculpted in small voxels and shaded as a round
+  shape.
 */
 import { VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
@@ -92,14 +92,35 @@ function meteorite(): VoxelModel {
   return m;
 }
 
-/** Liquids that do not mix, one on top of the other in a glass, the heaviest at the bottom. */
-function liquids(): VoxelModel {
-  const m = new VoxelModel(10, 32, 10);
-  const layers = [C.mustard, C.rust, C.leaf, C.denim, C.paper, C.amber, C.violet];
-  for (let y = 0; y < 30; y++) {
-    const color = y < 2 ? C.graphite : y > 27 ? C.silver : layers[Math.min(layers.length - 1, Math.floor((y - 2) / 3.72))];
-    m.ball(5, y + 0.5, 5, y < 2 || y > 27 ? 4.6 : 3.8, 0.5, y < 2 || y > 27 ? 4.6 : 3.8, color);
+/**
+ * A single-board computer, switched off, lying on the shelf: a green board
+ * 85 mm by 56 mm, its network and USB sockets towards the room, the row of
+ * pins along one side, the processor under its metal lid. Voxels of
+ * 3.125 mm; its long side runs along z.
+ */
+function raspberry(): VoxelModel {
+  const m = new VoxelModel(18, 7, 28);
+  m.box(0, 0, 0, 18, 1, 27, C.leaf);
+  for (const [x, z] of [[1, 1], [16, 1], [1, 19], [16, 19]]) m.set(x, 0, z, C.mustard); // mounting holes
+  /* Towards the room: the network socket, then two pairs of USB sockets, one above the other. */
+  m.box(1, 1, 21, 5, 4, 7, C.silver).box(2, 2, 27, 3, 2, 1, C.ink);
+  for (const [x, tongue] of [[7, C.denim], [13, C.ink]] as const) {
+    m.box(x, 1, 20, 4, 5, 8, C.silver);
+    for (const y of [2, 4]) m.box(x + 1, y, 27, 2, 1, 1, tongue);
   }
+  /* Along one side: forty pins in two rows, on their black strip. */
+  m.box(15, 1, 1, 2, 1, 17, C.ink);
+  for (let z = 1; z < 18; z++) m.set(15 + (z % 2), 2, z, C.mustard);
+  m.box(6, 1, 11, 5, 1, 5, C.silver); // the processor under its lid
+  m.box(6, 1, 7, 4, 1, 3, C.ink); // memory
+  m.box(11, 1, 17, 3, 1, 3, C.ink); // the USB controller
+  m.box(2, 1, 2, 4, 1, 3, C.silver); // the radio under its can
+  /* Along the other side: power, two video sockets, sound. */
+  m.box(0, 1, 2, 2, 1, 3, C.silver);
+  for (const z of [7, 11]) m.box(0, 1, z, 2, 1, 2, C.silver);
+  m.box(0, 1, 16, 3, 2, 2, C.ink);
+  m.box(4, 1, 15, 1, 2, 4, C.stone).box(12, 1, 3, 1, 2, 4, C.stone); // the two ribbon sockets
+  for (const z of [0, 1]) m.set(1, 1, z, C.plum); // its two lights, out
   return m;
 }
 
@@ -129,18 +150,49 @@ function luckyCat(): VoxelModel {
   return m;
 }
 
-/** An endurance prototype: a low body between four wheels, a closed cockpit, a fin and a rear wing. Its nose points to -x. */
+/**
+ * An endurance hypercar at 1:25, 20 cm long: a low nose between two tall
+ * fenders, a closed cockpit like a drop of water, a fin down its engine
+ * cover, and a wing as wide as the car on two end plates. Red, a yellow
+ * stripe from nose to roof. Its nose points to +x. Voxels of 3.125 mm.
+ */
 function car(): VoxelModel {
-  const m = new VoxelModel(34, 10, 16);
-  m.ball(17, 2.6, 8, 16.5, 2.6, 7.4, C.denim).box(0, 0, 0, 34, 1, 16, 0); // the body, clear of the ground
-  for (const x of [7, 27]) {
-    for (const z of [2.2, 13.8]) m.ball(x, 3.6, z, 4.2, 2.6, 2.4, C.denim).ball(x, 2.3, z, 2.5, 2.4, 1.7, C.ink); // fender, wheel
+  const m = new VoxelModel(64, 17, 28);
+  const [red, dark, glass] = [C.red, C.graphite, C.ink];
+  const c = 14; // its centre line
+  /* The floor and the body over it, low, pointed at the nose. */
+  m.ball(32, 2.5, c, 31, 1.6, 12.5, dark);
+  m.ball(30, 4.5, c, 26, 3, 10.5, red);
+  m.ball(55, 3.6, c, 8.5, 2.2, 6, red); // nose
+  /* Four fenders, higher than the body between them, and the wheels inside. */
+  for (const [x, top] of [[50, 9.2], [14, 9.8]]) {
+    for (const z of [4.5, 23.5]) {
+      m.ball(x, 5, z, 8, top - 5, 4.2, red);
+      m.ball(x, 4, z + (z < c ? -1.2 : 1.2), 4.4, 4.4, 2.6, C.ink); // tyre
+      m.paint(x, 4, z + (z < c ? -3.4 : 3.4), 2.2, 2.2, 1.2, C.silver); // rim
+    }
   }
-  m.ball(15, 5, 8, 5.6, 2.8, 3.6, C.ink); // cockpit
-  m.box(20, 5, 8, 9, 3, 1, C.denim); // fin
-  m.box(30, 7, 1, 2, 1, 14, C.paper).box(30, 3, 1, 2, 4, 1, C.denim).box(30, 3, 14, 2, 4, 1, C.denim); // rear wing
-  m.paint(8, 4.6, 8, 8, 1.6, 1.3, C.paper).paint(1.5, 2.6, 8, 2.2, 2, 3.4, C.red); // stripe and nose
-  for (const z of [3.5, 12.5]) m.paint(2.6, 3.4, z, 1.4, 1, 1.2, C.mustard); // headlights
+  m.box(0, 0, 0, 64, 1, 28, 0); // clear of the ground
+  /* The cockpit: glass at the front and on the sides, body colour over the head of the driver. */
+  m.ball(35, 8, c, 10, 5.6, 6.2, glass);
+  m.ball(31, 9.2, c, 8.5, 4.6, 5.2, red);
+  m.paint(39, 9.5, c, 4.5, 3.4, 5.4, glass); // windscreen
+  m.box(28, 13, c - 1, 6, 2, 3, dark); // the air intake on the roof
+  /* The engine cover falls away to the tail, with its fin. */
+  m.limb([30, 8, c], [7, 6, c], 5, 3, red);
+  for (let x = 6; x < 30; x++) m.box(x, 7, c, 1, Math.round(9 - Math.max(0, x - 22) * 0.9), 1, red);
+  /* The wing and its two end plates. */
+  for (const z of [1, 26]) m.box(0, 4, z, 7, 12, 1, red);
+  m.box(1, 14, 1, 5, 1, 26, dark).box(2, 15, 1, 3, 1, 26, C.mustard);
+  m.box(0, 5, 6, 1, 2, 16, C.ink); // diffuser
+  /* The stripe, the number plates on the sides, the lights. */
+  m.paint(50, 6, c, 14, 3, 1.6, C.mustard).paint(34, 13.5, c, 6, 2, 1.4, C.mustard);
+  for (const z of [1.5, 26.5]) m.paint(32, 5.5, z, 4.5, 2.4, 2.4, C.paper);
+  for (const z of [4.5, 23.5]) {
+    m.paint(57.5, 6.5, z, 1.4, 2.6, 1.6, C.paper); // headlights, upright
+    m.paint(7, 8.5, z, 1.2, 1.2, 2.6, C.rust); // tail lights
+  }
+  for (const z of [9, 19]) m.box(41, 10, z, 2, 1, 1, C.mustard); // mirrors
   return m;
 }
 
@@ -176,10 +228,10 @@ function stampBook(): VoxelModel {
 export const shelfThings = (): RoomObject[] => [
   on('duo', duo(), 0.01, FINER / 2),
   on('meteorite', meteorite(), 0.29),
-  on('liquids', liquids(), 0.45),
+  on('raspberry', raspberry(), 0.455, FINER / 2),
   on('daruma', daruma(), 0.54),
   on('lucky-cat', luckyCat(), 0.66),
-  on('car', car(), 0.79),
+  on('car', car(), 0.79, FINER / 2),
   on('tiger', tiger(), 1.03),
   on('stamp-book', stampBook(), 1.185, FINER, -45),
 ];

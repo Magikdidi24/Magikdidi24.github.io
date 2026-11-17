@@ -143,11 +143,11 @@ export function codeScreen(broken = false): CanvasTexture {
  * What the window looks out on, in pixels of 2 cm. It is one strip painted on
  * two walls of a box behind the window: `side` runs back from the room wall,
  * `back` faces the room. By day it is Paris, by night Tokyo: the two cities
- * he lives between, each with its tower at `TOWER`.
+ * he lives between, each with its tower.
  */
 export const CITY = { height: 240, side: 60, back: 150 } as const;
 
-/** The column of the strip where the tower stands, the row of its tip, and its height: all of it shows through the window from the default view. */
+/** The tower of Paris: the column of the strip where it stands, the row of its tip, and its height. All of it shows through the window from the default view. */
 const TOWER = { x: 107, top: 67, height: 54 };
 
 /**
@@ -216,7 +216,7 @@ function paris(rect: Rect): void {
   }
 }
 
-/** Tokyo by night: stars, dark towers with their red lights, the tower lit up, nearer blocks with lit windows and a train on its viaduct. */
+/** Tokyo by night: stars, dark blocks, a slim red tower with its mast and its pod, nearer blocks with lit windows and a train on its viaduct. */
 function tokyo(rect: Rect): void {
   const width = CITY.side + CITY.back;
   const { height } = CITY;
@@ -224,29 +224,27 @@ function tokyo(rect: Rect): void {
   const pick = (n: number) => Math.floor(random() * n);
 
   rect(0, 0, width, height, 'night');
-  for (let i = 0; i < 60; i++) rect(pick(width), pick(110), 1, 1, 'paper'); // stars
+  for (let i = 0; i < 40; i++) rect(pick(width), pick(70), 1, 1, 'paper'); // stars
   for (let x = 0; x < width; ) {
     const w = 7 + pick(8);
-    const top = 74 + pick(30);
-    rect(x, top, w, height - top, 'plum'); // far towers
-    if (random() < 0.5) rect(x + Math.floor(w / 2), top - 1, 1, 1, 'red'); // aircraft warning light
-    for (let wy = top + 2; wy < 112; wy += 3) {
-      for (let wx = x + 1; wx < x + w - 1; wx += 2) if (random() < 0.22) rect(wx, wy, 1, 1, 'mustard');
-    }
+    const top = 62 + pick(26);
+    rect(x, top, w, height - top, 'plum'); // far blocks
     x += w;
   }
-  tower(
-    rect,
-    (u) => 1 + 11 * u ** 1.5,
-    0.2,
-    [[0.42, 1], [0.6, 2], [0.76, 0]],
-    (row, t) => (t < 0.2 ? 'paper' : Math.floor(row / 5) % 2 ? 'amber' : 'rust'),
-    'paper',
-  );
-  rect(TOWER.x, TOWER.top - 1, 1, 1, 'red');
+
+  /* The tower: mast, pod, then a shaft that widens towards its foot. */
+  const tower = 108;
+  rect(tower, 26, 1, 14, 'steel');
+  rect(tower - 2, 40, 5, 5, 'amber');
+  for (let y = 45; y < 104; y++) {
+    const half = 1 + Math.floor((y - 45) / 20);
+    rect(tower - half, y, 2 * half + 1, 1, Math.floor(y / 8) % 2 ? 'red' : 'rust');
+  }
+  rect(tower, 25, 1, 1, 'red');
+
   for (let x = 0; x < width; ) {
     const w = 12 + pick(10);
-    const top = 113 + pick(8);
+    const top = 90 + pick(22);
     rect(x, top, w - 1, height - top, 'ink'); // near blocks
     for (let wy = top + 3; wy < height - 2; wy += 5) {
       for (let wx = x + 2; wx < x + w - 3; wx += 4) {
@@ -257,11 +255,12 @@ function tokyo(rect: Rect): void {
     }
     x += w;
   }
-  rect(0, 128, width, 3, 'graphite'); // viaduct
-  for (let x = 8; x < width; x += 24) rect(x, 131, 3, height - 131, 'graphite');
+
+  rect(0, 120, width, 3, 'graphite'); // viaduct
+  for (let x = 8; x < width; x += 24) rect(x, 123, 3, height - 123, 'graphite');
   for (let car = 0; car < 3; car++) {
-    rect(70 + car * 19, 121, 18, 7, 'steel'); // train
-    rect(72 + car * 19, 123, 14, 2, 'amber');
+    rect(70 + car * 19, 113, 18, 7, 'steel'); // train
+    rect(72 + car * 19, 115, 14, 2, 'amber');
   }
 }
 
@@ -397,5 +396,35 @@ export function formulaSheet(): CanvasTexture {
     const width = write(rect, taylor.title, 4, 4, 'red');
     rect(4, 11, width, 1, 'red');
     taylor.lines.forEach((line, i) => write(rect, line, 4, 18 + i * 9, i % 2 ? 'denim' : 'ink'));
+  });
+}
+
+/**
+ * The printed face of a table number: red stripes at the top and at the
+ * foot, an invitation to sit down, the number in a bucket held out by a
+ * hand, and a name. 40 x 88, one pixel is 2.5 mm.
+ */
+export function tableCard({ invite, number, brand }: { invite: string[]; number: string; brand: string }): CanvasTexture {
+  return texture(40, 88, (rect) => {
+    rect(0, 0, 40, 88, 'paper');
+    for (let y = 5; y < 88; y += 6) rect(0, y, 40, 1, 'cream'); // courses of white brick
+    for (let y = 0; y < 88; y += 6) for (let x = (y / 6) % 2 ? 4 : 10; x < 40; x += 12) rect(x, y, 1, 5, 'cream');
+    const stripes = (y: number, h: number, x = 12) => [0, 6, 12].forEach((dx) => rect(x + dx, y, 4, h, 'red'));
+    stripes(2, 10);
+    invite.forEach((line, i) => centred(rect, line, 40, 15 + i * 7, 'ink'));
+    /* The bucket: wider at its rim, three stripes under it, the number in the middle. */
+    for (let y = 29; y < 57; y++) {
+      const half = Math.round(14 - ((y - 29) / 27) * 4);
+      rect(20 - half, y, 2 * half, 1, 'ink');
+      if (y > 29 && y < 56) rect(21 - half, y, 2 * half - 2, 1, 'paper');
+    }
+    stripes(30, 5);
+    centred(rect, number, 40, 39, 'red', LARGE, 2);
+    /* The hand that holds it: a palm, and a thumb against the side of the bucket. */
+    rect(9, 59, 24, 3, 'ink');
+    rect(12, 62, 18, 1, 'ink');
+    rect(7, 57, 4, 3, 'ink');
+    centred(rect, brand, 40, 65, 'ink', LARGE, 2);
+    stripes(81, 7);
   });
 }

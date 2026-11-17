@@ -5,7 +5,7 @@
 */
 import { flight } from './pegboard.ts';
 import type { Framing } from '../room/view.ts';
-import { education, languages, person } from './site.ts';
+import { baccalaureate, education, languages, person } from './site.ts';
 
 const [firstName] = person.name.split(' ');
 const school = (id: (typeof education)[number]['id']) => education.find((entry) => entry.id === id)!;
@@ -42,8 +42,14 @@ export const toeic = { title: 'TOEIC', line: certified?.[1], score: certified?.[
  * diploma that is not awarded yet.
  */
 export const diplomas = [
-  /* TODO(Samuel): the year, the school and the honours of the baccalaureate. */
-  { frame: 'frame-bac', title: 'Baccalauréat', org: null, period: null, note: null, soon: null },
+  {
+    frame: 'frame-bac',
+    title: baccalaureate.title,
+    org: baccalaureate.academy,
+    period: baccalaureate.session,
+    note: `Specialities: ${baccalaureate.specialities.join(', ')}. ${baccalaureate.honours}. ${baccalaureate.section}.`,
+    soon: null,
+  },
   { frame: 'frame-prepa', title: cpge.title, org: `${cpge.org}, ${cpge.place}`, period: cpge.period.label, note: cpge.summary, soon: null },
   { frame: 'frame-epita', title: epita.title, org: epita.org, period: epita.period.label, note: epita.summary, soon: `Coming soon, ${epita.period.end}` },
   { frame: 'frame-toeic', title: toeic.title, org: null, period: null, note: toeic.line ?? null, soon: null },
@@ -59,6 +65,9 @@ export const papers = {
 /** The day circled on the calendar that opens over the room. */
 export const birthday = { ...person.birthday, label: `${firstName}'s birthday` };
 
+/** What is printed on the table number that stands on the wardrobe: two lines, a number, a name. */
+export const tableNumber = { invite: ['INSTALLEZ', 'VOUS'], number: '14', brand: 'KFC' };
+
 /** What is said in a bubble over an object when it is clicked. */
 export const says = { dog: 'Woof!', nightstand: 'Locked' } as const;
 
@@ -68,8 +77,11 @@ export const says = { dog: 'Woof!', nightstand: 'Locked' } as const;
  * picture drawn in the room is enlarged.
  */
 export const enlarged: Record<'frame-bac' | 'frame-toeic' | 'passes' | 'formulas', { caption: string; image: { src: string; width: number; height: number } | null }> = {
-  /* TODO(Samuel): the scan of the diploma, once he has it. */
-  'frame-bac': { caption: `Baccalaureate diploma of ${person.name}, drawn in pixels.`, image: null },
+  /* The place of birth, the two signatures, the name under the first one and the number of the original are masked. */
+  'frame-bac': {
+    caption: `Diploma of the ${baccalaureate.title} of ${person.name}, ${baccalaureate.session} session: ${baccalaureate.honours}.`,
+    image: { src: '/room/bac.webp', width: 1168, height: 848 },
+  },
   /* The photo, the identification number and the QR code of the original are masked. */
   'frame-toeic': { caption: `TOEIC Listening and Reading, official score certificate of ${person.name}: total score ${toeic.score}.`, image: { src: '/room/toeic.webp', width: 1184, height: 606 } },
   passes: { caption: `A boarding pass from ${flight.from} to ${flight.to}, drawn in pixels.`, image: null },
@@ -104,7 +116,7 @@ export const labels: Record<string, string> = {
   wardrobe: 'Wardrobe',
   'wardrobe-door-north': 'Wardrobe',
   'wardrobe-door-south': 'Wardrobe',
-  tripod: 'Trophy',
+  'table-number': 'Trophy',
   beacon: 'Warning light',
   passes: 'Boarding passes',
   formulas: 'Formula sheet',
@@ -114,10 +126,10 @@ export const labels: Record<string, string> = {
   figurines: 'Figurines',
   duo: 'Figurines',
   meteorite: 'Meteorite',
-  liquids: 'Liquids',
+  raspberry: 'Raspberry Pi 4',
   daruma: 'Daruma',
   'lucky-cat': 'Lucky cat',
-  car: 'Race car',
+  car: 'Hypercar',
   tiger: 'Tiger',
   'stamp-book': 'Stamp book',
   sakura: 'Sakura',

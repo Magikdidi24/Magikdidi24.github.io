@@ -99,6 +99,17 @@ export const education = [
   },
 ] as const;
 
+/* The baccalauréat, as its diploma reads. Shown in the 3D room only.
+   TODO(Samuel): the lycée, which the diploma does not name. */
+export const baccalaureate = {
+  title: 'Baccalauréat général',
+  session: '2022',
+  academy: 'Académie de Nantes',
+  specialities: ['Mathematics', 'Digital and computer sciences (NSI)'],
+  honours: 'Mention Bien',
+  section: 'European section (English)',
+} as const;
+
 export const languages = [
   { name: 'French', level: 'Native' },
   { name: 'English', level: 'Professional working proficiency (TOEIC Listening and Reading 860/990, Feb 2026)' },

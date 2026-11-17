@@ -30,19 +30,19 @@ import {
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { bac, papers, toeic } from '../data/room.ts';
+import { bac, papers, tableNumber, toeic } from '../data/room.ts';
 import { BOARD } from '../data/whiteboard.ts';
 import { DEFAULT_VIEW } from './camera.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects, type RoomObject } from './objects/index.ts';
 import { FORMULAS, framed, PASSES, WHITEBOARD_SURFACE } from './objects/walls.ts';
-import { BEACON_LIGHT } from './objects/wardrobe.ts';
+import { BEACON_LIGHT, TABLE_NUMBER } from './objects/wardrobe.ts';
 import { WINDOW } from './objects/window.ts';
 import { COLOR_ONLY } from './render/outline.ts';
 import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
-import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, schoolPaper, soonPaper, whiteboardNotes } from './voxel/paint.ts';
+import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, schoolPaper, soonPaper, tableCard, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
 import { lightTurn, shownWalls, texelFit, type Wall } from './view.ts';
 
@@ -99,7 +99,7 @@ const CITY_PIXEL = 0.02;
 const CITY_BACK = -1.4; // z of the wall that faces the room
 const CITY_SIDE = -1.6; // x of the wall that runs back from the room
 
-/** A flat picture in the room: its centre and its size, in metres. It can be bent to a radius, like a curved screen, or lean in its plane, in degrees. */
+/** A flat picture in the room: its centre and its size, in metres. It can be bent to a radius, like a curved screen, turn in its plane (`tilt`) or lean back from upright (`lean`), in degrees. */
 interface Paper {
   x: number;
   y: number;
@@ -108,6 +108,7 @@ interface Paper {
   height: number;
   bend?: number;
   tilt?: number;
+  lean?: number;
 }
 
 export interface RoomScene {
@@ -255,7 +256,8 @@ export function createScene(): RoomScene {
     const mesh = new Mesh(geometry, glows ? new MeshBasicMaterial({ map }) : new MeshToonMaterial({ map, gradientMap: ramp }));
     mesh.name = `${owner}-picture`;
     mesh.position.set(spot.x, spot.y, spot.z);
-    mesh.rotation.set(0, turn, MathUtils.degToRad(spot.tilt ?? 0));
+    mesh.rotation.order = 'YXZ'; // it turns in its plane, leans back, then faces its way
+    mesh.rotation.set(MathUtils.degToRad(-(spot.lean ?? 0)), turn, MathUtils.degToRad(spot.tilt ?? 0));
     mesh.receiveShadow = !glows;
     scene.getObjectByName(owner)!.attach(mesh);
     return mesh;
@@ -269,6 +271,7 @@ export function createScene(): RoomScene {
   const pass = boardingPass();
   for (const spot of PASSES) picture(spot, pass, 'passes', false);
   picture(FORMULAS, formulaSheet(), 'formulas', false);
+  picture(TABLE_NUMBER, tableCard(tableNumber), 'table-number', false);
 
   /* The lights of an object: its glowing voxels, each with the vertices that draw it. A face is four vertices in a row. */
   const lightsOf = (mesh: Mesh): number[][] => {
