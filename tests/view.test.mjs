@@ -2,7 +2,7 @@
 // size, the camera fit and the grid snapping. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { autoGrid, clearOf, fitHalfHeight, gridSize, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
+import { autoGrid, clearOf, fitHalfHeight, gridSize, lightTurn, pixelAt, pixelFraction, shownWalls, snap, texelFit } from '../src/room/view.ts';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
@@ -209,4 +209,25 @@ test('clearOf: from the default view the two shifts follow the camera', () => {
   near(x, Math.SQRT1_2);
   near(y, 0);
   near(z, -Math.SQRT1_2);
+});
+
+const degrees = (value) => (value * Math.PI) / 180;
+
+test('lightTurn: the daylight keeps to whole quarter turns while the camera looks around', () => {
+  near(lightTurn(degrees(45), 0), 0);
+  near(lightTurn(degrees(15), 0), 0);
+  near(lightTurn(degrees(75), 0), 0);
+  near(lightTurn(degrees(225), 0), Math.PI);
+  near(lightTurn(degrees(250), 0), Math.PI);
+});
+
+test('lightTurn: during a turn round the room it goes round with the camera, without a jump at either end', () => {
+  const from = degrees(60);
+  for (const turned of [0, 0.4, 1.5, 3, Math.PI]) near(lightTurn(from + turned, turned), turned);
+  near(lightTurn(from + Math.PI, 0), Math.PI); // the turn is over: the same light
+});
+
+test('lightTurn: a camera that faces a wall squarely is not thrown into the quarter before', () => {
+  near(lightTurn(-1e-12, 0), 0);
+  near(lightTurn(degrees(90) - 1e-12, 0), Math.PI / 2);
 });

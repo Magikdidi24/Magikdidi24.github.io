@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
-import { easeOut, flutter, stepAt, tumble } from '../src/room/interaction/motion.ts';
+import { easeInOut, easeOut, flutter, stepAt, tumble } from '../src/room/interaction/motion.ts';
 
 test('stepAt: a movement advances in whole steps', () => {
   assert.equal(stepAt(0, 2, 8), 0);
@@ -86,4 +86,12 @@ test('tumble: it hits the ground, bounces once, low, and goes on a little', () =
   const peak = Math.max(...[0.8, 0.85, 0.875, 0.9, 0.95].map((t) => at(t)[1]));
   assert.ok(peak > 0.03 && peak < 0.2, `the bounce is ${peak} high`);
   for (let t = 0; t <= 1; t += 0.05) assert.ok(at(t)[1] >= -1e-9, `it sinks into the ground at ${t}`);
+});
+
+test('easeInOut: it leaves slowly, arrives slowly, and is half way at half time', () => {
+  near(easeInOut(0), 0);
+  near(easeInOut(0.5), 0.5);
+  near(easeInOut(1), 1);
+  assert.ok(easeInOut(0.1) < 0.1 && easeInOut(0.9) > 0.9);
+  for (let t = 0; t < 1; t += 0.05) assert.ok(easeInOut(t + 0.05) > easeInOut(t), `it goes on at ${t}`);
 });

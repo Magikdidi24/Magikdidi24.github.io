@@ -5,11 +5,11 @@
 */
 import { NoToneMapping, PCFShadowMap, WebGLRenderer } from 'three';
 import { createRig, type Pose, type Rig } from './camera.ts';
-import { easeOut, stepAt } from './interaction/motion.ts';
+import { easeInOut } from './interaction/motion.ts';
 import { createReactions } from './interaction/reactions.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
 import { createScene, ROOM, type RoomScene } from './scene.ts';
-import { pixelAt } from './view.ts';
+import { pixelAt, type Framing } from './view.ts';
 
 export interface RoomApp {
   readonly renderer: WebGLRenderer;
@@ -29,21 +29,22 @@ export interface RoomApp {
   setSmooth(smooth: boolean): void;
   /** Outline an object in the accent colour, by its name: the one under the pointer. Null for none. */
   hover(name: string | null): void;
-  /** Go round to the other side of the room, half a turn in steps: the walls in front of the camera give way to the two behind it. Not while the camera is held on a stop. */
+  /** Go round to the other side of the room, half a turn: the walls in front of the camera give way to the two behind it. Not while the camera is held on a stop. */
   turn(): Promise<void>;
   /**
-   * Take the camera to a stop of the visit, in steps, and hold it there: the
-   * point it looks at and how close, and what the open panel covers of the
-   * viewport. With null, give the camera back to the visitor where they left it.
+   * Take the camera to a stop of the visit and hold it there: where it
+   * looks, and what the open panel covers of the viewport. With null, give
+   * the camera back to the visitor where they left it.
    */
-  focus(view: { target: [number, number, number]; zoom: number } | null, cover?: { right: number; bottom: number }): Promise<void>;
+  focus(view: Framing | null, cover?: { right: number; bottom: number }): Promise<void>;
   dispose(): void;
 }
 
-/** The half turn round the room: how long it takes, and in how many steps, of 15 degrees each. */
-const TURN = { seconds: 1.2, steps: 12 };
+/* The camera is the one thing of the room that does not move in steps: it is redrawn at every frame of its way. */
+/** The half turn round the room, in seconds. */
+const TURN = 1.4;
 /** The way to a stop of the visit, and back. */
-const GLIDE = { seconds: 0.6, steps: 12 };
+const GLIDE = 0.7;
 
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -72,20 +73,16 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   let journeys = 0;
   const still = matchMedia('(prefers-reduced-motion: reduce)');
 
-  /** Call `apply` with t from 0 to 1, in `steps` steps over `seconds`. */
-  const stepped = ({ seconds, steps }: { seconds: number; steps: number }, apply: (t: number) => void) =>
+  /** Call `apply` at every frame for `seconds`, with how far the camera has come: slow, fast, then slow, from 0 to 1. */
+  const travel = (seconds: number, apply: (t: number) => void) =>
     new Promise<void>((done) => {
       let start = -1;
-      let last = 0;
       app.animate((now) => {
         if (start < 0) start = now;
-        const step = still.matches ? steps : stepAt((now - start) / 1000, seconds, steps);
-        if (step !== last) {
-          last = step;
-          apply(step / steps);
-          dirty = true;
-        }
-        if (step < steps) return true;
+        const t = still.matches ? 1 : Math.min(1, (now - start) / (seconds * 1000));
+        apply(easeInOut(t));
+        dirty = true;
+        if (t < 1) return true;
         done();
         return false;
       });
@@ -133,7 +130,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     },
     turn() {
       if (left) return Promise.resolve();
-      turning ??= stepped(TURN, (t) => rig.around(t)).then(() => void (turning = null));
+      turning ??= travel(TURN, (t) => rig.around(t)).then(() => void (turning = null));
       return turning;
     },
     async focus(view, cover = { right: 0, bottom: 0 }) {
@@ -144,9 +141,8 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       const to = view ? rig.frame(view, cover, pipeline.grid) : left!;
       if (view) left ??= from;
       rig.hold(true);
-      await stepped(GLIDE, (t) => {
+      await travel(GLIDE, (eased) => {
         if (journey !== journeys) return;
-        const eased = easeOut(t);
         rig.place({
           target: [0, 1, 2].map((k) => mix(from.target[k], to.target[k], eased)) as Pose['target'],
           azimuth: mix(from.azimuth, to.azimuth, eased),
@@ -190,7 +186,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     if (!dirty) return;
     dirty = false;
     /* The walls that show, and the side the daylight comes from, follow the camera. */
-    if (room.face(rig.azimuth())) renderer.shadowMap.needsUpdate = true;
+    if (room.face(rig.azimuth(), rig.turned)) renderer.shadowMap.needsUpdate = true;
     renderer.info.reset();
     rig.renderAligned(pipeline.grid, () => pipeline.render());
   };

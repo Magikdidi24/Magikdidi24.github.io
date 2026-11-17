@@ -4,6 +4,7 @@
   belong to the room alone.
 */
 import { flight } from './pegboard.ts';
+import type { Framing } from '../room/view.ts';
 import { education, languages, person } from './site.ts';
 
 const [firstName] = person.name.split(' ');
@@ -12,19 +13,19 @@ const [cpge, epita] = [school('cpge'), school('epita')];
 
 /**
  * A stop of the visit: objects of the room that open a panel. Its id is the
- * hash of the page and the id of its panel. `view` is where the camera goes:
- * the point it looks at, in metres, and how close.
+ * hash of the page and the id of its panel. `view` is where the camera goes.
  */
 export interface Stop {
   id: string;
   label: string;
   objects: string[];
-  view: { target: [number, number, number]; zoom: number };
+  view: Framing;
 }
 
 export const stops: Stop[] = [
   { id: 'education', label: 'Diplomas', objects: ['frame-bac', 'frame-prepa', 'frame-epita', 'frame-toeic'], view: { target: [0, 1.5, 0.88], zoom: 3 } },
-  { id: 'projects', label: 'Projects', objects: ['monitor'], view: { target: [3.05, 1.06, 0.3], zoom: 6 } },
+  /* The camera comes round to face the main screen, which fills the viewport from side to side. */
+  { id: 'projects', label: 'Projects', objects: ['monitor'], view: { target: [3.05, 1.08, 0.3], across: 1.3, azimuth: 0, elevation: 8 } },
   { id: 'contact', label: 'Contact', objects: ['door'], view: { target: [0, 1.1, 3.75], zoom: 2.2 } },
 ];
 

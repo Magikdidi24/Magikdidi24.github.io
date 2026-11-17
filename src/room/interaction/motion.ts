@@ -14,6 +14,9 @@ export function stepAt(elapsed: number, seconds: number, count: number): number 
 /** From 0 to 1, fast then slow: something pushed that comes to rest. */
 export const easeOut = (t: number): number => 1 - (1 - t) ** 3;
 
+/** From 0 to 1, slow, fast, then slow: the camera on its way round the room. */
+export const easeInOut = (t: number): number => (t < 0.5 ? 4 * t ** 3 : 1 - (2 - 2 * t) ** 3 / 2);
+
 /** How something light comes down: how far it swings from its path, in metres, how many times, and along which horizontal direction (x, z). */
 export interface Swing {
   reach: number;

@@ -133,6 +133,20 @@ export function texelFit(
 }
 
 /** The four walls of the room: north is the back wall, west the left one; south and east are the two that the opening view leaves out. */
+/**
+ * Where the camera goes for a stop of the visit: the point it looks at, in
+ * metres, and how close, as a zoom or as `across`, the metres of the room
+ * that fit across the viewport. Its angles are those of the opening view
+ * unless they are given, in degrees.
+ */
+export interface Framing {
+  target: [number, number, number];
+  zoom?: number;
+  across?: number;
+  azimuth?: number;
+  elevation?: number;
+}
+
 export type Wall = 'north' | 'west' | 'south' | 'east';
 
 /**
@@ -146,6 +160,17 @@ export function shownWalls(azimuth: number): Record<Wall, boolean> {
   const z = Math.cos(azimuth);
   const facing = 1e-6; // exactly edge on counts as hidden
   return { north: z > facing, south: z < -facing, west: x > facing, east: x < -facing };
+}
+
+/**
+ * How far round the room the daylight has come with the camera, in radians.
+ * It keeps to whole quarter turns, so that shadows hold still while the
+ * visitor looks around; during a turn round the room it goes round with the
+ * camera instead. `turned` is how far that turn has come, 0 outside one.
+ */
+export function lightTurn(azimuth: number, turned: number): number {
+  const quarters = (azimuth - turned) / (Math.PI / 2) + 1e-6; // squarely facing a wall is in the quarter that starts there
+  return Math.floor(((quarters % 4) + 4) % 4) * (Math.PI / 2) + turned;
 }
 
 /**

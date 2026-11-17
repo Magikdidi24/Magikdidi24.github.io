@@ -4,7 +4,8 @@
   lifted a little if it is small. Clicked, the chair spins, a screen cracks,
   the sakura sheds petals, the printer drops a CV, doors swing open, the
   brush falls off the whiteboard, the warning light flashes, the calendar
-  opens... and the objects that are stops of the visit open their panel. A
+  opens... and the objects that are stops of the visit open their panel: for
+  the main screen, the chair rolls out of the way of the camera. A
   click is a pointer released where it was pressed; a drag turns the camera
   instead. Under prefers-reduced-motion every movement jumps to its end.
 */
@@ -20,10 +21,10 @@ import { MARKERS } from '../objects/walls.ts';
 import { DOORS } from '../objects/wardrobe.ts';
 import { COLOR_ONLY } from '../render/outline.ts';
 import { ROOM, type Switch } from '../scene.ts';
-import { current, go } from '../ui/route.ts';
+import { current, go, onRoute } from '../ui/route.ts';
 import { showCalendar, showPicture } from '../ui/sheets.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
-import { codeScreen, desktopScreen } from '../voxel/paint.ts';
+import { codeScreen } from '../voxel/paint.ts';
 import { PALETTE } from '../voxel/palette.ts';
 import { easeOut, flutter, stepAt, tumble, type Point } from './motion.ts';
 
@@ -437,6 +438,21 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     return then(from);
   };
 
+  /* Where the chair waits, from its place at the desk, while the desktop of projects is open: on the rug, clear of the bed. */
+  const ASIDE: Point = [-0.95, 0, 0.6];
+  let aside = false;
+
+  /** The chair rolls out of the way of the camera that faces the main screen, or back to the desk. */
+  const clear = (away: boolean) => {
+    if (away === aside || !running) return;
+    aside = away;
+    const grain = 0.0125;
+    void move(0.5, 10, (t) => {
+      const far = away ? easeOut(t) : 1 - easeOut(t);
+      pose('chair', 0, [Math.round((ASIDE[0] * far) / grain) * grain, 0, Math.round((ASIDE[2] * far) / grain) * grain]);
+    });
+  };
+
   /** A knock on the door: it rattles in its frame. */
   const knock = () => move(0.3, 6, (t) => pose('door', 0, [0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125]));
 
@@ -445,7 +461,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     dog: bark,
     figurines: hop('figurines'),
     sakura: shed,
-    monitor: visit('monitor', crack('monitor', desktopScreen, 0.3)), // a glitch on the way into the desktop of projects
+    monitor: visit('monitor', () => undefined), // the camera goes into it: see `clear` for the chair
     'monitor-side': crack('monitor-side', codeScreen, 8),
     keyboard: hop('keyboard', 1, 0.0125),
     mouse: circle('mouse'),
@@ -497,6 +513,9 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     busy.add(thing);
     void Promise.resolve(reaction(from)).finally(() => busy.delete(thing));
   };
+
+  onRoute((route) => clear(route.stop === STOP.monitor));
+  clear(current().stop === STOP.monitor);
 
   /* The dock blinks for as long as its controllers charge. */
   let charging = true;

@@ -44,7 +44,7 @@ import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
 import { boardingPass, certificate, CITY, cityView, codeScreen, desktopScreen, formulaSheet, nameplate, schoolPaper, soonPaper, whiteboardNotes } from './voxel/paint.ts';
 import { PALETTE, type Swatch } from './voxel/palette.ts';
-import { shownWalls, texelFit, type Wall } from './view.ts';
+import { lightTurn, shownWalls, texelFit, type Wall } from './view.ts';
 
 export const ROOM = { w: 6, h: 2.7, d: 4.4 } as const;
 
@@ -65,7 +65,7 @@ export const LIGHTING = {
   night: { sky: '#4b4590', ground: PALETTE.plum, ambient: 0.3, key: 0, moon: 0.15, lamps: 1, background: PALETTE.night },
 };
 
-/** Where the key light stands from the middle of the room as the page opens: over the right shoulder of the camera. It follows the camera round the room, a quarter turn at a time. */
+/** Where the key light stands from the middle of the room as the page opens: over the right shoulder of the camera. It goes round the room with the camera (see lightTurn). */
 const KEY = { across: 2.5, up: 8, back: 5.5 };
 
 /** What can be switched in the room: the bedside lamp, the neon sign, the PC with its two screens, and the warning light on the wardrobe. */
@@ -121,9 +121,10 @@ export interface RoomScene {
   /**
    * Show the room to a camera that stands at `azimuth`, in radians from +z
    * towards +x: the walls it looks at, what hangs on them, and the daylight
-   * from its side. Returns whether anything changed.
+   * from its side. `turned` is how far a turn round the room has come.
+   * Returns whether anything changed.
    */
-  face(azimuth: number): boolean;
+  face(azimuth: number, turned?: number): boolean;
   /**
    * Lay the writing of the whiteboard on the pixel grid, so that the default
    * view shows it one texel per pixel. `pixel` is the size of a pixel of the
@@ -382,14 +383,14 @@ export function createScene(): RoomScene {
     get night() {
       return night;
     },
-    face(azimuth) {
+    face(azimuth, turned = 0) {
       const shown = shownWalls(azimuth);
-      const quarter = Math.floor(((azimuth / (Math.PI / 2)) % 4 + 4) % 4); // 0 as the page opens, 2 from behind
-      const now = `${WALLS.map((wall) => shown[wall])}${quarter}`;
+      const round = lightTurn(azimuth, turned);
+      const now = `${WALLS.map((wall) => shown[wall])}${round.toFixed(3)}`;
       if (now === facing) return false;
       facing = now;
       for (const wall of WALLS) for (const part of attached[wall]) part.visible = shown[wall];
-      const angle = Math.atan2(KEY.across, KEY.back) + (quarter * Math.PI) / 2;
+      const angle = Math.atan2(KEY.across, KEY.back) + round;
       const reach = Math.hypot(KEY.across, KEY.back);
       key.position.set(ROOM.w / 2 + Math.sin(angle) * reach, KEY.up, ROOM.d / 2 + Math.cos(angle) * reach);
       return true;

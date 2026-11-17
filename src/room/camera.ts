@@ -7,7 +7,7 @@
 */
 import { MathUtils, OrthographicCamera, Quaternion, Spherical, Vector3 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { clearOf, fitHalfHeight, pixelFraction, snap, type Grid } from './view.ts';
+import { clearOf, fitHalfHeight, pixelFraction, snap, type Framing, type Grid } from './view.ts';
 
 export interface Box {
   w: number;
@@ -53,6 +53,8 @@ export interface Rig {
   azimuth(): number;
   /** Carry the camera half a turn round the room: `t` goes from 0 to 1. At 1 it is held on its new side. */
   around(t: number): void;
+  /** How far such a turn has come, in radians. 0 outside one. */
+  readonly turned: number;
   /** The true pose of the camera. */
   pose(): Pose;
   /** Put the camera somewhere, whatever the limits of the view. */
@@ -60,11 +62,11 @@ export interface Rig {
   /** Hold the camera where it was put: the visitor cannot move it until it is let go. */
   hold(held: boolean): void;
   /**
-   * The pose that shows a point of the room from the opening angle, at `zoom`,
-   * in the middle of what a panel leaves free: `cover` is what the panel
-   * takes of the right side and of the foot of the viewport, in CSS pixels.
+   * The pose that shows a point of the room as `view` says, in the middle of
+   * what a panel leaves free: `cover` is what the panel takes of the right
+   * side and of the foot of the viewport, in CSS pixels.
    */
-  frame(view: { target: [number, number, number]; zoom: number }, cover: { right: number; bottom: number }, grid: Grid): Pose;
+  frame(view: Framing, cover: { right: number; bottom: number }, grid: Grid): Pose;
   /** Let the controls move the camera: what is left of a drag, the limits of the view. Nothing while it is held. */
   update(): void;
   /** Fit the room in a viewport with the aspect ratio of the pixel grid. Returns the size of a pixel in the room at zoom 1, in metres. */
@@ -104,6 +106,7 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
   hold();
   /** The azimuth a turn round the room started from, while it lasts. */
   let turnedFrom: number | null = null;
+  let turned = 0;
   let held = false;
   controls.minPolarAngle = MathUtils.degToRad(90 - ELEVATION_MAX);
   controls.maxPolarAngle = MathUtils.degToRad(90 - ELEVATION_MIN);
@@ -124,10 +127,14 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
   const rig: Rig = {
     camera,
     controls,
-    rotationStep: 1,
-    zoomStep: 0.05,
+    /* Fine steps: the picture holds still as a drag dies down, and the camera never looks as if it skipped frames. */
+    rotationStep: 0.25,
+    zoomStep: 0.01,
     get behind() {
       return behind;
+    },
+    get turned() {
+      return turned;
     },
     azimuth() {
       return Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
@@ -141,11 +148,13 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
         controls.maxAzimuthAngle = Infinity;
         controls.enabled = false;
       }
-      spherical.theta = turnedFrom + Math.PI * t;
+      turned = Math.PI * t;
+      spherical.theta = turnedFrom + turned;
       camera.position.setFromSpherical(spherical).add(controls.target);
       camera.lookAt(controls.target);
       if (t < 1) return;
       turnedFrom = null;
+      turned = 0;
       behind = !behind;
       hold();
       controls.enabled = true;
@@ -171,8 +180,9 @@ export function createRig(room: Box, domElement: HTMLElement): Rig {
       held = value;
       controls.enabled = !value;
     },
-    frame({ target, zoom }, cover, grid) {
-      const { azimuth, elevation } = DEFAULT_VIEW;
+    frame({ target, across, ...view }, cover, grid) {
+      const { azimuth, elevation } = { ...DEFAULT_VIEW, ...view };
+      const zoom = across ? (2 * halfWidth) / across : (view.zoom ?? 1);
       const unit = (2 * halfHeight) / zoom / grid.cssHeight; // a CSS pixel, in metres of the room
       const shift = clearOf(cover, unit, MathUtils.degToRad(azimuth), MathUtils.degToRad(elevation));
       return { target: [target[0] + shift[0], target[1] + shift[1], target[2] + shift[2]], azimuth, elevation, zoom };
