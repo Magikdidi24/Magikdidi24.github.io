@@ -10,7 +10,7 @@ const words = demos.chess;
 const squares = Array.from({ length: 64 }, (_, i) => `${'abcdefgh'[i % 8]}${8 - Math.floor(i / 8)}`);
 ---
 <section class="demo" data-demo="chess" data-wasm="/room/demos/chess.wasm" data-words={JSON.stringify({ ...words, loading: demos.loading, failed: demos.failed })} aria-labelledby="chess-demo">
-  <h3 id="chess-demo">{words.title}</h3>
+  <p class="name" id="chess-demo">{words.title}</p>
   <p>{words.hint}</p>
   <div class="play">
     <div class="board" role="group" aria-label={words.board}>
@@ -33,6 +33,11 @@ const squares = Array.from({ length: 64 }, (_, i) => `${'abcdefgh'[i % 8]}${8 - 
 </section>
 
 <style>
+  .name {
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+
   .play {
     display: grid;
     grid-template-columns: minmax(0, 1fr); /* never wider than its window */

@@ -4,7 +4,9 @@
   per project. An icon opens a window: a project as /projects/ shows it, the
   list of smaller projects, or a terminal. Two projects can be played in
   their window: the program itself runs there (src/room/ui/demos). Icons are links to the id of what
-  they open, so each window has its own address (src/room/ui/route.ts). The
+  they open, so each window has its own address (src/room/ui/route.ts); the
+  window of a project carries the id of that project, so that a page opened
+  straight on it shows the window from its top. The
   terminal reads the site from the attributes of its shell: nothing is
   bundled twice.
 */
@@ -46,7 +48,7 @@ const icons = [
   </ul>
 
   {projects.map((project) => (
-    <div class="window" data-item={project.slug} data-name={project.name} tabindex="-1" hidden>
+    <div class="window" id={project.slug} data-item={project.slug} data-name={project.name} tabindex="-1" hidden>
       <p class="title">
         <span>{project.repoName}</span>{' '}
         <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {project.name}</span></a>
@@ -54,7 +56,7 @@ const icons = [
       <div class="body">
         {project.slug === 'fluid-simulation' && <Fluid />}
         {project.slug === 'chess-board' && <Chess />}
-        <ProjectEntry project={project} />
+        <ProjectEntry project={project} anchor={false} />
       </div>
     </div>
   ))}

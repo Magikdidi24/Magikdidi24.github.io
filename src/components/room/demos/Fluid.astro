@@ -13,7 +13,7 @@ const figure = projects.find(({ slug }) => slug === 'fluid-simulation')?.figure;
 const liquids = figure?.kind === 'liquids' ? figure.liquids : [];
 ---
 <section class="demo" data-demo="fluid" data-wasm="/room/demos/fluid.wasm" data-words={JSON.stringify({ loading: demos.loading, failed: demos.failed })} aria-labelledby="fluid-demo">
-  <h3 id="fluid-demo">{words.title}</h3>
+  <p class="name" id="fluid-demo">{words.title}</p>
   <p>{words.hint}</p>
   <p class="state" role="status"></p>
   <div class="play">
@@ -35,6 +35,11 @@ const liquids = figure?.kind === 'liquids' ? figure.liquids : [];
 </section>
 
 <style>
+  .name {
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+
   .play {
     display: grid;
     grid-template-columns: minmax(0, 1fr); /* never wider than its window */
@@ -47,8 +52,7 @@ const liquids = figure?.kind === 'liquids' ? figure.liquids : [];
     max-width: min(34rem, 70vh);
     height: auto;
     border: 2px solid var(--ink);
-    background: #000;
-    image-rendering: pixelated;
+    background: #000; /* shown smaller than it is drawn: smoothed, or the lines of its grid would come and go */
     touch-action: none; /* a finger draws, it does not scroll the window */
     cursor: crosshair;
   }
