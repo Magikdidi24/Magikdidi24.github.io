@@ -177,7 +177,7 @@ test('life: it waits without sleeping, a click turns a cell on, the space bar st
 });
 
 test('cube: 1,200 points drawn on a black screen at every frame', async () => {
-  const seen = await program('cube', 5, (n, runner, { fills }) => n > 0 && assert.equal(fills.length, 1201));
+  const seen = await program('cube', 5, (n, _runner, { fills }) => n > 0 && assert.equal(fills.length, 1201));
   assert.deepEqual(seen.size, [900, 600]);
   assert.ok(seen.frames.every((milliseconds) => milliseconds === 20));
 });
