@@ -1,10 +1,11 @@
 /*
   The small things of the second list of the brief, each where it would be
   in a bedroom: a light switch by the door and a clock over it, a rubber duck
-  on the desk, a density column and an old telephone on the window sill, a
-  toy shipping container on the PC, and an LED matrix on the wall. Four of
-  them stand for a project: src/data/room.ts says which.
+  on the desk, a density column, a chessboard and an old telephone on the
+  window sill, a toy shipping container on the PC, and an LED matrix on the
+  wall. Five of them stand for a project: src/data/room.ts says which.
 */
+import { moves, position, square, type Piece } from '../../data/chess.ts';
 import { VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
 import type { RoomObject } from './index.ts';
@@ -63,6 +64,59 @@ function column(): RoomObject {
   return { name: 'column', voxel: FINER, at: [WINDOW.x0 + 0.08, SILL.top, SILL.edge - 0.08], model: m, smooth: true, wall: 'north' };
 }
 
+/** The chessboard, in the middle of the sill: its corner on the side of a8, in metres, and its sizes in voxels. */
+const BOARD = { x: WINDOW.x0 + 0.23, z: -0.19, square: 5, border: 2 };
+
+/** How far a piece goes from one square to the next, in metres. */
+export const CHESS = { step: BOARD.square * FINER };
+
+/** A chess piece, three voxels wide, with its corner at (x, y, z): a pawn, a rook with its battlements, a queen with her crown, a king with his cross. */
+function stand(m: VoxelModel, kind: Piece, x: number, y: number, z: number, color: number): void {
+  if (kind === 'P') m.box(x, y, z, 3, 2, 3, color).box(x + 1, y + 2, z + 1, 1, 2, 1, color);
+  if (kind === 'R') {
+    m.box(x, y, z, 3, 4, 3, color);
+    for (const [i, k] of [[0, 0], [2, 0], [0, 2], [2, 2]]) m.set(x + i, y + 4, z + k, color);
+  }
+  if (kind === 'Q' || kind === 'K') m.box(x, y, z, 3, 2, 3, color).box(x + 1, y + 2, z + 1, 1, 3, 1, color).box(x, y + 5, z, 3, 1, 3, color).set(x + 1, y + 6, z + 1, color);
+  if (kind === 'K') m.set(x + 1, y + 7, z + 1, color).set(x, y + 7, z + 1, color).set(x + 2, y + 7, z + 1, color);
+}
+
+/**
+ * The chessboard and its game (src/data/chess.ts), White on the side of the
+ * room. The pieces that will move are objects of their own, named after the
+ * square they start from; the others are part of the board. 27 cm.
+ */
+function chess(): RoomObject[] {
+  const side = 2 * BOARD.border + 8 * BOARD.square;
+  const m = new VoxelModel(side, 10, side);
+  m.box(0, 0, 0, side, 2, side, C.walnut);
+  /* Where a square is on the board, in voxels: the files run along the wall, the eighth rank is at the window. */
+  const corner = (file: number, rank: number): [number, number] => [BOARD.border + BOARD.square * file, BOARD.border + BOARD.square * (7 - rank)];
+  for (let file = 0; file < 8; file++) {
+    for (let rank = 0; rank < 8; rank++) {
+      const [x, z] = corner(file, rank);
+      m.box(x, 1, z, BOARD.square, 1, BOARD.square, (file + rank) % 2 ? C.honey : C.chestnut);
+    }
+  }
+  const men: RoomObject[] = [];
+  for (const [army, pieces] of Object.entries(position)) {
+    for (const [kind, squares] of Object.entries(pieces) as [Piece, string[]][]) {
+      for (const name of squares) {
+        const [x, z] = corner(...square(name));
+        const color = army === 'white' ? C.paper : C.ink;
+        if (!moves.some(({ from }) => from === name)) {
+          stand(m, kind, x + 1, 2, z + 1, color);
+          continue;
+        }
+        const own = new VoxelModel(3, 8, 3);
+        stand(own, kind, 0, 0, 0, color);
+        men.push({ name: `chess-${name}`, voxel: FINER, at: [BOARD.x + (x + 1) * FINER, SILL.top + 2 * FINER, BOARD.z + (z + 1) * FINER], model: own, wall: 'north' });
+      }
+    }
+  }
+  return [{ name: 'chess', voxel: FINER, at: [BOARD.x, SILL.top, BOARD.z], model: m, wall: 'north' }, ...men];
+}
+
 /** An old telephone, black, with a dial and its handset across the top. 16 cm wide. */
 function telephone(): RoomObject {
   const m = new VoxelModel(26, 14, 18);
@@ -100,4 +154,4 @@ function ledMatrix(): RoomObject {
 /** The lights of the matrix, 16 by 16, two centimetres apart: centre, width and height in metres. */
 export const MATRIX_FACE = { x: MATRIX.x + MATRIX.side / 2, y: MATRIX.y + MATRIX.side / 2, z: 0.025 + 0.002, width: 0.32, height: 0.32 };
 
-export const extras = (): RoomObject[] => [lightSwitch(), clock(), duck(), column(), telephone(), container(), ledMatrix()];
+export const extras = (): RoomObject[] => [lightSwitch(), clock(), duck(), column(), ...chess(), telephone(), container(), ledMatrix()];

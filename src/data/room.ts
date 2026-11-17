@@ -3,6 +3,7 @@
   which of them open a panel, the name of each one, and the few words that
   belong to the room alone.
 */
+import { moves } from './chess.ts';
 import { flight } from './pegboard.ts';
 import type { Framing } from '../room/view.ts';
 import type { Swatch } from '../room/voxel/palette.ts';
@@ -164,6 +165,7 @@ export const says = { dog: 'Woof!', window: home, nightstand: 'Locked', muted: '
  * the object, the id of the project in projects.ts.
  */
 export const opens: Record<string, string> = {
+  chess: 'chess-board',
   clock: 'zero-shot-forecasting',
   column: 'fluid-simulation',
   container: 'ruby-playground',
@@ -245,6 +247,8 @@ export const labels: Record<string, string> = {
   container: 'Container',
   telephone: 'Telephone',
   'led-matrix': 'LED matrix',
+  chess: 'Chessboard',
+  ...Object.fromEntries(moves.map(({ from }) => [`chess-${from}`, 'Chessboard'])), // the pieces that move on it
   'manga-east': 'Manga',
   'manga-south': 'Manga',
 };

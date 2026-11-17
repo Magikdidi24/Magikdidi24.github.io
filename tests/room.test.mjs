@@ -88,7 +88,7 @@ test('the consoles of the cabinet: each stands in the room and has its name unde
 
 test('the bonus objects: each stands in the room and has a name; what one opens is a project of the desktop', () => {
   const standing = new Set(objects().filter(({ decor }) => !decor).map(({ name }) => name));
-  for (const name of ['switch', 'clock', 'duck', 'column', 'container', 'telephone', 'led-matrix']) {
+  for (const name of ['switch', 'clock', 'duck', 'column', 'container', 'telephone', 'led-matrix', 'chess', 'chess-e2', 'chess-d8', 'chess-e1']) {
     assert.ok(standing.has(name), `${name} is not an object of the room`);
     assert.ok(labels[name], `${name} has no name`);
   }
@@ -97,7 +97,7 @@ test('the bonus objects: each stands in the room and has a name; what one opens 
     assert.ok(standing.has(name), `${name} opens a project but is not in the room`);
     assert.ok(slugs.has(slug), `${name} opens ${slug}, which is not a project`);
   }
-  assert.deepEqual(Object.keys(opens).sort(), ['clock', 'column', 'container', 'telephone']);
+  assert.deepEqual(Object.keys(opens).sort(), ['chess', 'clock', 'column', 'container', 'telephone']);
   assert.equal(says.duck, 'Quack!');
 });
 

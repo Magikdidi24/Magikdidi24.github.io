@@ -14,6 +14,7 @@
 */
 import { MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
 import { manga } from '../../data/manga.ts';
+import { moves, square } from '../../data/chess.ts';
 import { enlarged, keycaps, labels, milestone, music, opens, says, stops } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
@@ -21,6 +22,7 @@ import { play as sing, sound } from '../audio.ts';
 import type { RoomApp } from '../main.ts';
 import { ON_NIGHTSTAND } from '../objects/bed.ts';
 import { capOf, keyAt } from '../objects/desk.ts';
+import { CHESS } from '../objects/extras.ts';
 import { pulled, seriesOn } from '../objects/library.ts';
 import { MARKERS } from '../objects/walls.ts';
 import { CONSOLES } from '../objects/tech.ts';
@@ -64,6 +66,7 @@ const GROUPS: Record<string, string> = {
   'manga-east': 'library',
   'manga-south': 'library',
   volume: 'library',
+  ...Object.fromEntries(moves.map(({ from }) => [`chess-${from}`, 'chess'])),
 };
 
 /** Start reacting to clicks on the canvas. Returns what stops it. */
@@ -134,9 +137,9 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   /** The object under the pointer. */
   let hovered: string | null = null;
 
-  /** An object counts as small when its largest side is: it is lifted under the pointer. Not the keyboard: its keys answer the pointer one by one. */
+  /** An object counts as small when its largest side is: it is lifted under the pointer. Not the keyboard: its keys answer the pointer one by one. Nor the chessboard, which would leave its pieces behind. */
   const small = (name: string) => {
-    if (name === 'keyboard') return false;
+    if (name === 'keyboard' || (GROUPS[name] ?? name) === 'chess') return false;
     const { model, voxel } = mesh(name).userData.placed as Placed;
     return Math.max(model.sx, model.sy, model.sz) * voxel <= SMALL;
   };
@@ -520,6 +523,21 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     document.getElementById('night')?.click();
   };
 
+  /* On the sill White mates in two, again and again: the queen gives itself up, a rook takes it, the other rook mates. */
+  const men = moves.map(({ from }) => `chess-${from}`);
+  /** Put the game where it stands once `played` of its moves are made. A piece that has moved is taken by the move after it. */
+  const game = (played: number) => {
+    moves.forEach(({ from, to }, i) => {
+      const [[f0, r0], [f1, r1]] = [square(from), square(to)];
+      pose(men[i], 0, i < played ? [(f1 - f0) * CHESS.step, 0, (r0 - r1) * CHESS.step] : [0, 0, 0]);
+      mesh(men[i]).visible = i + 1 >= played;
+    });
+    app.invalidate(true);
+  };
+  /** How many moves are made at each beat of the room at rest: the position, the three moves, and the mate left to be seen. */
+  const GAME = [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3];
+  const match = launch('chess', () => sing('tick'));
+
   /** The LED matrix shows its next picture. */
   let shown = 0;
   const advance = () => {
@@ -586,6 +604,8 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     column: launch('column'),
     container: launch('container'),
     telephone: launch('telephone', ring),
+    chess: match,
+    ...Object.fromEntries(men.map((name) => [name, match])),
     'led-matrix': () => {
       sing('tick');
       advance();
@@ -620,6 +640,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const idle = window.setInterval(() => {
     if (new Date().getMinutes() !== told) tell(); // the clock keeps time whatever else is still
     if (!quiet() && ++beat % 5 === 0) advance();
+    if (!quiet() && GAME[beat % GAME.length] !== GAME[(beat - 1) % GAME.length]) game(GAME[beat % GAME.length]);
     if (quiet() || busy.has('homelab') || Math.random() < 0.4) return;
     const light = drives[Math.floor(Math.random() * drives.length)];
     room.setGlow('homelab', 0.08, light);
