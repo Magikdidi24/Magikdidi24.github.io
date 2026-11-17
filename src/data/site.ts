@@ -99,19 +99,21 @@ export const education = [
   },
 ] as const;
 
-/* The baccalauréat, as its diploma reads. Shown in the 3D room only.
-   TODO(Samuel): the lycée, which the diploma does not name. On 2026-11-17 he
-   answered "Lycée Camille Guérin": that is where he did his classes
-   préparatoires, in Poitiers, while this diploma comes from the académie de
-   Nantes. To confirm with him before it is written here. */
+/* The baccalauréat, as its diploma reads, and the town he sat it in, which he
+   gave. Shown in the 3D room only. The lycée is not named: he did not give it. */
 export const baccalaureate = {
   title: 'Baccalauréat général',
   session: '2022',
+  place: 'Le Mans',
   academy: 'Académie de Nantes',
   specialities: ['Mathematics', 'Digital and computer sciences (NSI)'],
   honours: 'Mention Bien',
   section: 'European section (English)',
 } as const;
+
+/* What the classes préparatoires gave him: no diploma, the two years
+   validated. Said in the 3D room, where their frame hangs among the diplomas. */
+export const preparatory = { outcome: 'Both years completed: the classes préparatoires award no diploma.' } as const;
 
 export const languages = [
   { name: 'French', level: 'Native' },

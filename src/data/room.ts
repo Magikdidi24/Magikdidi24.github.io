@@ -5,7 +5,7 @@
 */
 import { flight } from './pegboard.ts';
 import type { Framing } from '../room/view.ts';
-import { baccalaureate, education, languages, person } from './site.ts';
+import { baccalaureate, education, languages, person, preparatory } from './site.ts';
 
 const [firstName] = person.name.split(' ');
 const school = (id: (typeof education)[number]['id']) => education.find((entry) => entry.id === id)!;
@@ -45,12 +45,12 @@ export const diplomas = [
   {
     frame: 'frame-bac',
     title: baccalaureate.title,
-    org: baccalaureate.academy,
+    org: `${baccalaureate.place}, ${baccalaureate.academy}`,
     period: baccalaureate.session,
     note: `Specialities: ${baccalaureate.specialities.join(', ')}. ${baccalaureate.honours}. ${baccalaureate.section}.`,
     soon: null,
   },
-  { frame: 'frame-prepa', title: cpge.title, org: `${cpge.org}, ${cpge.place}`, period: cpge.period.label, note: cpge.summary, soon: null },
+  { frame: 'frame-prepa', title: cpge.title, org: `${cpge.org}, ${cpge.place}`, period: cpge.period.label, note: `${cpge.summary} ${preparatory.outcome}`, soon: null },
   { frame: 'frame-epita', title: epita.title, org: epita.org, period: epita.period.label, note: epita.summary, soon: `Coming soon, ${epita.period.end}` },
   { frame: 'frame-toeic', title: toeic.title, org: null, period: null, note: toeic.line ?? null, soon: null },
 ] as const;
