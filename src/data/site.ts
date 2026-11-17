@@ -17,10 +17,9 @@ export const person = {
   intro: 'AI engineering student at EPITA, on exchange in Tokyo.',
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',
   availability: {
-    sentence: 'Looking for a 6-month AI engineering internship in Tokyo from March 2027.',
+    sentence: 'Looking for a 6-month AI engineering internship from March 2027.',
     start: 'March 2027',
     duration: '6 months',
-    city: 'Tokyo',
     areas: ['computer vision', 'multimodal or generative models', 'ML tooling'],
   },
 } as const;

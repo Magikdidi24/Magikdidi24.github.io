@@ -39,7 +39,7 @@ h1 {{ font-size: 78px; line-height: 0.98; letter-spacing: -0.035em; font-weight:
 <div class="text">
   <h1>Samuel<br>Berthelot</h1>
   <p class="lede">AI engineering student at EPITA, on exchange in Tokyo.</p>
-  <p class="avail">Looking for a 6-month AI engineering internship in Tokyo from March 2027.</p>
+  <p class="avail">Looking for a 6-month AI engineering internship from March 2027.</p>
   <p class="url">magikdidi24.github.io</p>
 </div>
 <div class="fig"><img src="data:image/png;base64,{img64}" alt=""><div class="line"></div>
