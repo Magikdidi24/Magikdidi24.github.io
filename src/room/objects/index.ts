@@ -12,6 +12,7 @@ import { figurines } from './figurines.ts';
 import { rug, sakura } from './floor.ts';
 import { library, volume } from './library.ts';
 import { LOWER_SHELF, shelfThings } from './shelf.ts';
+import { statues } from './statues.ts';
 import { cabinet, cabinetDoors, consoles, cvSheet, homelab, pc, printer } from './tech.ts';
 import { calendar, clipboard, eraser, formulas, frames, marker, MARKERS, neon, passes, pegboard, shelf, whiteboard } from './walls.ts';
 import { beacon, tableNumber, wardrobe, wardrobeDoors } from './wardrobe.ts';
@@ -53,8 +54,9 @@ export const objects = (): RoomObject[] => [
   formulas(),
   shelf('shelf', [LOWER_SHELF.x, LOWER_SHELF.y, 0], LOWER_SHELF.length),
   ...shelfThings(),
-  shelf('shelf-top', [3.45, 1.9, 0], 20, 6, 3),
+  shelf('shelf-top', [3.45, 1.9, 0], 20, 7, 4),
   figurines(),
+  ...statues(),
   neon(),
   whiteboard(),
   eraser(),

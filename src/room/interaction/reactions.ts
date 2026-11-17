@@ -460,6 +460,9 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     chair: spin('chair'),
     dog: bark,
     figurines: hop('figurines'),
+    gon: hop('gon', 1, 0.025),
+    ichigo: hop('ichigo', 1, 0.025),
+    gundam: hop('gundam', 2, 0.025),
     sakura: shed,
     monitor: visit('monitor', () => undefined), // the camera goes into it: see `clear` for the chair
     'monitor-side': crack('monitor-side', codeScreen, 8),
