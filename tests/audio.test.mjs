@@ -6,7 +6,7 @@ import { EFFECTS, JINGLES, lasts } from '../src/room/audio.ts';
 import { CONSOLES } from '../src/room/objects/tech.ts';
 
 test('every console that can be clicked has a sound of its own', () => {
-  assert.equal(CONSOLES.length, 6);
+  assert.equal(CONSOLES.length, 7);
   for (const name of CONSOLES) assert.ok(JINGLES[name]?.length > 0, `${name} has no sound`);
   const written = CONSOLES.map((name) => JSON.stringify(JINGLES[name]));
   assert.equal(new Set(written).size, CONSOLES.length, 'two consoles play the same notes');

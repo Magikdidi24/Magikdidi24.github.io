@@ -1,5 +1,6 @@
 // The stops of the visit of the 3D room, and what the room says that must be
 // true of the site. Run with `npm test`.
+import { CONSOLES } from '../src/room/objects/tech.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { projects, smallerProjects } from '../src/data/projects.ts';
@@ -73,3 +74,12 @@ test('neither Go nor LaTeX: not among his skills, nor in what a project or a cou
   for (const each of said) assert.doesNotMatch(each, /\bGo\b|LaTeX/);
 });
 
+
+test('the consoles of the cabinet: each stands in the room and has its name under the pointer, the Xbox 360 among them', () => {
+  const standing = new Set(objects().filter(({ decor }) => !decor).map(({ name }) => name));
+  for (const name of CONSOLES) {
+    assert.ok(standing.has(name), `${name} is not an object of the room`);
+    assert.ok(labels[name], `${name} has no name`);
+  }
+  assert.ok(CONSOLES.some((name) => labels[name] === 'Xbox 360'));
+});

@@ -33,6 +33,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { bac, milestone, papers, tableNumber, toeic, written } from '../data/room.ts';
 import { BOARD } from '../data/whiteboard.ts';
 import { DEFAULT_VIEW } from './camera.ts';
+import { BOOK_COVER } from './objects/bed.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
 import { objects, type RoomObject } from './objects/index.ts';
@@ -48,6 +49,7 @@ import { hexToLinear } from './voxel/builder.ts';
 import { mergedGeometry, placement, voxelGeometry } from './voxel/geometry.ts';
 import {
   boardingPass,
+  bookCover,
   calendarPage,
   certificate,
   CITY,
@@ -321,7 +323,8 @@ export async function createScene(progress?: (share: number) => void): Promise<R
   for (const spot of PASSES) picture(spot, pass, 'passes', false);
   picture(FORMULAS, formulaSheet(), 'formulas', false);
   picture(TABLE_NUMBER, tableCard(tableNumber), 'table-number', false);
-  /* What the stops of the visit hang in the room: the tags and the label of the pegboard, the card of the meteorite, the sheet of the clipboard, the page of the calendar. */
+  /* What the stops of the visit hang in the room: the cover of the book, the tags and the label of the pegboard, the card of the meteorite, the sheet of the clipboard, the page of the calendar. */
+  picture(BOOK_COVER, bookCover(written.book), 'book', false, BOOK_COVER.turn);
   [written.merged.word, ...written.merged.numbers].forEach((word, i) => picture(TAGS[i], tag(word), 'badges', false));
   picture(BONSAI_LABEL, label(written.bonsai), 'bonsai', false);
   picture(SPECIMEN_CARD, specimenCard(written.specimen), 'meteorite', false);

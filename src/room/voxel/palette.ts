@@ -1,5 +1,6 @@
 /*
-  The palette of the room: 30 colours validated with Samuel in phase 0, and two pinks.
+  The palette of the room: 30 colours validated with Samuel in phase 0, two pinks,
+  and the three blues of the cover of a book.
   These are the colours of the materials. Voxels and canvas textures use
   nothing else; lighting makes the shadow and highlight tones.
   Order matters: a colour's position is its index in voxel data.
@@ -44,6 +45,10 @@ export const PALETTE = {
   apricot: '#e4b885', // the dog's ears and tail, skin of the figurines
   sky: '#8ed0f5', // day sky
   night: '#1c1747', // night sky
+  /* The cover of the book on the nightstand */
+  cornflower: '#6f8ee6', // its blue
+  navy: '#273a96', // its tiger
+  periwinkle: '#8aa6f0', // the lines of code in its blue
 } as const;
 
 export type Swatch = keyof typeof PALETTE;

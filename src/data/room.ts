@@ -142,6 +142,8 @@ export const written = {
   contest: { title: plain(experience.find(({ id }) => id === 'prologin')!.org), stamp: 'REVIEWED' },
   page: plain(milestone.title),
   uptime: 'UPTIME',
+  /* The cover of the book on the nightstand, as it is printed: its title, a line each, and its author. */
+  book: { title: ['modern', 'compiler', 'implementation', 'in ML'], author: 'andrew w. appel' },
 };
 
 /** What is printed on the table number that stands on the wardrobe: two lines, a number, a name. */
@@ -201,6 +203,7 @@ export const labels: Record<string, string> = {
   'console-grey': 'NES',
   'console-black': 'PlayStation',
   'console-cube': 'GameCube',
+  'console-ring': 'Xbox 360',
   'console-white': 'Wii',
   handheld: 'Game Boy',
   'handheld-wide': 'Nintendo DS',

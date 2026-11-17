@@ -116,19 +116,31 @@ export function lamp(): RoomObject {
   return { name: 'lamp', voxel: 0.025, at: [NIGHTSTAND.x + 0.03, NIGHTSTAND.top, NIGHTSTAND.z + 0.04], model: m };
 }
 
+/** Where the book stands on the nightstand, and how far it is turned: its corner in metres, and degrees. */
+const BOOK = { x: NIGHTSTAND.x + 0.01, z: NIGHTSTAND.z + 0.28, turn: 8 };
+
 /**
  * The book being read, stood in front of the lamp with a ribbon between its
- * pages: a thick green hardback about compilers, a tiger on its cover.
- * 20 x 25 cm. It stands at the bed's side of the nightstand, its cover to
- * the room: lying flat, the end of the desk hid it from the opening view.
+ * pages: his book about compilers, a thick blue hardback whose cover is a
+ * picture (BOOK_COVER). 20 x 25 cm. It stands at the bed's side of the
+ * nightstand, its cover to the room: lying flat, the end of the desk hid it
+ * from the opening view.
  */
 export function book(): RoomObject {
   const m = new VoxelModel(8, 11, 3);
-  m.box(0, 0, 0, 8, 10, 3, C.moss); // covers and spine
+  m.box(0, 0, 0, 8, 10, 3, C.cornflower); // covers and spine
   m.box(1, 1, 1, 7, 9, 1, C.paper); // pages, at the top and on the open side
-  m.box(2, 7, 2, 4, 1, 1, C.paper); // title
-  m.box(2, 2, 2, 4, 4, 1, C.amber); // the tiger
-  for (const [x, y] of [[2, 4], [4, 4], [3, 2], [5, 2]]) m.set(x, y, 2, C.ink); // its stripes
   m.box(5, 9, 1, 1, 2, 1, C.red); // bookmark
-  return { name: 'book', voxel: 0.025, at: [NIGHTSTAND.x + 0.01, NIGHTSTAND.top, NIGHTSTAND.z + 0.28], model: m, turn: 8 };
+  return { name: 'book', voxel: 0.025, at: [BOOK.x, NIGHTSTAND.top, BOOK.z], model: m, turn: BOOK.turn };
 }
+
+/** The front cover, a picture laid 2 mm in front of the book: its centre and its size in metres, and its turn in radians. */
+const turned = (BOOK.turn * Math.PI) / 180;
+export const BOOK_COVER = {
+  x: BOOK.x + 0.1 + 0.0395 * Math.sin(turned),
+  y: NIGHTSTAND.top + 0.125,
+  z: BOOK.z + 0.0375 + 0.0395 * Math.cos(turned),
+  width: 0.2,
+  height: 0.25,
+  turn: turned,
+};

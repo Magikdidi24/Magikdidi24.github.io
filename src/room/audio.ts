@@ -47,6 +47,14 @@ export const JINGLES: Record<string, Note[]> = {
   ],
   /* The Game Boy: three quick notes, the last one left to ring. */
   handheld: [...run(0, 0.07, 0.06, [783.99, 1046.5], 'square', 0.1), note(0.14, 0.55, 1318.51, 'square', 0.1), note(0.14, 0.55, 2637.02, 'sine', 0.05)],
+  /* The Xbox 360: a low swell that opens into a wide chord, and a breath of air above it. */
+  'console-ring': [
+    note(0, 1.1, [98, 196], 'sine', 0.35),
+    note(0.35, 1.4, 293.66, 'triangle', 0.13),
+    note(0.55, 1.2, 440, 'triangle', 0.12),
+    note(0.75, 1, 587.33, 'sine', 0.12),
+    note(1, 0.8, [880, 1760], 'sine', 0.06),
+  ],
   /* The Wii: a breath that rises, then two soft chimes a fifth apart. */
   'console-white': [
     note(0, 0.5, [300, 900], 'sine', 0.18),

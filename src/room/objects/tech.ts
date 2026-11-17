@@ -62,8 +62,8 @@ function door(name: string, left: boolean): RoomObject {
 
 export const cabinetDoors = (): RoomObject[] => [door('cabinet-door-left', true), door('cabinet-door-right', false)];
 
-/** The consoles of the heap in the cabinet, by the name of their object: the NES, the PlayStation, the GameCube, the Game Boy, the Wii and the Nintendo DS. Each one is switched on by a click; the rest of the heap is decor. */
-export const CONSOLES = ['console-grey', 'console-black', 'console-cube', 'handheld', 'console-white', 'handheld-wide'];
+/** The consoles of the heap in the cabinet, by the name of their object: the NES, the PlayStation, the GameCube, the Game Boy, the Xbox 360, the Wii and the Nintendo DS. Each one is switched on by a click; the rest of the heap is decor. */
+export const CONSOLES = ['console-grey', 'console-black', 'console-cube', 'handheld', 'console-ring', 'console-white', 'handheld-wide'];
 
 /** One thing of the heap in the cabinet: built in voxels of 1.25 cm, set down at (x, y, z) metres from the corner of the cabinet, and turned. */
 const heaped = (name: string, m: VoxelModel, x: number, y: number, z: number, turn: number): RoomObject => ({
@@ -88,8 +88,8 @@ function brick(shell: number, buttons: number): VoxelModel {
 
 /**
  * Old game consoles and controllers, thrown in rather than put away: a NES,
- * a PlayStation, a GameCube, a Wii, a Game Boy and a Nintendo DS, each
- * reduced to its shape and its colours, without its maker's mark, and what
+ * a PlayStation, a GameCube, an Xbox 360, a Wii, a Game Boy and a Nintendo
+ * DS, each reduced to its shape and its colours, without its maker's mark, and what
  * goes with them. Each console has a light, or a screen, that comes on when
  * it is switched on. Their names under the pointer are in src/data/room.ts.
  */
@@ -120,6 +120,14 @@ export function consoles(): RoomObject[] {
   handheld.box(1, 2, 1, 6, 1, 5, C.taupe).box(2, 2, 2, 4, 1, 3, C.lime | EMISSIVE);
   handheld.box(1, 2, 9, 3, 1, 1, C.ink).box(2, 2, 8, 1, 1, 3, C.ink);
   handheld.set(5, 2, 9, C.rust).set(6, 2, 8, C.rust);
+
+  /* The Xbox 360, lying down: white and long, pinched in the middle of its long faces, grey at both ends; a tray for the disc, and a ring of light around its button. */
+  const ring = new VoxelModel(25, 7, 20);
+  ring.box(0, 0, 0, 25, 7, 20, C.paper).box(0, 0, 0, 3, 7, 20, C.silver).box(22, 0, 0, 3, 7, 20, C.silver);
+  ring.box(5, 6, 0, 15, 1, 20, 0); // the pinch
+  ring.box(4, 3, 19, 11, 1, 1, C.silver); // the tray
+  ring.box(17, 1, 19, 3, 3, 1, C.lime | EMISSIVE).set(18, 2, 19, C.silver); // the ring of light, and the button in it
+  for (let z = 2; z < 18; z += 2) ring.set(0, 3, z, C.steel).set(24, 3, z, C.steel); // vents
 
   /* The Wii: white, with a slot across its front and a blue light. */
   const white = new VoxelModel(20, 5, 16);
@@ -160,9 +168,10 @@ export function consoles(): RoomObject[] {
     heaped('console-cube', cube, 0.5, floor, 0.22, 24),
     heaped('controller-cube', brick(C.stone, C.red), 0.52, on(13), 0.28, -35),
     heaped('controller-floor', brick(C.graphite, C.stone), 0.66, floor, 0.36, 38), // clear of the door when it is shut
-    heaped('console-white', white, 0.8, floor, 0.2, 12),
-    heaped('controller-right', brick(C.paper, C.denim), 0.95, on(5), 0.2, -48),
-    heaped('handheld-wide', wide, 0.8, on(5), 0.26, -14), // on the white one, open towards the doors
+    heaped('console-ring', ring, 0.82, floor, 0.17, 4),
+    heaped('console-white', white, 0.84, on(7), 0.2, 12), // across the pinch of the one under it
+    heaped('controller-right', brick(C.paper, C.denim), 0.99, on(12), 0.2, -48),
+    heaped('handheld-wide', wide, 0.84, on(12), 0.26, -14), // on the white one, open towards the doors
   ];
 }
 
