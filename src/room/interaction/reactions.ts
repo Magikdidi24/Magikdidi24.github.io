@@ -2,8 +2,9 @@
   What the things of the room do under the pointer. One that answers a click
   is outlined when the pointer is over it, named beside the pointer, and
   lifted a little if it is small. Clicked, the chair spins, a screen cracks,
-  the sakura sheds petals, the printer drops a CV, doors swing open, the
-  brush falls off the whiteboard, the warning light flashes, the calendar
+  the sakura sheds petals, the printer drops a CV, doors swing open, an old
+  console plays the sound it makes as it starts, the brush falls off the
+  whiteboard, the warning light flashes, the calendar
   opens... and the objects that are stops of the visit open their panel: for
   the main screen, the chair rolls out of the way of the camera. A
   click is a pointer released where it was pressed; a drag turns the camera
@@ -14,11 +15,13 @@ import { manga } from '../../data/manga.ts';
 import { enlarged, labels, says, stops } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
+import { play as sing, sound } from '../audio.ts';
 import type { RoomApp } from '../main.ts';
 import { ON_NIGHTSTAND } from '../objects/bed.ts';
 import { SAKURA_CROWN, SAKURA_FOOT } from '../objects/floor.ts';
 import { pulled, seriesOn } from '../objects/library.ts';
 import { MARKERS } from '../objects/walls.ts';
+import { CONSOLES } from '../objects/tech.ts';
 import { DOORS } from '../objects/wardrobe.ts';
 import { COLOR_ONLY } from '../render/outline.ts';
 import { ROOM, type Switch } from '../scene.ts';
@@ -35,7 +38,7 @@ const CLICK_SLOP = 5;
 const FALLEN = 10;
 const DROPPED = 5;
 const PETALS = 28;
-/** How bright a neon tube that has gone out still is. */
+/** How bright a neon tube that has gone out still is, and the light of a console that is off. */
 const OUT = 0.12;
 /** How far a small object rises under the pointer, and up to which size an object counts as small. Metres. */
 const LIFT = 0.025;
@@ -379,6 +382,22 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     });
   };
 
+  /**
+   * A console is switched on: it gives a start, its light comes on for as
+   * long as its sound lasts, and it plays that sound. With the sound of the
+   * page off, it says so instead.
+   */
+  const boot = (name: string) => async () => {
+    if (!sound.on) say(name, says.muted);
+    const seconds = sing(name);
+    room.setGlow(name, 1);
+    await hop(name, 1, 0.025)();
+    await wait(Math.max(0, seconds - 0.3));
+    room.setGlow(name, OUT);
+    app.invalidate();
+  };
+  for (const name of CONSOLES) room.setGlow(name, OUT);
+
   /** The dog jumps up twice, and barks. */
   const bark = () => {
     say('dog', says.dog);
@@ -481,6 +500,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     printer: print,
     cv: download,
     cabinet: doors('cabinet'),
+    ...Object.fromEntries(CONSOLES.map((name) => [name, boot(name)])),
     wardrobe: doors('wardrobe'),
     ...Object.fromEntries(Object.keys(DOORS).map((door) => [door, () => swing(door)])),
     'table-number': hop('table-number', 2, 0.025),

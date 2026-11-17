@@ -42,6 +42,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
         <!-- Shown once the room is drawn: see the script below. -->
         <button type="button" id="turn" aria-pressed="false" hidden>Turn around</button>
         <button type="button" id="night" aria-pressed="false" hidden>Night</button>
+        <button type="button" id="sound" aria-pressed="false" hidden>Sound</button>
         <button type="button" id="smooth" aria-pressed="false" hidden>Smooth</button>
         <a href="/classic/">Text version</a>
       </div>
@@ -74,6 +75,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
 <script>
   import { stops } from '../data/room.ts';
+  import { sound } from '../room/audio.ts';
   import { setupDemos } from '../room/ui/demos/index.ts';
   import { setupPanels } from '../room/ui/panels.ts';
   import { current, onRoute } from '../room/ui/route.ts';
@@ -104,37 +106,51 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
   const toTextVersion = () => location.replace(textVersion + location.hash);
 
-  /* Day or night is the visitor's choice once made. Storage can be closed to the page: the choice is then for this visit only. */
-  const CHOICE = 'room-night';
-  const chosen = (): string | null => {
+  /* Day or night, and sound or none, are the visitor's choices once made. Storage can be closed to the page: a choice is then for this visit only. */
+  const NIGHT = 'room-night';
+  const SOUND = 'room-sound';
+  const chosen = (choice: string): string | null => {
     try {
-      return localStorage.getItem(CHOICE);
+      return localStorage.getItem(choice);
     } catch {
       return null;
     }
   };
+  const choose = (choice: string, on: boolean) => {
+    try {
+      localStorage.setItem(choice, on ? '1' : '0');
+    } catch {
+      /* Not remembered, then. */
+    }
+  };
 
-  /** Hand the room to the page: its three buttons, and the camera that follows the open panel. */
+  /** Hand the room to the page: its four buttons, and the camera that follows the open panel. */
   function wire(app: import('../room/main.ts').RoomApp): void {
     const button = (id: string) => root.querySelector(`#${id}`) as HTMLButtonElement;
-    const [turn, night, smooth] = [button('turn'), button('night'), button('smooth')];
+    const [turn, night, loud, smooth] = [button('turn'), button('night'), button('sound'), button('smooth')];
 
     /* The panels are ink on paper by day and paper on ink by night, like the rest of the site. */
     const lit = (dark: boolean) => {
       night.setAttribute('aria-pressed', String(dark));
       document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     };
-    const saved = chosen();
+    const saved = chosen(NIGHT);
     if (saved) app.setNight(saved === '1');
     lit(app.room.night);
     night.onclick = () => {
       app.setNight(!app.room.night);
       lit(app.room.night);
-      try {
-        localStorage.setItem(CHOICE, app.room.night ? '1' : '0');
-      } catch {
-        /* Not remembered, then. */
-      }
+      choose(NIGHT, app.room.night);
+    };
+    /* The sounds of the room are off until asked for. */
+    const heard = (on: boolean) => {
+      sound.on = on;
+      loud.setAttribute('aria-pressed', String(on));
+    };
+    heard(chosen(SOUND) === '1');
+    loud.onclick = () => {
+      heard(!sound.on);
+      choose(SOUND, sound.on);
     };
     turn.onclick = () => void app.turn().then(() => turn.setAttribute('aria-pressed', String(app.rig.behind)));
     smooth.onclick = () => {
@@ -142,7 +158,7 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
       smooth.setAttribute('aria-pressed', String(on));
       app.setSmooth(on);
     };
-    turn.hidden = night.hidden = smooth.hidden = false;
+    turn.hidden = night.hidden = loud.hidden = smooth.hidden = false;
 
     /* The camera goes to the stop whose panel is open, clear of that panel, and comes back when it closes. */
     const frame = (route = current()) => {

@@ -69,7 +69,7 @@ export const birthday = { ...person.birthday, label: `${firstName}'s birthday` }
 export const tableNumber = { invite: ['INSTALLEZ', 'VOUS'], number: '14', brand: 'KFC' };
 
 /** What is said in a bubble over an object when it is clicked. */
-export const says = { dog: 'Woof!', nightstand: 'Locked' } as const;
+export const says = { dog: 'Woof!', nightstand: 'Locked', muted: 'Sound is off' } as const;
 
 /**
  * What a click shows large: the words that say what each picture is, and
@@ -113,6 +113,12 @@ export const labels: Record<string, string> = {
   cabinet: 'Cabinet',
   'cabinet-door-left': 'Cabinet',
   'cabinet-door-right': 'Cabinet',
+  'console-grey': 'Cartridge console',
+  'console-black': 'Disc console',
+  'console-cube': 'Cube console',
+  'console-white': 'White console',
+  handheld: 'Handheld',
+  'handheld-wide': 'Wide handheld',
   wardrobe: 'Wardrobe',
   'wardrobe-door-north': 'Wardrobe',
   'wardrobe-door-south': 'Wardrobe',
@@ -160,7 +166,7 @@ export const demos = {
   },
   /* The small C programs: each runs as it is, main() and loop included. */
   program: {
-    hint: 'This is the C program itself, running in the page: its main() and its loop, unchanged. Click its picture so that it hears the keyboard.',
+    hint: 'This is the C program itself, running in the page: its main() and its loop, unchanged. It reads your keyboard, and the buttons under its picture.',
     picture: 'The window of the program',
     run: 'Run the program',
     again: 'Run it again',
@@ -199,12 +205,15 @@ export const demos = {
  * The small C programs that run in a window of the desktop, by the name of
  * their repository in src/data/projects.ts: the file of the program in
  * public/room/demos, and the keys it reads, for the buttons under its
- * picture. The id of its window comes from the name of the repository.
+ * picture. `cell` is the side of a cell of its grid, in its own pixels, when
+ * it reads the mouse: the page then clicks in every cell the pointer goes
+ * through with its button down, where the program alone wants a click for
+ * each. The id of its window comes from the name of the repository.
  */
-export const programs: { repo: string; file: string; keys: string[] }[] = [
+export const programs: { repo: string; file: string; keys: string[]; cell?: number }[] = [
   { repo: 'Snake_in_C', file: 'snake', keys: ['ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight'] },
   { repo: 'Pong_in_C', file: 'pong', keys: ['z', 's', 'ArrowUp', 'ArrowDown'] },
-  { repo: 'Game_of_life_in_C', file: 'life', keys: [' '] },
+  { repo: 'Game_of_life_in_C', file: 'life', keys: [' '], cell: 20 },
   { repo: '3Dcube_in_C', file: 'cube', keys: [] },
   { repo: 'Bouncy_in_C', file: 'ball', keys: [' '] },
 ];

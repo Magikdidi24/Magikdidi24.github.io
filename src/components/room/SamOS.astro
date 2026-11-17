@@ -1,10 +1,10 @@
 ---
 /*
   The panel of the main screen: a desktop that covers the room, with an icon
-  per project. An icon opens a window: a project as /projects/ shows it, the
-  list of smaller projects, or a terminal. Two projects can be played in
-  their window, and five small programs have a window of their own: the
-  program itself runs there (src/room/ui/demos). Icons are links to the id of what
+  per project. An icon opens a window: a project as /projects/ shows it, a
+  small program, or a terminal. Two projects can be played in their window,
+  and five small programs have a window of their own: the program itself
+  runs there (src/room/ui/demos). Icons are links to the id of what
   they open, so each window has its own address (src/room/ui/route.ts); the
   window of a project carries the id of that project, so that a page opened
   straight on it shows the window from its top. The
@@ -15,7 +15,6 @@ import ProjectEntry from '../projects/ProjectEntry.astro';
 import Chess from './demos/Chess.astro';
 import Fluid from './demos/Fluid.astro';
 import Program from './demos/Program.astro';
-import SmallerProjects from '../projects/SmallerProjects.astro';
 import { projects, smallerProjects } from '../../data/projects';
 import { desktop, programs, stops, terminal, windowOf } from '../../data/room';
 import { person } from '../../data/site';
@@ -25,14 +24,13 @@ const stop = stops.find(({ id }) => id === 'projects')!;
 const tints: Swatch[] = ['cyan', 'magenta', 'amber', 'lime', 'violet', 'red'];
 const tint = (i: number) => `--tint: ${PALETTE[tints[i % tints.length]]}`;
 /* The small programs that run in a window of their own, each with what the site says of it. */
-const playable = programs.flatMap(({ repo, file, keys }) => {
+const playable = programs.flatMap(({ repo, file, keys, cell }) => {
   const item = smallerProjects.find(({ repoName }) => repoName === repo);
-  return item ? [{ id: windowOf(repo), item, file, keys }] : [];
+  return item ? [{ id: windowOf(repo), item, file, keys, cell }] : [];
 });
 const icons = [
   ...projects.map(({ slug, name }) => ({ id: slug, name })),
   ...playable.map(({ id, item }) => ({ id, name: item.name })),
-  { id: 'smaller-projects', name: 'Smaller projects' },
   { id: 'terminal', name: 'Terminal' },
 ];
 ---
@@ -69,27 +67,17 @@ const icons = [
     </div>
   ))}
 
-  {playable.map(({ id, item, file, keys }) => (
-    <div class="window program" id={id} data-item={id} data-name={item.name} tabindex="-1" hidden>
+  {playable.map(({ id, item, file, keys, cell }) => (
+    <div class="window" id={id} data-item={id} data-name={item.name} tabindex="-1" hidden>
       <p class="title">
         <span>{item.repoName}</span>{' '}
         <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {item.name}</span></a>
       </p>
       <div class="body">
-        <Program item={item} file={file} keys={keys} />
+        <Program item={item} file={file} keys={keys} cell={cell} />
       </div>
     </div>
   ))}
-
-  <div class="window" data-item="smaller-projects" tabindex="-1" hidden>
-    <p class="title">
-      <span>smaller-projects</span>{' '}
-      <a href={`#${stop.id}`}>Close<span class="visually-hidden">: smaller projects</span></a>
-    </p>
-    <div class="body">
-      <SmallerProjects items={smallerProjects} />
-    </div>
-  </div>
 
   <div class="window" data-item="terminal" id="terminal" tabindex="-1" hidden>
     <p class="title">
@@ -235,13 +223,9 @@ const icons = [
     line-height: var(--leading-body);
   }
 
-  /* The first project of a window needs no rule above it, and the list of smaller ones no gap. */
+  /* The first project of a window needs no rule above it. */
   .body :global(.project) {
     border-top: 0;
-  }
-
-  .body :global(.smaller) {
-    margin-top: var(--space-6);
   }
 
   /* What can be played comes first, set apart from what is said of the project. */
@@ -295,7 +279,7 @@ const icons = [
     .icons,
     .system,
     [data-item='terminal'],
-    .body :global(.demo) {
+    .body :global(.demo:not([data-demo='program'])) {
       display: none;
     }
 
@@ -306,10 +290,5 @@ const icons = [
       margin-bottom: var(--space-6);
     }
 
-    /* A program cannot run: its window would be empty. The list of smaller projects still says what it is. */
-    .window.program,
-    .window.program[hidden] {
-      display: none;
-    }
   }
 </style>

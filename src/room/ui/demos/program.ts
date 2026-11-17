@@ -7,9 +7,10 @@
 */
 import { createRunner, KEYS, type Host, type Runner } from './runner.ts';
 
-/** How many lines of its terminal show, and how often a key repeats while its button is held, in milliseconds. */
+/** How many lines of its terminal show. */
 const LINES = 4;
-const REPEAT = 60;
+/** A key held on its button repeats as on a keyboard: after a pause, then fast. Milliseconds. */
+const REPEAT = { after: 400, every: 60 };
 
 const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
 /** The code SDL gives a key of the browser, if the programs can read it. */
@@ -85,26 +86,45 @@ export async function mount(root: HTMLElement): Promise<() => void> {
     runner.start();
   });
 
-  canvas.addEventListener('keydown', (event) => {
+  /* The keyboard, wherever the focus is in its window, unless it is on a button or a link: those keep their keys. */
+  (root.closest<HTMLElement>('.window') ?? root).addEventListener('keydown', (event) => {
     const key = code(event.key);
-    if (key === null || !runner || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (key === null || !runner || event.ctrlKey || event.metaKey || event.altKey || (event.target as Element).closest('button, a')) return;
     runner.key(key);
     event.preventDefault(); // an arrow or the space bar would scroll the window
   });
-  canvas.addEventListener('pointerdown', (event) => {
+
+  /* The mouse. A program that reads it wants a click for each cell: with the button held, the page clicks in every cell the pointer enters. */
+  const side = Number(root.dataset.cell) || 0;
+  let last = '';
+  const press = (event: PointerEvent) => {
     const box = canvas.getBoundingClientRect();
-    runner?.click(Math.floor(((event.clientX - box.left) / box.width) * canvas.width), Math.floor(((event.clientY - box.top) / box.height) * canvas.height));
+    const [x, y] = [Math.floor(((event.clientX - box.left) / box.width) * canvas.width), Math.floor(((event.clientY - box.top) / box.height) * canvas.height)];
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
+    const cell = side ? `${Math.floor(x / side)},${Math.floor(y / side)}` : '';
+    if (event.type === 'pointermove' && (!side || !(event.buttons & 1) || cell === last)) return;
+    last = cell;
+    runner?.click(x, y);
+  };
+  canvas.addEventListener('pointerdown', (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    press(event);
   });
+  canvas.addEventListener('pointermove', press);
 
   /* A button stands for a key: held down it repeats, as a key does. */
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-key]')) {
     const key = code(button.dataset.key!)!;
     let held = 0;
-    const release = () => clearInterval(held);
+    const release = () => clearTimeout(held);
+    const again = () => {
+      runner?.key(key);
+      held = window.setTimeout(again, REPEAT.every);
+    };
     button.addEventListener('pointerdown', () => {
       release();
       runner?.key(key);
-      held = window.setInterval(() => runner?.key(key), REPEAT);
+      held = window.setTimeout(again, REPEAT.after);
     });
     for (const end of ['pointerup', 'pointerleave', 'pointercancel']) button.addEventListener(end, release);
     button.addEventListener('click', (event) => event.detail === 0 && runner?.key(key)); // pressed from the keyboard

@@ -100,7 +100,10 @@ export const education = [
 ] as const;
 
 /* The baccalauréat, as its diploma reads. Shown in the 3D room only.
-   TODO(Samuel): the lycée, which the diploma does not name. */
+   TODO(Samuel): the lycée, which the diploma does not name. On 2026-11-17 he
+   answered "Lycée Camille Guérin": that is where he did his classes
+   préparatoires, in Poitiers, while this diploma comes from the académie de
+   Nantes. To confirm with him before it is written here. */
 export const baccalaureate = {
   title: 'Baccalauréat général',
   session: '2022',

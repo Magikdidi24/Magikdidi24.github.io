@@ -10,16 +10,17 @@ import { demos } from '../../../data/room';
 
 export interface Props {
   item: SmallProject;
-  /** The name of its file in public/room/demos, and the keys it reads. */
+  /** The name of its file in public/room/demos, the keys it reads, and the side of a cell of its grid if it reads the mouse. */
   file: string;
   keys: string[];
+  cell?: number;
 }
 
-const { item, file, keys } = Astro.props;
+const { item, file, keys, cell } = Astro.props;
 const words = demos.program;
 const id = `${file}-program`;
 ---
-<section class="demo" data-demo="program" data-wasm={`/room/demos/${file}.wasm`} data-words={JSON.stringify({ ...words, loading: demos.loading, failed: demos.failed })} aria-labelledby={id}>
+<section class="demo" data-demo="program" data-wasm={`/room/demos/${file}.wasm`} data-cell={cell} data-words={JSON.stringify({ ...words, loading: demos.loading, failed: demos.failed })} aria-labelledby={id}>
   <h2 id={id}>{item.name}</h2>
   <p class="meta">{[...item.stack, item.year].join(', ')}</p>
   <p>{item.summary}</p>
@@ -61,7 +62,7 @@ const id = `${file}-program`;
     width: auto;
     max-width: 100%;
     height: auto;
-    max-height: 62vh;
+    max-height: 50vh; /* its buttons stay in sight under it */
     margin-top: var(--space-3);
     border: 2px solid var(--ink);
     background: #000; /* shown smaller than it is drawn: smoothed, or its thin lines would come and go */
@@ -117,5 +118,16 @@ const id = `${file}-program`;
 
   .terminal:empty {
     display: none;
+  }
+
+  /* Without JavaScript the program cannot run: what the site says of it stays. */
+  @media (scripting: none) {
+    .hint,
+    canvas,
+    .controls,
+    .state,
+    .terminal {
+      display: none;
+    }
   }
 </style>

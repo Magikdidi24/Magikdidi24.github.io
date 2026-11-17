@@ -62,6 +62,9 @@ function door(name: string, left: boolean): RoomObject {
 
 export const cabinetDoors = (): RoomObject[] => [door('cabinet-door-left', true), door('cabinet-door-right', false)];
 
+/** The consoles of the heap in the cabinet: each one is switched on by a click. The rest of the heap is decor. */
+export const CONSOLES = ['console-grey', 'console-black', 'console-cube', 'handheld', 'console-white', 'handheld-wide'];
+
 /** One thing of the heap in the cabinet: built in voxels of 1.25 cm, set down at (x, y, z) metres from the corner of the cabinet, and turned. */
 const heaped = (name: string, m: VoxelModel, x: number, y: number, z: number, turn: number): RoomObject => ({
   name,
@@ -69,7 +72,7 @@ const heaped = (name: string, m: VoxelModel, x: number, y: number, z: number, tu
   at: [CABINET.x + x, y, CABINET.z + z],
   model: m,
   turn,
-  decor: true,
+  decor: !CONSOLES.includes(name),
 });
 
 /** A controller of the old kind: a flat brick with a cross and two round buttons, and the start of its cable. */
@@ -86,14 +89,16 @@ function brick(shell: number, buttons: number): VoxelModel {
 /**
  * Old game consoles and controllers, thrown in rather than put away. None is
  * a real one: a grey box that takes cartridges, a black one with a round lid,
- * a small cube with a handle, a handheld, and what goes with them.
+ * a small cube with a handle, a white one with a slot, two handhelds, and
+ * what goes with them. Each console has a light, or a screen, that comes on
+ * when it is switched on.
  */
 export function consoles(): RoomObject[] {
   /* A grey console: two-tone case, a flap for the cartridge, two red buttons on its front. */
   const grey = new VoxelModel(22, 7, 17);
   grey.box(0, 0, 0, 22, 3, 17, C.taupe).box(0, 3, 0, 22, 3, 17, C.stone);
   grey.box(3, 6, 4, 14, 1, 8, C.silver).box(4, 6, 5, 12, 1, 6, C.graphite); // flap
-  grey.box(2, 1, 16, 3, 1, 1, C.red).box(6, 1, 16, 3, 1, 1, C.red).box(15, 1, 16, 5, 1, 1, C.ink);
+  grey.box(2, 1, 16, 3, 1, 1, C.red).box(6, 1, 16, 3, 1, 1, C.red).box(15, 1, 16, 5, 1, 1, C.ink).set(20, 1, 16, C.red | EMISSIVE);
 
   /* A black one, flat, with a round lid and a light. */
   const black = new VoxelModel(22, 5, 19);
@@ -112,9 +117,22 @@ export function consoles(): RoomObject[] {
   /* A handheld: a screen that went green, a cross, two buttons. */
   const handheld = new VoxelModel(8, 3, 13);
   handheld.box(0, 0, 0, 8, 2, 13, C.stone);
-  handheld.box(1, 2, 1, 6, 1, 5, C.taupe).box(2, 2, 2, 4, 1, 3, C.sage);
+  handheld.box(1, 2, 1, 6, 1, 5, C.taupe).box(2, 2, 2, 4, 1, 3, C.lime | EMISSIVE);
   handheld.box(1, 2, 9, 3, 1, 1, C.ink).box(2, 2, 8, 1, 1, 3, C.ink);
   handheld.set(5, 2, 9, C.rust).set(6, 2, 8, C.rust);
+
+  /* A white one, with a slot across its front and a ring of light. */
+  const white = new VoxelModel(20, 5, 16);
+  white.box(0, 0, 0, 20, 1, 16, C.silver).box(0, 1, 0, 20, 3, 16, C.paper);
+  white.box(2, 2, 15, 11, 1, 1, C.graphite).set(17, 2, 15, C.cyan | EMISSIVE);
+  white.box(14, 4, 3, 4, 1, 4, C.silver); // vent
+
+  /* A handheld that is held sideways: its screen between a cross and two buttons. */
+  const wide = new VoxelModel(15, 3, 7);
+  wide.box(0, 0, 0, 15, 2, 7, C.night);
+  wide.box(4, 2, 1, 7, 1, 5, C.ink).box(5, 2, 2, 5, 1, 3, C.cyan | EMISSIVE);
+  wide.box(1, 2, 3, 3, 1, 1, C.silver).box(2, 2, 2, 1, 1, 3, C.silver);
+  wide.set(12, 2, 4, C.red).set(13, 2, 2, C.red);
 
   /* Cartridges in a pile, each with its label. */
   const cartridges = new VoxelModel(7, 7, 6);
@@ -140,9 +158,9 @@ export function consoles(): RoomObject[] {
     heaped('console-cube', cube, 0.5, floor, 0.22, 24),
     heaped('controller-cube', brick(C.stone, C.red), 0.52, on(13), 0.28, -35),
     heaped('controller-floor', brick(C.graphite, C.stone), 0.7, floor, 0.4, 38),
-    heaped('console-black-right', black, 0.8, floor, 0.2, 12),
+    heaped('console-white', white, 0.8, floor, 0.2, 12),
     heaped('controller-right', brick(C.paper, C.denim), 0.93, on(5), 0.25, -48),
-    heaped('handheld-right', handheld, 1.02, floor, 0.37, -28),
+    heaped('handheld-wide', wide, 0.97, floor, 0.38, -28),
   ];
 }
 
