@@ -156,7 +156,19 @@ export const loading = { ready: 'The room is ready' };
 export const hints = ['monitor', 'meteorite', 'door'];
 
 /** What is said in a bubble over an object when it is clicked: the window says it by day, when it opens no panel. */
-export const says = { dog: 'Woof!', window: home, nightstand: 'Locked', muted: 'Sound is off', off: 'The PC is off' } as const;
+export const says = { dog: 'Woof!', window: home, nightstand: 'Locked', muted: 'Sound is off', off: 'The PC is off', duck: 'Quack!' } as const;
+
+/**
+ * The small things of the room that stand for a project: a click opens the
+ * window of that project on the desktop of the main screen. By the name of
+ * the object, the id of the project in projects.ts.
+ */
+export const opens: Record<string, string> = {
+  clock: 'zero-shot-forecasting',
+  column: 'fluid-simulation',
+  container: 'ruby-playground',
+  telephone: 'translation-drift',
+};
 
 /**
  * What a click shows large: the words that say what each picture is, and
@@ -226,6 +238,13 @@ export const labels: Record<string, string> = {
   car: 'Hypercar',
   tiger: 'Tiger',
   'stamp-book': 'Stamp book',
+  switch: 'Light switch',
+  clock: 'Clock',
+  duck: 'Rubber duck',
+  column: 'Density column',
+  container: 'Container',
+  telephone: 'Telephone',
+  'led-matrix': 'LED matrix',
   'manga-east': 'Manga',
   'manga-south': 'Manga',
 };

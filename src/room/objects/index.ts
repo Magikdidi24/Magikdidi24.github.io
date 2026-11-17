@@ -8,6 +8,7 @@ import type { VoxelModel } from '../voxel/builder.ts';
 import { bed, bedding, book, dog, lamp, nightstand } from './bed.ts';
 import { chair, desk, dock, headphones, juice, keyboard, mainMonitor, mouse, sideMonitor, speaker } from './desk.ts';
 import { door } from './door.ts';
+import { extras } from './extras.ts';
 import { figurines } from './figurines.ts';
 import { rug } from './floor.ts';
 import { library, volume } from './library.ts';
@@ -93,6 +94,8 @@ export const objects = (): RoomObject[] => [
   cvSheet(),
   /* Floor */
   rug(),
+  /* Small things, here and there */
+  ...extras(),
   /* The two walls behind the opening view */
   ...library(),
   volume(),

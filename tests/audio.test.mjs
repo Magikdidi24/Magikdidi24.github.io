@@ -30,7 +30,7 @@ test('lasts: the end of the last note, and nothing for no note', () => {
 });
 
 test('effects: what things of the room sound like when they are clicked, each short and safe to hear', () => {
-  const names = ['bark', 'knock', 'riff', 'off', 'on', 'print', 'drop', 'buzz', 'locked', 'alarm', 'keys', 'open', 'close'];
+  const names = ['bark', 'knock', 'riff', 'off', 'on', 'print', 'drop', 'buzz', 'locked', 'alarm', 'keys', 'open', 'close', 'quack', 'ring', 'tick'];
   assert.deepEqual(Object.keys(EFFECTS).sort(), [...names].sort());
   for (const [name, notes] of Object.entries(EFFECTS)) {
     const seconds = lasts(notes);

@@ -30,12 +30,14 @@ import {
   type Texture,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { frames } from '../data/matrix.ts';
 import { bac, milestone, papers, tableNumber, toeic, written } from '../data/room.ts';
 import { BOARD } from '../data/whiteboard.ts';
 import { DEFAULT_VIEW } from './camera.ts';
 import { BOOK_COVER } from './objects/bed.ts';
 import { MAIN_SCREEN, SIDE_SCREEN } from './objects/desk.ts';
 import { DOOR } from './objects/door.ts';
+import { CLOCK_FACE, MATRIX_FACE } from './objects/extras.ts';
 import { objects, type RoomObject } from './objects/index.ts';
 import { FRONTS } from './objects/library.ts';
 import { SPECIMEN_CARD } from './objects/shelf.ts';
@@ -54,11 +56,13 @@ import {
   certificate,
   CITY,
   cityView,
+  clockFace,
   codeScreen,
   contestSheet,
   desktopScreen,
   formulaSheet,
   label,
+  matrixPicture,
   moveTrain,
   nameplate,
   schoolPaper,
@@ -172,6 +176,10 @@ export interface RoomScene {
   press(name: string, which: number[], depth: number): void;
   /** What the display of the power supply shows: how long the page has been open. */
   showUptime(time: string): void;
+  /** Where the hands of the wall clock point, each in turns from twelve. */
+  showTime(hour: number, minute: number): void;
+  /** Which of its pictures the LED matrix shows: they come round again after the last. */
+  showMatrix(index: number): void;
   /** How far the train of the night view runs, from the moment its nose shows to the one its tail has gone. In pixels of the view. */
   readonly trainRun: number;
   /** Put that train `far` pixels along its run, or take it off the viaduct with null. */
@@ -332,6 +340,8 @@ export async function createScene(progress?: (share: number) => void): Promise<R
   picture(CALENDAR_PAGE, calendarPage(written.page, weeks(milestone.year, milestone.month)), 'calendar', false);
   const uptime = picture(UPS_DISPLAY, uptimeScreen(written.uptime, '0:00'), 'homelab', true).material as MeshBasicMaterial;
   for (const front of FRONTS) picture(front, shelfPicture(front.shelf), front.name, false, front.turn);
+  const clock = picture(CLOCK_FACE, clockFace(0, 0), 'clock', false, Math.PI / 2).material as MeshToonMaterial;
+  const matrix = picture(MATRIX_FACE, matrixPicture(frames[0]), 'led-matrix', true).material as MeshBasicMaterial;
 
   /* The lights of an object: its glowing voxels, each with the vertices that draw it. A face is four vertices in a row. */
   const lightsOf = (mesh: Mesh): number[][] => {
@@ -462,6 +472,14 @@ export async function createScene(progress?: (share: number) => void): Promise<R
     showUptime(time) {
       uptime.map?.dispose();
       uptime.map = uptimeScreen(written.uptime, time);
+    },
+    showTime(hour, minute) {
+      clock.map?.dispose();
+      clock.map = clockFace(hour, minute);
+    },
+    showMatrix(index) {
+      matrix.map?.dispose();
+      matrix.map = matrixPicture(frames[index % frames.length]);
     },
     trainRun: CITY.back + TRAIN.cars * TRAIN.car,
     train(far) {

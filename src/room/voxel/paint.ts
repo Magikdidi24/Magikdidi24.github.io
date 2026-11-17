@@ -5,6 +5,7 @@
 */
 import { CanvasTexture, NearestFilter, SRGBColorSpace } from 'three';
 import { flight, SHEET, taylor } from '../../data/pegboard.ts';
+import { inks } from '../../data/matrix.ts';
 import { BOARD, doodle, notes } from '../../data/whiteboard.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import { PALETTE, type Swatch } from './palette.ts';
@@ -614,5 +615,31 @@ export function bookCover({ title, author }: { title: string[]; author: string }
     TIGER.forEach((row, j) => [...row].forEach((cell, i) => cell !== '.' && rect(i, top + j, 1, 1, cell === '#' ? 'navy' : 'cornflower')));
     title.forEach((line, n) => write(rect, line, 82 - typeset(line, LARGE).width, 6 + n * 10, 'paper', LARGE));
     write(rect, author, 80 - typeset(author).width, 101, 'paper');
+  });
+}
+
+/**
+ * The face of the wall clock: a mark for each hour, and its two hands, each
+ * a share of a turn from twelve. 20 × 20, one pixel is 1.25 cm.
+ */
+export function clockFace(hour: number, minute: number): CanvasTexture {
+  return texture(20, 20, (rect) => {
+    rect(0, 0, 20, 20, 'paper');
+    const at = (turn: number, far: number): [number, number] => [Math.floor(10 + far * Math.sin(turn * 2 * Math.PI)), Math.floor(10 - far * Math.cos(turn * 2 * Math.PI))];
+    for (let mark = 0; mark < 12; mark++) rect(...at(mark / 12, 8.6), 1, 1, mark % 3 ? 'stone' : 'ink');
+    const hand = (turn: number, length: number) => {
+      for (let far = 0; far <= length; far += 0.5) rect(...at(turn, far), 1, 1, 'ink');
+    };
+    hand(hour, 4.5);
+    hand(minute, 7.5);
+    rect(9, 9, 2, 2, 'red');
+  });
+}
+
+/** A picture of the LED matrix: a square of light for each lamp that is on, on black. 16 × 16. */
+export function matrixPicture(frame: readonly string[]): CanvasTexture {
+  return texture(16, 16, (rect) => {
+    rect(0, 0, 16, 16, 'ink');
+    frame.forEach((row, y) => [...row].forEach((cell, x) => cell !== '.' && rect(x, y, 1, 1, inks[cell])));
   });
 }

@@ -59,6 +59,11 @@ export function tumble(from: Point, to: Point, t: number): Point {
   return [from[0] + (to[0] - from[0]) * far, to[1] + height, from[2] + (to[2] - from[2]) * far];
 }
 
+/** How far round each hand of a clock is at that time, in turns from twelve. */
+export function clockHands(hours: number, minutes: number): { hour: number; minute: number } {
+  return { hour: ((hours % 12) + minutes / 60) / 12, minute: minutes / 60 };
+}
+
 /** The train of the night view: one every so many seconds, so many pixels a second, in steps of so many pixels. */
 const TRAIN = { every: 24, speed: 24, step: 2 };
 

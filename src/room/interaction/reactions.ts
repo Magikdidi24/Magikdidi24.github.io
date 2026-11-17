@@ -14,7 +14,7 @@
 */
 import { MathUtils, Matrix4, Vector3, type Mesh, type MeshBasicMaterial, type MeshToonMaterial, type Texture } from 'three';
 import { manga } from '../../data/manga.ts';
-import { enlarged, keycaps, labels, milestone, music, says, stops } from '../../data/room.ts';
+import { enlarged, keycaps, labels, milestone, music, opens, says, stops } from '../../data/room.ts';
 import { person } from '../../data/site.ts';
 import { mulberry32 } from '../../lib/photon/prng.ts';
 import { play as sing, sound } from '../audio.ts';
@@ -31,7 +31,7 @@ import { current, go, onRoute } from '../ui/route.ts';
 import { showCalendar, showPicture } from '../ui/sheets.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
 import { codeScreen } from '../voxel/paint.ts';
-import { easeOut, flutter, stepAt, trainAt, tumble, type Point } from './motion.ts';
+import { clockHands, easeOut, flutter, stepAt, trainAt, tumble, type Point } from './motion.ts';
 
 /** A pointer that moved further than this between press and release was dragging. CSS pixels. */
 const CLICK_SLOP = 5;
@@ -474,6 +474,59 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     return move(0.3, 6, (t) => pose('door', 0, [0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125]));
   };
 
+  /* The hands of the wall clock, at the time it is. */
+  const hands = () => {
+    const time = new Date();
+    return clockHands(time.getHours(), time.getMinutes());
+  };
+  let told = -1;
+  const tell = () => {
+    const { hour, minute } = hands();
+    room.showTime(hour, minute);
+    told = new Date().getMinutes();
+    app.invalidate();
+  };
+  tell();
+
+  /** A thing that stands for a project gives a start, then the window of that project opens on the desktop. */
+  const launch = (name: string, first: () => unknown = hop(name, 1, 0.025)) => async () => {
+    await first();
+    go(opens[name]);
+  };
+
+  /** The clock is wound: its hands go round, the long one twice, and come back to the time it is. */
+  const wind = () => {
+    sing('tick');
+    const { hour, minute } = hands();
+    return move(1.2, 24, (t) => room.showTime(hour + t, minute + 2 * t), false);
+  };
+
+  /** The telephone rings: it shakes on the sill for as long as its bell. */
+  const ring = () => {
+    sing('ring');
+    return move(0.95, 20, (t) => pose('telephone', 0, [t < 1 && Math.round(t * 20) % 2 ? 0.00625 : 0, 0, 0]));
+  };
+
+  /** The duck is squeezed. */
+  const quack = () => {
+    sing('quack');
+    say('duck', says.duck);
+    return hop('duck', 2, 0.025)();
+  };
+
+  /** The light switch does what the Night button of the page does. */
+  const flick = () => {
+    sing('tick');
+    document.getElementById('night')?.click();
+  };
+
+  /** The LED matrix shows its next picture. */
+  let shown = 0;
+  const advance = () => {
+    room.showMatrix(++shown);
+    app.invalidate();
+  };
+
   const reactions: Record<string, (from: Spot) => unknown> = {
     chair: spin('chair'),
     dog: bark,
@@ -527,6 +580,16 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     car: roll('car', -0.025),
     tiger: hop('tiger', 2, 0.025),
     'stamp-book': hop('stamp-book', 1, 0.025),
+    switch: flick,
+    clock: launch('clock', wind),
+    duck: quack,
+    column: launch('column'),
+    container: launch('container'),
+    telephone: launch('telephone', ring),
+    'led-matrix': () => {
+      sing('tick');
+      advance();
+    },
     'manga-east': pull('manga-east'),
     'manga-south': pull('manga-south'),
   };
@@ -550,10 +613,13 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   clear(current().stop === STOP.monitor);
 
 
-  /* At rest the room is not quite still: now and then a drive light of the NAS goes out for an instant, and by night a train crosses the view from the window. Nothing of it while the desktop covers the room, nor for who asked for no motion. */
+  /* At rest the room is not quite still: now and then a drive light of the NAS goes out for an instant, the LED matrix changes its picture, and by night a train crosses the view from the window. Nothing of it while the desktop covers the room, nor for who asked for no motion. */
   const quiet = () => still.matches || document.hidden || current().stop === STOP.monitor;
   const drives = room.lights('homelab', 'cyan');
+  let beat = 0;
   const idle = window.setInterval(() => {
+    if (new Date().getMinutes() !== told) tell(); // the clock keeps time whatever else is still
+    if (!quiet() && ++beat % 5 === 0) advance();
     if (quiet() || busy.has('homelab') || Math.random() < 0.4) return;
     const light = drives[Math.floor(Math.random() * drives.length)];
     room.setGlow('homelab', 0.08, light);

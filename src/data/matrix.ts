@@ -1,0 +1,83 @@
+/*
+  The pictures of the LED matrix on the wall, 16 lights by 16: a heart, the
+  prompt of the neon sign, a face, and the bars of an equaliser. A letter is
+  a lit light, by the ink below; a dot is a light that is off.
+*/
+import type { Swatch } from '../room/voxel/palette.ts';
+
+export const inks: Record<string, Swatch> = { r: 'red', p: 'paper', m: 'magenta', c: 'cyan', a: 'amber', l: 'lime', v: 'violet' };
+
+export const frames: string[][] = [
+  [
+    '................',
+    '................',
+    '...rrr....rrr...',
+    '..rrrrr..rrrrr..',
+    '.rrpprrrrrrrrrr.',
+    '.rrprrrrrrrrrrr.',
+    '.rrrrrrrrrrrrrr.',
+    '.rrrrrrrrrrrrrr.',
+    '..rrrrrrrrrrrr..',
+    '...rrrrrrrrrr...',
+    '....rrrrrrrr....',
+    '.....rrrrrr.....',
+    '......rrrr......',
+    '.......rr.......',
+    '................',
+    '................',
+  ],
+  [
+    '................',
+    '................',
+    '................',
+    '...mm...........',
+    '....mm..........',
+    '.....mm.........',
+    '......mm........',
+    '.......mm.......',
+    '.......mm.......',
+    '......mm........',
+    '.....mm.........',
+    '....mm....cccc..',
+    '...mm.....cccc..',
+    '................',
+    '................',
+    '................',
+  ],
+  [
+    '................',
+    '.....aaaaaa.....',
+    '...aaaaaaaaaa...',
+    '..aaaaaaaaaaaa..',
+    '..aaa..aa..aaa..',
+    '.aaaa..aa..aaaa.',
+    '.aaaa..aa..aaaa.',
+    '.aaaaaaaaaaaaaa.',
+    '.aaaaaaaaaaaaaa.',
+    '.aa.aaaaaaaa.aa.',
+    '.aaa.aaaaaa.aaa.',
+    '..aaa......aaa..',
+    '..aaaaaaaaaaaa..',
+    '...aaaaaaaaaa...',
+    '.....aaaaaa.....',
+    '................',
+  ],
+  [
+    '................',
+    '................',
+    '..........vv....',
+    '..........vv....',
+    '....cc....vv....',
+    '....cc....vv....',
+    '....cc.ll.vv....',
+    '.ll.cc.ll.vv.cc.',
+    '.ll.cc.ll.vv.cc.',
+    '.ll.cc.ll.vv.cc.',
+    '.ll.cc.ll.vv.cc.',
+    '.ll.cc.ll.vv.cc.',
+    '.ll.cc.ll.vv.cc.',
+    '.ll.cc.ll.vv.cc.',
+    '................',
+    '................',
+  ],
+];

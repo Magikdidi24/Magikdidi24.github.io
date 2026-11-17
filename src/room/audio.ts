@@ -102,6 +102,12 @@ export const EFFECTS: Record<string, Note[]> = {
   alarm: Array.from({ length: 6 }, (_, i) => note(i * 0.5, 0.17, 880, 'square', 0.07)),
   /* The keyboard: a note as each group of keys lights up. */
   keys: run(0, 0.26, 0.12, [523.25, 659.25, 783.99, 987.77, 1174.66], 'triangle', 0.12),
+  /* A rubber duck, squeezed twice. */
+  quack: [0, 0.16].flatMap((at) => [note(at, 0.1, [720, 480], 'sawtooth', 0.16), note(at, 0.1, [1440, 960], 'square', 0.05)]),
+  /* An old telephone: its bell, two bursts. */
+  ring: [0, 0.55].flatMap((from) => Array.from({ length: 10 }, (_, i) => note(from + i * 0.04, 0.035, i % 2 ? 1318.51 : 1567.98, 'square', 0.07))),
+  /* A switch, or the works of a clock: one dry click. */
+  tick: [note(0, 0.06, [1800, 700], 'square', 0.12)],
   /* A panel opens, and shuts. */
   open: run(0, 0.07, 0.07, [659.25, 880], 'sine', 0.06),
   close: run(0, 0.07, 0.07, [880, 659.25], 'sine', 0.06),

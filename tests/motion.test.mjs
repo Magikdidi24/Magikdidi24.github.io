@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
-import { easeInOut, easeOut, flutter, stepAt, trainAt, tumble } from '../src/room/interaction/motion.ts';
+import { clockHands, easeInOut, easeOut, flutter, stepAt, trainAt, tumble } from '../src/room/interaction/motion.ts';
 
 test('stepAt: a movement advances in whole steps', () => {
   assert.equal(stepAt(0, 2, 8), 0);
@@ -109,4 +109,10 @@ test('trainAt: once its tail has gone the viaduct is empty, until the next one',
   assert.equal(trainAt(23.9, 206), null);
   assert.equal(trainAt(24, 206), 0);
   assert.equal(trainAt(25, 206), 24);
+});
+
+test('clockHands: how far round each hand is, in turns from twelve', () => {
+  assert.deepEqual(clockHands(3, 0), { hour: 0.25, minute: 0 });
+  assert.deepEqual(clockHands(18, 30), { hour: 6.5 / 12, minute: 0.5 });
+  assert.deepEqual(clockHands(0, 45), { hour: 0.75 / 12, minute: 0.75 });
 });

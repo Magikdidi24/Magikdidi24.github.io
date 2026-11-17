@@ -1,10 +1,12 @@
 // The stops of the visit of the 3D room, and what the room says that must be
 // true of the site. Run with `npm test`.
+import { PALETTE } from '../src/room/voxel/palette.ts';
 import { CONSOLES } from '../src/room/objects/tech.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { projects, smallerProjects } from '../src/data/projects.ts';
-import { diplomas, labels, says, stops } from '../src/data/room.ts';
+import { diplomas, labels, opens, says, stops } from '../src/data/room.ts';
+import { frames, inks } from '../src/data/matrix.ts';
 import * as site from '../src/data/site.ts';
 import { coursework, skills } from '../src/data/site.ts';
 import { objects } from '../src/room/objects/index.ts';
@@ -82,4 +84,31 @@ test('the consoles of the cabinet: each stands in the room and has its name unde
     assert.ok(labels[name], `${name} has no name`);
   }
   assert.ok(CONSOLES.some((name) => labels[name] === 'Xbox 360'));
+});
+
+test('the bonus objects: each stands in the room and has a name; what one opens is a project of the desktop', () => {
+  const standing = new Set(objects().filter(({ decor }) => !decor).map(({ name }) => name));
+  for (const name of ['switch', 'clock', 'duck', 'column', 'container', 'telephone', 'led-matrix']) {
+    assert.ok(standing.has(name), `${name} is not an object of the room`);
+    assert.ok(labels[name], `${name} has no name`);
+  }
+  const slugs = new Set(projects.map(({ slug }) => slug));
+  for (const [name, slug] of Object.entries(opens)) {
+    assert.ok(standing.has(name), `${name} opens a project but is not in the room`);
+    assert.ok(slugs.has(slug), `${name} opens ${slug}, which is not a project`);
+  }
+  assert.deepEqual(Object.keys(opens).sort(), ['clock', 'column', 'container', 'telephone']);
+  assert.equal(says.duck, 'Quack!');
+});
+
+test('the LED matrix: every picture is 16 by 16, in inks that the palette has', () => {
+  assert.ok(frames.length >= 3);
+  for (const frame of frames) {
+    assert.equal(frame.length, 16);
+    for (const row of frame) {
+      assert.equal(row.length, 16, row);
+      for (const cell of row) assert.ok(cell === '.' || cell in inks, `no ink for "${cell}"`);
+    }
+  }
+  for (const swatch of Object.values(inks)) assert.ok(swatch in PALETTE, `${swatch} is not in the palette`);
 });
