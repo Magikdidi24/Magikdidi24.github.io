@@ -613,7 +613,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     clock: launch('clock', wind),
     duck: quack,
     column: launch('column'),
-    container: launch('container'),
+    container: hop('container', 1, 0.025),
     telephone: launch('telephone', ring),
     chess: match,
     vita: start,

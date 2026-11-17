@@ -97,7 +97,8 @@ test('the bonus objects: each stands in the room and has a name; what one opens 
     assert.ok(standing.has(name), `${name} opens a project but is not in the room`);
     assert.ok(windows.has(slug), `${name} opens ${slug}, which is not a window of the desktop`);
   }
-  assert.deepEqual(Object.keys(opens).sort(), ['chess', 'clock', 'column', 'container', 'telephone', 'vita']);
+  assert.deepEqual(Object.keys(opens).sort(), ['chess', 'clock', 'column', 'telephone', 'vita']);
+  assert.ok(!projects.some(({ slug }) => slug === 'ruby-playground'), 'the Ruby playground is no longer a project of the site');
   assert.equal(labels.vita, 'PS Vita');
   assert.equal(says.duck, 'Quack!');
 });

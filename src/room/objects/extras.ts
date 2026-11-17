@@ -3,7 +3,7 @@
   in a bedroom: a light switch by the door and a clock over it, a rubber duck
   on the desk, a density column, a chessboard and an old telephone on the
   window sill, a toy shipping container on the PC, an LED matrix on the
-  wall, and a PS Vita left on the bed. Six of them open a window of the
+  wall, and a PS Vita left on the bed. Five of them open a window of the
   desktop: src/data/room.ts says which.
 */
 import { moves, position, square, type Piece } from '../../data/chess.ts';

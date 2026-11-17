@@ -462,27 +462,6 @@ export const projects: Project[] = [
       ],
     },
   },
-  {
-    slug: 'ruby-playground',
-    name: 'Sandboxed Ruby playground',
-    repoName: 'playground_ruby',
-    repo: `${github}/playground_ruby`,
-    summary:
-      'Runs Ruby code from a browser editor on the local machine, starting a new Docker or Podman container with the chosen Ruby version for each run and deleting it afterwards.',
-    context: 'Personal project',
-    year: '2025, updated in 2026', // first commits 15 Oct 2025, sandbox rework in Oct 2026 (git log)
-    stack: ['JavaScript', 'React', 'Monaco Editor', 'Node.js', 'Express', 'Docker'],
-    highlights: [
-      // frontend/src/App.js, Editor, examples and version select; backend/server.js, RUBY_VERSIONS and GET /api/versions; backend/sandbox.js, parseVersions and hasImage; version_langage/ruby_versions.txt (97 images, 2.2.5-alpine to 3.4.7)
-      'Built a React interface around the Monaco editor, with five example programs and a Ruby version menu. The backend reads a list of 97 Docker images, Ruby 2.2.5 to 3.4.7, and the menu shows only the ones pulled on the machine, newest first.',
-      // backend/server.js, POST /api/execute: createContainer (User 65534, NetworkMode none, CapDrop ALL, ReadonlyRootfs, tmpfs /tmp 16m, Memory = MemorySwap = 256 MiB, NanoCpus 5e8, PidsLimit 64), MAX_OUTPUT 64 KB, 15000 ms timeout, destroy() in finally
-      'Locked down each run: the code runs as user nobody in a new container with no network, no capabilities and a read-only root filesystem with a 16 MB /tmp. The container is limited to 256 MB of memory, half a CPU and 64 processes and threads, and is killed after 15 seconds or 64 KB of output.',
-      // backend/server.js, Host check (403), MAX_RUNNING = 2 (429), app.listen on 127.0.0.1; backend/sandbox.js, isLocalHost (localhost, 127.0.0.1, [::1]); frontend/.env.development, HOST=127.0.0.1; README, "Security"
-      'Kept it on the local machine, since the containers share the host kernel: both servers listen on 127.0.0.1, and the backend rejects requests whose Host header is not localhost, 127.0.0.1 or [::1], which blocks DNS rebinding. At most 2 programs run at once.',
-      // backend/fileManager.js, resolveInWorkspace (400); backend/server.js, /api/workspace routes (.rb only); frontend/src/App.js, file explorer
-      'Stored the code as .rb files in a workspace folder, with a sidebar to create, import, open and delete them. File names and workspace ids that would leave the folder, such as ../x.rb, are rejected.',
-    ],
-  },
 ];
 
 /* The five C programs were uploaded on 11 May 2025 (commit dates); each line

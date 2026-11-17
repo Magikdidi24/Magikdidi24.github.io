@@ -169,7 +169,6 @@ export const opens: Record<string, string> = {
   chess: 'chess-board',
   clock: 'zero-shot-forecasting',
   column: 'fluid-simulation',
-  container: 'ruby-playground',
   telephone: 'translation-drift',
   vita: 'snake-in-c',
 };
