@@ -3,6 +3,7 @@
   render loop. A frame is drawn only when the camera moved, the viewport
   changed or something called invalidate().
 */
+import { gsap } from 'gsap';
 import { NoToneMapping, PCFShadowMap, Vector3, WebGLRenderer } from 'three';
 import { createRig, type Pose, type Rig } from './camera.ts';
 import { easeInOut } from './interaction/motion.ts';
@@ -90,16 +91,17 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement, p
   /** Call `apply` at every frame for `seconds`, with how far the camera has come: slow, fast, then slow, from 0 to 1. */
   const travel = (seconds: number, apply: (t: number) => void) =>
     new Promise<void>((done) => {
-      let start = -1;
-      app.animate((now) => {
-        if (start < 0) start = now;
-        const t = still.matches ? 1 : Math.min(1, (now - start) / (seconds * 1000));
-        apply(easeInOut(t));
+      const come = { far: 0 };
+      const step = () => {
+        apply(come.far);
         dirty = true;
-        if (t < 1) return true;
+      };
+      /* GSAP runs the journey, with the easing of the room. For who asked for less motion there is no journey: the camera is there at once. */
+      if (still.matches) {
+        come.far = 1;
+        step();
         done();
-        return false;
-      });
+      } else gsap.to(come, { far: 1, duration: seconds, ease: easeInOut, onUpdate: step, onComplete: done });
     });
   const animations = new Set<(now: number) => boolean>();
   /** Draw a frame with fresh shadows: the lights changed, or the graphics context came back. */
