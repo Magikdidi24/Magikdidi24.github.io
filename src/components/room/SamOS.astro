@@ -2,7 +2,7 @@
 /*
   The panel of the main screen: a desktop that covers the room, with an icon
   per project. An icon opens a window: a project as /projects/ shows it, a
-  small program, a terminal, or the file that says who he is. Under them,
+  small program, or a terminal. Under them,
   what there is to find in the room: each icon is locked until its object
   has been found there, then it opens its panel; a list of things to do
   says how, and ticks off what is done (src/room/ui/panels.ts keeps both up
@@ -36,16 +36,15 @@ const icons = [
   ...projects.map(({ slug, name }) => ({ id: slug, name })),
   ...playable.map(({ id, item }) => ({ id, name: item.name })),
   { id: 'terminal', name: 'Terminal' },
-  { id: 'about', name: desktop.about },
 ];
 ---
-<section class="panel samos" id={stop.id} aria-labelledby={`${stop.id}-title`} tabindex="-1" style={`--sun: ${PALETTE.magenta}; --note: ${PALETTE.mustard}`}>
+<section class="panel samos" id={stop.id} aria-labelledby={`${stop.id}-title`} tabindex="-1" style={`--note: ${PALETTE.mustard}`}>
   <header class="bar">
     <h2 id={`${stop.id}-title`}>{stop.label}</h2>
     <button type="button" data-close>Close</button>
   </header>
 
-  <p class="system" aria-hidden="true">{desktop.name}</p>
+  <p class="system" aria-hidden="true"><img src="/favicon-room.svg" alt="" width="96" height="96" />{desktop.name}</p>
 
   <div class="desk">
     <ul class="icons apps" role="list">
@@ -124,19 +123,6 @@ const icons = [
     </div>
   ))}
 
-  <div class="window" data-item="about" id="about" tabindex="-1" hidden>
-    <p class="title">
-      <span>{desktop.about}</span>{' '}
-      <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {desktop.about}</span></a>
-    </p>
-    <div class="body file">
-      <p>{person.intro}</p>
-      <p>{person.focus}</p>
-      <p><a href="/classic/#about">More about me in the text version</a></p>
-      <p class="meta"><a href="/licenses.txt">Licenses of the software and fonts this site uses</a></p>
-    </div>
-  </div>
-
   <div class="window" data-item="terminal" id="terminal" tabindex="-1" hidden>
     <p class="title">
       <span>terminal</span>{' '}
@@ -190,23 +176,19 @@ const icons = [
     cursor: pointer;
   }
 
-  /* The wallpaper: a sun going down, as on the screen in the room, and the name of the system in a corner. */
+  /* In a corner of the wallpaper, the logo of the system and its name. The logo is the neon sign of the room, which is also the icon of the page. */
   .system {
     position: absolute;
     right: var(--space-5);
     bottom: var(--space-4);
-    opacity: 0.6;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
   }
 
-  .system::before {
-    content: '';
-    position: absolute;
-    right: 0;
-    bottom: 2.5rem;
-    width: 9rem;
-    height: 4.5rem;
-    border-radius: 9rem 9rem 0 0;
-    background: repeating-linear-gradient(to bottom, var(--sun) 0 0.75rem, transparent 0.75rem 1rem);
+  .system img {
+    width: 6rem;
+    height: 6rem;
   }
 
   /* The icons of the PC, then those of the room under them; beside both, on a wide screen, the list of things to do. */
@@ -433,14 +415,6 @@ const icons = [
     font-family: var(--font);
     font-size: var(--text-base);
     line-height: var(--leading-body);
-  }
-
-  .file {
-    padding-top: var(--space-5);
-  }
-
-  .file p + p {
-    margin-top: var(--space-4);
   }
 
   /* The first project of a window needs no rule above it. */

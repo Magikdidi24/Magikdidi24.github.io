@@ -6,7 +6,7 @@
 import { flight } from './pegboard.ts';
 import type { Framing } from '../room/view.ts';
 import type { Swatch } from '../room/voxel/palette.ts';
-import { baccalaureate, education, experience, languages, openSource, person, preparatory, research, skills } from './site.ts';
+import { baccalaureate, coursework, education, experience, languages, openSource, person, preparatory, research, skills } from './site.ts';
 
 const [firstName] = person.name.split(' ');
 /** The city he lives in: what the window looks out on by day. */
@@ -301,12 +301,12 @@ export const programs: { repo: string; file: string; keys: string[]; cell?: numb
 export const windowOf = (repo: string) => repo.toLowerCase().replaceAll('_', '-');
 
 /**
- * The desktop of projects, on the main screen: its name, the file that says
- * who he is, the heading over what there is to find in the room, the title
- * of the list of things to do, what a locked icon answers, and the count
- * under the list. `{found}` and `{all}` are filled in by the page.
+ * The desktop of projects, on the main screen: its name, the heading over
+ * what there is to find in the room, the title of the list of things to do,
+ * what a locked icon answers, and the count under the list. `{found}` and
+ * `{all}` are filled in by the page.
  */
-export const desktop = { name: 'SamOS', about: 'about.txt', places: 'In the room', todo: 'To do', locked: 'Locked. To do first:', count: '{found} of {all} found' };
+export const desktop = { name: 'SamOS', places: 'In the room', todo: 'To do', locked: 'Locked. To do first:', count: '{found} of {all} found' };
 
 /** What a speaker shows over itself when it is clicked: said aloud for those who do not see it. */
 export const music = 'Music';
@@ -322,4 +322,14 @@ export const terminal = {
   opening: 'Opening',
   cv: 'Downloading the CV.',
   noCv: 'No CV to hand out yet.',
+  /* What help does not list: a command, and what it answers. `ls -a` shows a file that names them. */
+  hidden: {
+    whoami: ['visitor'],
+    pwd: [`/home/${firstName.toLowerCase()}/room`],
+    woof: [says.dog],
+    '42sh': coursework.filter(({ name }) => name === '42sh').map(({ name, summary }) => `${name}: ${summary}`),
+    sudo: [`visitor is not in the sudoers file. ${person.dog} has been told.`],
+    rm: ['rm: nothing leaves this room.'],
+  },
+  lights: 'Click.',
 };

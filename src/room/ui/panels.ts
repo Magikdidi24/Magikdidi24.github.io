@@ -118,6 +118,7 @@ export function setupPanels(root: HTMLElement): Panels {
       log.scrollTop = log.scrollHeight;
       if (result.download) Object.assign(document.createElement('a'), { href: result.download, download: '' }).click();
       if (result.go) go(result.go);
+      if (result.press) document.getElementById(result.press)?.click();
     });
   }
 

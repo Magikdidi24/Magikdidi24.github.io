@@ -21,6 +21,8 @@ const world = {
     opening: 'Opening',
     cv: 'Downloading the CV.',
     noCv: 'No CV yet.',
+    hidden: { whoami: ['visitor'], rm: ['Nothing leaves.'], sudo: ['Not allowed.'] },
+    lights: 'Click.',
   },
 };
 
@@ -66,6 +68,28 @@ test('run: the easter egg, with or without sudo', () => {
 
 test('run: an empty line prints nothing, an unknown command says so, clear asks for a clean screen', () => {
   assert.deepEqual(run('   ', world), { out: [] });
-  assert.deepEqual(run('rm -rf /', world).out, ['rm: command not found']);
+  assert.deepEqual(run('nope -rf /', world).out, ['nope: command not found']);
   assert.equal(run('clear', world).clear, true);
+});
+
+test('run: a hidden command answers, whatever follows it, and help does not list it', () => {
+  assert.deepEqual(run('whoami', world).out, ['visitor']);
+  assert.deepEqual(run('rm -rf /', world).out, ['Nothing leaves.']);
+  assert.deepEqual(run('sudo rm -rf /', world).out, ['Not allowed.']);
+  assert.ok(!run('help', world).out.join(' ').includes('whoami'));
+});
+
+test('run: ls -a shows one file more, which names the hidden commands', () => {
+  assert.deepEqual(run('ls -a', world).out, ['.secrets', 'about.txt', 'chess-board', 'race-car-mpc']);
+  assert.deepEqual(run('cat .secrets', world).out, ['whoami rm sudo echo lights exit']);
+});
+
+test('run: echo says it again, lights presses the night button, exit goes back to the desktop', () => {
+  assert.deepEqual(run('echo hello  there', world).out, ['hello there']);
+  assert.deepEqual(run('lights', world), { out: ['Click.'], press: 'night' });
+  assert.deepEqual(run('exit', world), { out: [], go: 'projects' });
+});
+
+test('run: what every object has is not a command', () => {
+  assert.deepEqual(run('constructor', world).out, ['constructor: command not found']);
 });

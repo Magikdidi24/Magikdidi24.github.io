@@ -11,8 +11,23 @@ export interface World {
   about: string[];
   cv: string | null;
   email: string;
-  words: { help: string[]; coffee: string; unknown: string; missing: string; noFile: string; opening: string; cv: string; noCv: string };
+  words: {
+    help: string[];
+    coffee: string;
+    unknown: string;
+    missing: string;
+    noFile: string;
+    opening: string;
+    cv: string;
+    noCv: string;
+    /** What `help` does not list: a command, and the lines it answers. */
+    hidden: Record<string, string[]>;
+    lights: string;
+  };
 }
+
+/** The file that `ls -a` shows: it names what `help` does not list. */
+const SECRETS = '.secrets';
 
 export interface Result {
   out: string[];
@@ -20,6 +35,8 @@ export interface Result {
   go?: string;
   /** A file to hand out. */
   download?: string;
+  /** The id of a button of the room to press. */
+  press?: string;
   clear?: true;
 }
 
@@ -30,8 +47,12 @@ export function run(line: string, world: World): Result {
   if (!command) return { out: [] };
   if (command === 'help') return { out: words.help };
   if (command === 'clear') return { out: [], clear: true };
-  if (command === 'ls') return { out: ['about.txt', ...projects.map(({ slug }) => slug)] };
-  if (command === 'cat') return { out: argument === 'about.txt' ? world.about : [`cat: ${argument}: ${words.noFile}`] };
+  if (command === 'ls') return { out: [...(argument === '-a' ? [SECRETS] : []), 'about.txt', ...projects.map(({ slug }) => slug)] };
+  if (command === 'cat') {
+    if (argument === 'about.txt') return { out: world.about };
+    if (argument === SECRETS) return { out: [[...Object.keys(words.hidden), 'echo', 'lights', 'exit'].join(' ')] };
+    return { out: [`cat: ${argument}: ${words.noFile}`] };
+  }
   if (command === 'cv') return world.cv ? { out: [words.cv], download: world.cv } : { out: [words.noCv] };
   if (command === 'contact') return { out: [world.email], go: 'contact' };
   if (/^(sudo )?make coffee$/.test(`${command} ${argument}`)) return { out: [words.coffee] };
@@ -40,5 +61,9 @@ export function run(line: string, world: World): Result {
     const found = wanted && projects.find(({ slug, name }) => slug.startsWith(wanted) || name.toLowerCase().startsWith(wanted));
     return found ? { out: [`${words.opening} ${found.name}`], go: found.slug } : { out: [`open: ${words.missing}: ${argument}`] };
   }
+  if (command === 'echo') return { out: [argument] };
+  if (command === 'lights') return { out: [words.lights], press: 'night' };
+  if (command === 'exit') return { out: [], go: 'projects' };
+  if (Object.hasOwn(words.hidden, command)) return { out: words.hidden[command] };
   return { out: [`${command}: ${words.unknown}`] };
 }
