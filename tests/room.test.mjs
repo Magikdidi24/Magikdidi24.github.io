@@ -5,7 +5,7 @@ import { CONSOLES } from '../src/room/objects/tech.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { projects, smallerProjects } from '../src/data/projects.ts';
-import { diplomas, labels, opens, says, stops } from '../src/data/room.ts';
+import { diplomas, labels, opens, programs, says, stops, windowOf } from '../src/data/room.ts';
 import { frames, inks } from '../src/data/matrix.ts';
 import * as site from '../src/data/site.ts';
 import { coursework, skills } from '../src/data/site.ts';
@@ -86,18 +86,20 @@ test('the consoles of the cabinet: each stands in the room and has its name unde
   assert.ok(CONSOLES.some((name) => labels[name] === 'Xbox 360'));
 });
 
-test('the bonus objects: each stands in the room and has a name; what one opens is a project of the desktop', () => {
+test('the bonus objects: each stands in the room and has a name; what one opens is a window of the desktop', () => {
   const standing = new Set(objects().filter(({ decor }) => !decor).map(({ name }) => name));
-  for (const name of ['switch', 'clock', 'duck', 'column', 'container', 'telephone', 'led-matrix', 'chess', 'chess-e2', 'chess-d8', 'chess-e1']) {
+  for (const name of ['switch', 'clock', 'duck', 'column', 'container', 'telephone', 'led-matrix', 'chess', 'chess-e2', 'chess-d8', 'chess-e1', 'vita']) {
     assert.ok(standing.has(name), `${name} is not an object of the room`);
     assert.ok(labels[name], `${name} has no name`);
   }
-  const slugs = new Set(projects.map(({ slug }) => slug));
+  const windows = new Set([...projects.map(({ slug }) => slug), ...programs.map(({ repo }) => windowOf(repo))]);
   for (const [name, slug] of Object.entries(opens)) {
     assert.ok(standing.has(name), `${name} opens a project but is not in the room`);
-    assert.ok(slugs.has(slug), `${name} opens ${slug}, which is not a project`);
+    assert.ok(windows.has(slug), `${name} opens ${slug}, which is not a window of the desktop`);
   }
-  assert.deepEqual(Object.keys(opens).sort(), ['chess', 'clock', 'column', 'container', 'telephone']);
+  assert.deepEqual(Object.keys(opens).sort(), ['chess', 'clock', 'column', 'telephone', 'vita']);
+  assert.ok(!projects.some(({ slug }) => slug === 'ruby-playground'), 'the Ruby playground is no longer a project of the site');
+  assert.equal(labels.vita, 'PS Vita');
   assert.equal(says.duck, 'Quack!');
 });
 

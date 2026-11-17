@@ -393,21 +393,22 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     display: none;
   }
 
-  .bar {
+  /* The bar of the loading screen. The calendar has a bar of its own, for its year: these rules must not reach it. */
+  .loader .bar {
     width: min(18rem, 70vw);
     height: 1.25rem;
     padding: 2px;
     border: 2px solid var(--room-paper);
   }
 
-  .bar span {
+  .loader .bar span {
     display: block;
     width: calc(var(--share, 0) * 100%);
     height: 100%;
     background: var(--room-paper);
   }
 
-  .bar[hidden] {
+  .loader .bar[hidden] {
     display: none;
   }
 

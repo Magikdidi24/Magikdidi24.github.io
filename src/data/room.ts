@@ -160,16 +160,17 @@ export const hints = ['monitor', 'meteorite', 'door'];
 export const says = { dog: 'Woof!', window: home, nightstand: 'Locked', muted: 'Sound is off', off: 'The PC is off', duck: 'Quack!' } as const;
 
 /**
- * The small things of the room that stand for a project: a click opens the
- * window of that project on the desktop of the main screen. By the name of
- * the object, the id of the project in projects.ts.
+ * The small things of the room that stand for a project: a click opens its
+ * window on the desktop of the main screen. By the name of the object, the
+ * id of a project in projects.ts, or of the window of a program (the Snake
+ * that the console on the bed starts).
  */
 export const opens: Record<string, string> = {
   chess: 'chess-board',
   clock: 'zero-shot-forecasting',
   column: 'fluid-simulation',
-  container: 'ruby-playground',
   telephone: 'translation-drift',
+  vita: 'snake-in-c',
 };
 
 /**
@@ -248,6 +249,7 @@ export const labels: Record<string, string> = {
   telephone: 'Telephone',
   'led-matrix': 'LED matrix',
   chess: 'Chessboard',
+  vita: 'PS Vita',
   ...Object.fromEntries(moves.map(({ from }) => [`chess-${from}`, 'Chessboard'])), // the pieces that move on it
   'manga-east': 'Manga',
   'manga-south': 'Manga',

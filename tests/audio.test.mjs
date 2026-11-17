@@ -2,7 +2,7 @@
 // is heard and not too loud. Run with `npm test`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EFFECTS, JINGLES, lasts } from '../src/room/audio.ts';
+import { EFFECTS, JINGLES, lasts, zzfxOf } from '../src/room/audio.ts';
 import { CONSOLES } from '../src/room/objects/tech.ts';
 
 test('every console that can be clicked has a sound of its own', () => {
@@ -51,4 +51,39 @@ test('effects: a panel opens and shuts quietly, with two notes that mirror each 
   const pitches = (notes) => notes.map(({ pitch }) => pitch);
   assert.deepEqual(pitches(EFFECTS.close), [...pitches(EFFECTS.open)].reverse());
   for (const note of [...EFFECTS.open, ...EFFECTS.close]) assert.ok(note.loud <= 0.1, 'too loud for something heard at every panel');
+});
+
+test('the PS Vita on the bed has a jingle too, and no two jingles are the same', () => {
+  assert.ok(JINGLES.vita?.length > 0);
+  const written = Object.values(JINGLES).map((notes) => JSON.stringify(notes));
+  assert.equal(new Set(written).size, written.length);
+});
+
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `expected ${expected}, got ${actual}`);
+
+test('zzfxOf: a note as the parameters zzfx takes: its loudness and pitch, no randomness, the same length, a quick rise then a fall', () => {
+  const [volume, randomness, frequency, attack, sustain, release, shape, curve, slide, , , , , , , , , sustainVolume, decay] = zzfxOf({ at: 0.3, for: 0.5, pitch: 440, wave: 'square', loud: 0.1 });
+  assert.deepEqual([volume, randomness, frequency, shape, curve, slide], [0.1, 0, 440, 5, 1, 0]);
+  near(attack + decay + sustain + release, 0.5);
+  assert.ok(attack > 0 && attack <= 0.02);
+  assert.ok(sustainVolume > 0 && sustainVolume < 0.3, 'most of the sound is gone once its first fall is over');
+});
+
+test('zzfxOf: each wave has its shape, and a glide is a slide that reaches the second pitch as the note ends', () => {
+  const shape = (wave) => zzfxOf({ at: 0, for: 1, pitch: 440, wave, loud: 0.1 })[6];
+  assert.deepEqual(['sine', 'triangle', 'sawtooth', 'square'].map(shape), [0, 1, 2, 5]);
+  const up = zzfxOf({ at: 0, for: 0.5, pitch: [100, 600], wave: 'sine', loud: 0.1 });
+  assert.equal(up[2], 100);
+  near(100 + up[8] * 500 * 0.5, 600); // zzfx slides by 500 Hz a second for each unit of its slide
+  assert.ok(zzfxOf({ at: 0, for: 0.5, pitch: [600, 100], wave: 'sine', loud: 0.1 })[8] < 0);
+});
+
+test('zzfxOf: every sound of the room gives zzfx 21 numbers a note, none of them wild', () => {
+  for (const notes of [...Object.values(JINGLES), ...Object.values(EFFECTS)]) {
+    for (const each of notes) {
+      const parameters = zzfxOf(each);
+      assert.equal(parameters.length, 21);
+      assert.ok(parameters.every(Number.isFinite));
+    }
+  }
 });

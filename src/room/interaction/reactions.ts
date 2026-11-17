@@ -359,7 +359,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     room.setGlow(name, OUT);
     app.invalidate();
   };
-  for (const name of CONSOLES) room.setGlow(name, OUT);
+  for (const name of [...CONSOLES, 'vita']) room.setGlow(name, OUT);
 
   /** The dog jumps up twice, and barks. */
   const bark = () => {
@@ -538,6 +538,17 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const GAME = [0, 0, 0, 1, 1, 2, 2, 3, 3, 3, 3];
   const match = launch('chess', () => sing('tick'));
 
+  /** The console on the bed is switched on: its screen lights up for as long as its sound, and its game opens on the desktop. */
+  const start = async () => {
+    const seconds = sing('vita');
+    room.setGlow('vita', 1);
+    await hop('vita', 1, 0.025)();
+    go(opens.vita);
+    await wait(seconds);
+    room.setGlow('vita', OUT);
+    app.invalidate();
+  };
+
   /** The LED matrix shows its next picture. */
   let shown = 0;
   const advance = () => {
@@ -602,9 +613,10 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     clock: launch('clock', wind),
     duck: quack,
     column: launch('column'),
-    container: launch('container'),
+    container: hop('container', 1, 0.025),
     telephone: launch('telephone', ring),
     chess: match,
+    vita: start,
     ...Object.fromEntries(men.map((name) => [name, match])),
     'led-matrix': () => {
       sing('tick');

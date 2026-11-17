@@ -1,7 +1,7 @@
 /*
   The sounds of the room, made in code: there is no audio file. They are off
-  until the visitor turns them on. A sound is a few notes, each one an
-  oscillator with its own rise and fall.
+  until the visitor turns them on. A sound is a few notes, written here and
+  played by zzfx, each with its own rise and fall.
 */
 
 /**
@@ -63,6 +63,8 @@ export const JINGLES: Record<string, Note[]> = {
     note(0.95, 0.7, 783.99, 'triangle', 0.18),
     note(0.95, 0.7, 1567.98, 'sine', 0.07),
   ],
+  /* The PS Vita, on the bed: four soft notes that climb, and two that stay. */
+  vita: [...run(0, 0.09, 0.12, [587.33, 739.99, 880, 1174.66], 'sine', 0.16), note(0.36, 0.5, 1479.98, 'triangle', 0.1), note(0.36, 0.5, 739.99, 'sine', 0.08)],
   /* The Nintendo DS: two bells, then a short climb. */
   'handheld-wide': [
     note(0, 0.25, 1318.51, 'sine', 0.16),
@@ -119,37 +121,52 @@ export const lasts = (notes: Note[]): number => Math.max(0, ...notes.map((each) 
 /** Whether the visitor has turned the sound on. */
 export const sound = { on: false };
 
-let context: AudioContext | undefined;
+/** The shape zzfx gives each wave. */
+const SHAPES: Record<string, number> = { sine: 0, triangle: 1, sawtooth: 2, square: 5 };
+/** A note falls like a plucked string: after its quick rise, what is left of it once the first fall is over, and the share of the note that this fall takes. */
+const FALL = { to: 0.12, share: 0.3 };
+
+/**
+ * A note as the 21 parameters zzfx takes, in its order: its loudness, no
+ * randomness, its pitch, its rise, no hold, its last fall, its wave, and
+ * further on the slide of a glide (zzfx slides by 500 Hz a second for each
+ * unit), what is left after the first fall, and how long that fall takes.
+ */
+export function zzfxOf(each: Note): number[] {
+  const [from, to] = typeof each.pitch === 'number' ? [each.pitch, each.pitch] : each.pitch;
+  const attack = Math.min(0.02, each.for / 4);
+  const rest = each.for - attack;
+  return [each.loud, 0, from, attack, 0, rest * (1 - FALL.share), SHAPES[each.wave], 1, (to - from) / each.for / 500, 0, 0, 0, 0, 0, 0, 0, 0, FALL.to, rest * FALL.share, 0, 0];
+}
+
+/* zzfx opens its audio output as it is loaded: it is fetched at the first sound, which a click of the visitor has allowed, and never under `node --test`. */
+let engine: Promise<typeof import('zzfx')> | undefined;
+const synth = () =>
+  (engine ??= import('zzfx').catch((error: unknown) => {
+    engine = undefined; // not fetched this time: the next sound asks for it again
+    throw error;
+  }));
 
 /** Wake the sound up from a click: a browser keeps it asleep until one. The button that lets the visitor in calls this. */
 export function unlock(): void {
-  if (!sound.on) return;
-  context ??= new AudioContext();
-  void context.resume();
+  if (sound.on) void synth().then(({ ZZFX }) => ZZFX.audioContext.resume());
 }
 
 /** Play the sound of that name if the sound is on. Returns how long it lasts, in seconds, heard or not. */
 export function play(name: string): number {
   const notes = JINGLES[name] ?? EFFECTS[name] ?? [];
-  if (!sound.on || notes.length === 0) return lasts(notes);
-  context ??= new AudioContext();
-  void context.resume(); // a context made before any click starts suspended
-  const start = context.currentTime + 0.02;
-  for (const each of notes) {
-    const [from, to] = typeof each.pitch === 'number' ? [each.pitch, each.pitch] : each.pitch;
-    const [begins, ends] = [start + each.at, start + each.at + each.for];
-    const voice = context.createOscillator();
-    const level = context.createGain();
-    voice.type = each.wave;
-    voice.frequency.setValueAtTime(from, begins);
-    if (to !== from) voice.frequency.exponentialRampToValueAtTime(to, ends);
-    /* A quick rise, then a fall to silence: no click at either end. */
-    level.gain.setValueAtTime(0.0001, begins);
-    level.gain.linearRampToValueAtTime(each.loud, begins + Math.min(0.02, each.for / 4));
-    level.gain.exponentialRampToValueAtTime(0.0001, ends);
-    voice.connect(level).connect(context.destination);
-    voice.start(begins);
-    voice.stop(ends + 0.02);
+  if (sound.on && notes.length > 0) {
+    void synth().then(({ ZZFX }) => {
+      void ZZFX.audioContext.resume(); // an output opened before any click starts suspended
+      /* The notes of the sound, each drawn by zzfx, laid on one track at the moment they start. */
+      const track = new Float32Array(Math.ceil(lasts(notes) * ZZFX.sampleRate) + 1);
+      for (const each of notes) {
+        const samples = ZZFX.buildSamples(...zzfxOf(each));
+        const start = Math.round(each.at * ZZFX.sampleRate);
+        for (let i = 0; i < samples.length && start + i < track.length; i++) track[start + i] += samples[i];
+      }
+      ZZFX.playSamples([track], 1 / ZZFX.volume); // each note carries its own loudness
+    });
   }
   return lasts(notes);
 }
