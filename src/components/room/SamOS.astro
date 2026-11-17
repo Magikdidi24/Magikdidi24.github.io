@@ -70,7 +70,7 @@ const icons = [
   ))}
 
   {playable.map(({ id, item, file, keys }) => (
-    <div class="window" id={id} data-item={id} data-name={item.name} tabindex="-1" hidden>
+    <div class="window program" id={id} data-item={id} data-name={item.name} tabindex="-1" hidden>
       <p class="title">
         <span>{item.repoName}</span>{' '}
         <a href={`#${stop.id}`}>Close<span class="visually-hidden">: {item.name}</span></a>
@@ -304,6 +304,12 @@ const icons = [
       position: static;
       display: block;
       margin-bottom: var(--space-6);
+    }
+
+    /* A program cannot run: its window would be empty. The list of smaller projects still says what it is. */
+    .window.program,
+    .window.program[hidden] {
+      display: none;
     }
   }
 </style>
