@@ -31,7 +31,7 @@ import { current, go, onRoute } from '../ui/route.ts';
 import { showCalendar, showPicture } from '../ui/sheets.ts';
 import { placement, type Placed } from '../voxel/geometry.ts';
 import { codeScreen } from '../voxel/paint.ts';
-import { easeOut, flutter, stepAt, tumble, type Point } from './motion.ts';
+import { easeOut, flutter, stepAt, trainAt, tumble, type Point } from './motion.ts';
 
 /** A pointer that moved further than this between press and release was dragging. CSS pixels. */
 const CLICK_SLOP = 5;
@@ -184,6 +184,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
 
   /** A speaker plays: it jumps to the beat, a music note over it for a few seconds. */
   const tune = (name: string) => () => {
+    sing('riff');
     bubble(name, `${NOTE}<span class="visually-hidden">${music}</span>`, 2.5);
     return hop(name, 2, 0.025)();
   };
@@ -229,8 +230,9 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
    * while, then all of it holds again. The light it gives the room only
    * changes twice: fast flashes stay on the tubes, which are small.
    */
-  const buzz = () =>
-    play([
+  const buzz = () => {
+    sing('buzz');
+    return play([
       [70, neon(1, OUT, 1)],
       [50, neon(1, 1, 1)],
       [60, neon(0.3, OUT, OUT)],
@@ -250,12 +252,14 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
       [40, neon(1, 1, OUT)],
       [0, neon(1, 1, 1)],
     ]);
+  };
 
   /**
    * The warning light on the wardrobe: six strong orange flashes, two a
    * second. Slow enough to be safe for a light that fills the room.
    */
   const flash = () => {
+    sing('alarm');
     const lit = (level: number) => () => room.setLevel('beacon', level);
     return play([...Array.from({ length: 6 }, (): [number, () => void][] => [[170, lit(1)], [330, lit(0)]]).flat(), [0, lit(0)]]);
   };
@@ -263,6 +267,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   /** The PC goes down, or comes back: its lights and its two screens fade in a few steps. */
   const power = () => {
     const on = room.levels.pc === 0;
+    sing(on ? 'on' : 'off');
     return move(0.35, 4, (t) => room.setLevel('pc', on ? t : 1 - t), false);
   };
 
@@ -282,6 +287,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   /** The printer works, its green light blinking: a sheet slides out of it and flutters down to the floor, to and fro, where it stays. */
   const print = async () => {
     markFound('cv');
+    sing('print');
     const rest = (mesh('cv').userData.placed as Placed).turn ?? 0;
     void blink('printer', 'lime', 3.2)();
     pose('cv', -rest, SLOT);
@@ -327,6 +333,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
 
   /** The nightstand is locked: it shakes, gives a small jump, and says so. What stands on it goes with it. */
   const locked = () => {
+    sing('locked');
     say('nightstand', says.nightstand);
     return move(0.5, 10, (t) => {
       const step = Math.round(t * 10);
@@ -353,6 +360,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
 
   /** The dog jumps up twice, and barks. */
   const bark = () => {
+    sing('bark');
     say('dog', says.dog);
     return hop('dog', 2, 0.075)();
   };
@@ -381,6 +389,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
 
   /** The skill keys light up, a group after the other, then fall back. */
   const wave = () => {
+    sing('keys');
     const groups = [...new Set(keycaps.map(({ group }) => group))];
     const light = (group?: string) => () => keycaps.forEach((cap, index) => glow(index, cap.group === group || index === keyed ? 1 : KEY.rest));
     return play([...groups.map((group): [number, () => void] => [260, light(group)]), [0, light()]]);
@@ -392,6 +401,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
    * turning over, lie there, then jump back to their place.
    */
   const drop = async () => {
+    sing('drop');
     const markers = [...MARKERS].sort(() => random() - 0.5).slice(0, random() < 0.5 ? 1 : 2);
     const fallen = ['eraser', ...markers.map((color) => `marker-${color}`)].map((name, i) => {
       const { at } = mesh(name).userData.placed as Placed;
@@ -459,7 +469,10 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
   const byDay = (name: string) => name === 'window' && !room.night;
 
   /** A knock on the door: it rattles in its frame. */
-  const knock = () => move(0.3, 6, (t) => pose('door', 0, [0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125]));
+  const knock = () => {
+    sing('knock');
+    return move(0.3, 6, (t) => pose('door', 0, [0, 0, [0, 1, -1, 1, -1, 0, 0][Math.round(t * 6)] * 0.0125]));
+  };
 
   const reactions: Record<string, (from: Spot) => unknown> = {
     chair: spin('chair'),
@@ -528,13 +541,39 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     void Promise.resolve(reaction(from)).finally(() => busy.delete(thing));
   };
 
-  onRoute((route) => {
+  onRoute((route, before) => {
+    if (!route.stop !== !before.stop) sing(route.stop ? 'open' : 'close');
     clear(route.stop === STOP.monitor);
     /* The desktop opened another way than by its screen, from the menu or an address: the PC comes back on for it. */
     if (route.stop === STOP.monitor && room.levels.pc === 0) void power();
   });
   clear(current().stop === STOP.monitor);
 
+
+  /* At rest the room is not quite still: now and then a drive light of the NAS goes out for an instant, and by night a train crosses the view from the window. Nothing of it while the desktop covers the room, nor for who asked for no motion. */
+  const quiet = () => still.matches || document.hidden || current().stop === STOP.monitor;
+  const drives = room.lights('homelab', 'cyan');
+  const idle = window.setInterval(() => {
+    if (quiet() || busy.has('homelab') || Math.random() < 0.4) return;
+    const light = drives[Math.floor(Math.random() * drives.length)];
+    room.setGlow('homelab', 0.08, light);
+    app.invalidate();
+    void wait(0.11).then(() => {
+      if (!busy.has('homelab')) room.setGlow('homelab', 1, light);
+      app.invalidate();
+    });
+  }, 900);
+  let train: number | null | undefined;
+  app.animate((now) => {
+    if (!running || quiet() || !room.night) return running;
+    const far = trainAt(now / 1000, room.trainRun);
+    if (far !== train) {
+      train = far;
+      room.train(far);
+      app.invalidate();
+    }
+    return true;
+  });
 
   /* The display of the power supply counts the minutes the page has been open. */
   const uptime = window.setInterval(() => {
@@ -659,6 +698,7 @@ export function createReactions(app: RoomApp, canvas: HTMLCanvasElement): () => 
     canvas.removeEventListener('pointercancel', cancel);
     for (const timer of timers) clearTimeout(timer);
     clearInterval(uptime);
+    clearInterval(idle);
     for (const texture of shattered.values()) texture.dispose();
   };
 }

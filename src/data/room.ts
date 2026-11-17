@@ -147,6 +147,12 @@ export const written = {
 /** What is printed on the table number that stands on the wardrobe: two lines, a number, a name. */
 export const tableNumber = { invite: ['INSTALLEZ', 'VOUS'], number: '14', brand: 'KFC' };
 
+/** What the page says once the room is built, in place of "Loading the room": the button under it lets the visitor in. */
+export const loading = { ready: 'The room is ready' };
+
+/** The three things that are outlined in turn on a first visit, as a hint that the room answers a click: the projects, the research, how to reach him. */
+export const hints = ['monitor', 'meteorite', 'door'];
+
 /** What is said in a bubble over an object when it is clicked: the window says it by day, when it opens no panel. */
 export const says = { dog: 'Woof!', window: home, nightstand: 'Locked', muted: 'Sound is off', off: 'The PC is off' } as const;
 

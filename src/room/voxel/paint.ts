@@ -216,8 +216,11 @@ function paris(rect: Rect): void {
   }
 }
 
-/** Tokyo by night: stars, dark blocks, a slim red tower with its mast and its pod, nearer blocks with lit windows and a train on its viaduct. */
-function tokyo(rect: Rect): void {
+/** The train of the night view: the rows it runs on, the length of a car, how many it has, and where its nose stands when it does not run. In pixels of the strip. */
+export const TRAIN = { y: 113, height: 7, car: 19, cars: 3, rest: 70 };
+
+/** Tokyo by night: stars, dark blocks, a slim red tower with its mast and its pod, nearer blocks with lit windows and a train on its viaduct, its first car at column `train`. None with null. */
+function tokyo(rect: Rect, train: number | null = TRAIN.rest): void {
   const width = CITY.side + CITY.back;
   const { height } = CITY;
   const random = mulberry32(21);
@@ -258,10 +261,30 @@ function tokyo(rect: Rect): void {
 
   rect(0, 120, width, 3, 'graphite'); // viaduct
   for (let x = 8; x < width; x += 24) rect(x, 123, 3, height - 123, 'graphite');
-  for (let car = 0; car < 3; car++) {
-    rect(70 + car * 19, 113, 18, 7, 'steel'); // train
-    rect(72 + car * 19, 115, 14, 2, 'amber');
+  if (train === null) return;
+  for (let car = 0; car < TRAIN.cars; car++) {
+    rect(train + car * TRAIN.car, TRAIN.y, TRAIN.car - 1, TRAIN.height, 'steel');
+    rect(train + 2 + car * TRAIN.car, TRAIN.y + 2, TRAIN.car - 5, 2, 'amber');
   }
+}
+
+/**
+ * Move the train of a night view that faces the room: the rows it runs on
+ * are painted again, with its first car at column `train` of the strip, or
+ * without it.
+ */
+export function moveTrain(view: CanvasTexture, train: number | null): void {
+  const context = (view.image as HTMLCanvasElement).getContext('2d')!;
+  context.save();
+  context.beginPath();
+  context.rect(0, TRAIN.y, CITY.back, TRAIN.height);
+  context.clip();
+  tokyo((x, y, w, h, color) => {
+    context.fillStyle = PALETTE[color];
+    context.fillRect(x - CITY.side, y, w, h);
+  }, train);
+  context.restore();
+  view.needsUpdate = true;
 }
 
 export function cityView(part: 'side' | 'back', night: boolean): CanvasTexture {

@@ -58,3 +58,16 @@ export function tumble(from: Point, to: Point, t: number): Point {
   const height = t < LANDS ? drop * (1 - (t / LANDS) ** 2) : drop * BOUNCE * Math.sin(((t - LANDS) / (1 - LANDS)) * Math.PI);
   return [from[0] + (to[0] - from[0]) * far, to[1] + height, from[2] + (to[2] - from[2]) * far];
 }
+
+/** The train of the night view: one every so many seconds, so many pixels a second, in steps of so many pixels. */
+const TRAIN = { every: 24, speed: 24, step: 2 };
+
+/**
+ * How far the train has come along its viaduct, in pixels of the view,
+ * `seconds` after the page opened: 0 as its nose shows, `run` when its tail
+ * has gone. Null between two trains.
+ */
+export function trainAt(seconds: number, run: number): number | null {
+  const far = Math.floor(((seconds % TRAIN.every) * TRAIN.speed) / TRAIN.step) * TRAIN.step;
+  return far <= run ? far : null;
+}

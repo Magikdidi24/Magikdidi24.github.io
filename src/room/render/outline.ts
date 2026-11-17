@@ -89,6 +89,7 @@ const compositeMaterial = () =>
       normalEdgeStrength: { value: 0 },
       depthThreshold: { value: 0 },
       hovered: { value: 0 },
+      hinted: { value: 0 },
       accent: { value: new Color() },
     },
     vertexShader: /* glsl */ `
@@ -110,6 +111,7 @@ const compositeMaterial = () =>
       uniform float normalEdgeStrength;
       uniform float depthThreshold;
       uniform float hovered;
+      uniform float hinted;
       uniform vec3 accent;
       varying vec2 vUv;
 
@@ -166,8 +168,8 @@ const compositeMaterial = () =>
         vec3 normal = normalOf(aux);
         float id = idOf(aux);
 
-        // The object under the pointer: the pixels of its edge take the accent colour.
-        if (hovered > 0.0 && id == hovered) {
+        // The object under the pointer, and the one a hint points at: the pixels of its edge take the accent colour.
+        if (id > 0.0 && (id == hovered || id == hinted)) {
           bool edge = idOf(auxAt(vec2(1.0, 0.0))) != id || idOf(auxAt(vec2(-1.0, 0.0))) != id
             || idOf(auxAt(vec2(0.0, 1.0))) != id || idOf(auxAt(vec2(0.0, -1.0))) != id;
           if (edge) {
@@ -201,6 +203,8 @@ export class OutlinePass extends Pass {
   depthThreshold = 0.1;
   /** The id of the object to outline in the accent colour: the one under the pointer. 0 for none. */
   hovered = 0;
+  /** The id of another object to outline the same way: one that a hint points at. 0 for none. */
+  hinted = 0;
   readonly accent = new Color();
 
   private readonly scene: Scene;
@@ -283,6 +287,7 @@ export class OutlinePass extends Pass {
     uniforms.normalEdgeStrength.value = this.normalEdgeStrength;
     uniforms.depthThreshold.value = this.depthThreshold;
     uniforms.hovered.value = this.hovered;
+    uniforms.hinted.value = this.hinted;
     uniforms.accent.value.copy(this.accent);
 
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);

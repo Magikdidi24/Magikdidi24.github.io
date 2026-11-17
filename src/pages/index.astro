@@ -54,7 +54,12 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
         <a href="/classic/">Text version</a>
       </div>
     </header>
-    <p class="loader" role="status">Loading the room</p>
+    <!-- Covers the room while it is built: a bar that fills, then the button that lets the visitor in. A panel shows over it. -->
+    <div class="loader">
+      <p id="loading" role="status">Loading the room</p>
+      <div class="bar" role="progressbar" aria-labelledby="loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+      <button type="button" id="enter" hidden>Enter</button>
+    </div>
     <noscript>
       <p class="fallback">The room is drawn in 3D and needs JavaScript. What its objects open is below, and <a href="/classic/">the text version</a> has the rest.</p>
     </noscript>
@@ -88,8 +93,8 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 </Base>
 
 <script>
-  import { stops } from '../data/room.ts';
-  import { sound } from '../room/audio.ts';
+  import { hints, loading, stops } from '../data/room.ts';
+  import { sound, unlock } from '../room/audio.ts';
   import { setupDemos } from '../room/ui/demos/index.ts';
   import { setupPanels } from '../room/ui/panels.ts';
   import { current, go, onRoute } from '../room/ui/route.ts';
@@ -97,6 +102,8 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
   const root = document.getElementById('room') as HTMLElement;
   const canvas = root.querySelector('canvas') as HTMLCanvasElement;
   const loader = root.querySelector('.loader') as HTMLElement;
+  const bar = loader.querySelector('.bar') as HTMLElement;
+  const enter = loader.querySelector('#enter') as HTMLButtonElement;
   const hud = root.querySelector('.hud') as HTMLElement;
   const menu = root.querySelector('.menu') as HTMLDetailsElement;
   const textVersion = (root.querySelector('a[href="/classic/"]') as HTMLAnchorElement).href;
@@ -120,9 +127,19 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
 
   const toTextVersion = () => location.replace(textVersion + location.hash);
 
-  /* Day or night, and sound or none, are the visitor's choices once made. Storage can be closed to the page: a choice is then for this visit only. */
+  /** How far the room is from ready, from 0 to 1: the bar fills in twenty steps. */
+  const progress = (share: number) => {
+    const filled = Math.round(share * 20) / 20;
+    bar.style.setProperty('--share', String(filled));
+    bar.setAttribute('aria-valuenow', String(Math.round(filled * 100)));
+  };
+  /** The share of the bar that the code of the room takes to arrive: the rest is the building of the room. */
+  const CODE = 0.25;
+
+  /* Day or night, and sound or none, are the visitor's choices once made, and so is having seen the room once. Storage can be closed to the page: a choice is then for this visit only. */
   const NIGHT = 'room-night';
   const SOUND = 'room-sound';
+  const SEEN = 'room-seen';
   const chosen = (choice: string): string | null => {
     try {
       return localStorage.getItem(choice);
@@ -193,6 +210,44 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     };
     onRoute(frame);
     frame();
+
+    /* Under the desktop of projects the room is not seen: once the camera is in the screen, nothing is drawn. */
+    let nap = 0;
+    const rest = (route = current()) => {
+      clearTimeout(nap);
+      app.rest(false);
+      const cover = panels.cover();
+      if (route.stop && !cover.right && !cover.bottom) nap = window.setTimeout(() => app.rest(true), 1200);
+    };
+    onRoute(rest);
+    rest();
+  }
+
+  /**
+   * The room is ready. Who came for a panel has it already, and the room
+   * behind it. The others are let in by a button: the room comes to life as
+   * they enter, and on a first visit three of its things are pointed at.
+   */
+  function arrive(app: import('../room/main.ts').RoomApp): void {
+    if (current().stop) {
+      loader.hidden = true;
+      return;
+    }
+    (loader.querySelector('#loading') as HTMLElement).textContent = loading.ready;
+    bar.hidden = true;
+    enter.hidden = false;
+    enter.focus({ preventScroll: true });
+    enter.onclick = () => {
+      unlock();
+      loader.hidden = true;
+      const first = chosen(SEEN) !== '1';
+      choose(SEEN, true);
+      void app.intro().then(() => (first ? app.hint(hints) : undefined));
+    };
+    /* A panel opened from the menu meanwhile shows the room too. */
+    onRoute(() => {
+      loader.hidden = true;
+    });
   }
 
   if (!supported()) {
@@ -202,9 +257,10 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     requestAnimationFrame(async () => {
       try {
         const { start } = await import('../room/main.ts');
-        const app = await start(canvas, root);
-        loader.hidden = true;
+        progress(CODE);
+        const app = await start(canvas, root, (share) => progress(CODE + (1 - CODE) * share));
         wire(app);
+        arrive(app);
       } catch (error) {
         if (import.meta.env.DEV) throw error;
         toTextVersion();
@@ -320,8 +376,62 @@ const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --ro
     white-space: nowrap;
   }
 
+  /* The loader covers the room: a line of text, a bar that fills, then the button that lets the visitor in. */
+  .loader {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--room-ink);
+    text-align: center;
+  }
+
+  .loader[hidden] {
+    display: none;
+  }
+
+  .bar {
+    width: min(18rem, 70vw);
+    height: 1.25rem;
+    padding: 2px;
+    border: 2px solid var(--room-paper);
+  }
+
+  .bar span {
+    display: block;
+    width: calc(var(--share, 0) * 100%);
+    height: 100%;
+    background: var(--room-paper);
+  }
+
+  .bar[hidden] {
+    display: none;
+  }
+
+  #enter {
+    min-width: 8rem;
+    min-height: 2.75rem;
+    padding: 0 var(--space-5);
+    border: 2px solid var(--room-paper);
+    background: var(--room-paper);
+    color: var(--room-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  #enter[hidden] {
+    display: none;
+  }
+
+  #enter:focus-visible {
+    outline: 2px solid var(--room-paper);
+    outline-offset: 3px;
+  }
+
   /* One centred line of text, kept as a plain block so a link stays inline. */
-  .loader,
   .fallback {
     position: absolute;
     inset: 50% var(--space-5) auto;

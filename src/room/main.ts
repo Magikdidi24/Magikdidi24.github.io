@@ -8,7 +8,7 @@ import { createRig, type Pose, type Rig } from './camera.ts';
 import { easeInOut } from './interaction/motion.ts';
 import { createReactions } from './interaction/reactions.ts';
 import { createPipeline, type Pipeline } from './render/pixel.ts';
-import { createScene, ROOM, type RoomScene } from './scene.ts';
+import { createScene, ROOM, type RoomScene, type Switch } from './scene.ts';
 import { glide, pixelAt, type Cover, type Framing } from './view.ts';
 
 export interface RoomApp {
@@ -39,6 +39,12 @@ export interface RoomApp {
    * the camera back to the visitor where they left it.
    */
   focus(view: Framing | null, cover?: Cover): Promise<void>;
+  /** The room comes to life as the visitor enters: dark at first, its lights come on one after the other while the camera comes forward. */
+  intro(): Promise<void>;
+  /** Outline some objects in turn, twice each, by their names: a hint that they answer a click. */
+  hint(names: readonly string[]): Promise<void>;
+  /** Draw nothing while something covers the room from side to side, and draw again once it is gone. */
+  rest(asleep: boolean): void;
   dispose(): void;
 }
 
@@ -47,10 +53,15 @@ export interface RoomApp {
 const TURN = 1.4;
 /** The way to a stop of the visit, and back. */
 const GLIDE = 0.7;
+/** The room coming to life as the visitor enters: how long it takes, from how far the camera comes (a share of its zoom, and degrees), and what comes on, in that order. */
+const INTRO = { seconds: 2.2, zoom: 0.85, turn: 5, lights: ['lamp', 'neon', 'pc'] as Switch[] };
+/** A hint: how long an object stays outlined, then how long it does not, in milliseconds. */
+const HINT = { on: 260, off: 140 };
 
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
-export async function start(canvas: HTMLCanvasElement, container: HTMLElement): Promise<RoomApp> {
+/** Start the room. `progress` hears how far the building of it has come, from 0 to 1. */
+export async function start(canvas: HTMLCanvasElement, container: HTMLElement, progress?: (share: number) => void): Promise<RoomApp> {
   const renderer = new WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   /* The palette colours must reach the screen unchanged. */
   renderer.toneMapping = NoToneMapping;
@@ -62,11 +73,12 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
   /* The pipeline calls render() several times per frame: count draw calls over the whole frame. */
   renderer.info.autoReset = false;
 
-  const room = createScene();
+  const room = await createScene(progress);
   const rig = createRig(ROOM, canvas);
   const pipeline = createPipeline(renderer, room.scene, rig.camera, container);
 
   let dirty = true;
+  let asleep = false;
   let frame = 0;
   let turning: Promise<void> | null = null;
   /** Where the visitor left the camera, while it is held on a stop. */
@@ -162,6 +174,41 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
       left = null;
       rig.hold(false);
     },
+    async intro() {
+      if (still.matches) return;
+      const journey = ++journeys;
+      const to = rig.pose();
+      const from = { ...to, zoom: to.zoom * INTRO.zoom, azimuth: to.azimuth + INTRO.turn };
+      for (const which of INTRO.lights) room.setLevel(which, 0);
+      rig.hold(true);
+      rig.place(from);
+      redraw();
+      let lit = 0;
+      await travel(INTRO.seconds, (eased) => {
+        /* The lights do not wait for the camera: something else may have taken it. */
+        while (lit < INTRO.lights.length && eased >= (lit + 1) / (INTRO.lights.length + 1)) room.setLevel(INTRO.lights[lit++], 1);
+        if (journey === journeys) rig.place({ ...to, zoom: mix(from.zoom, to.zoom, eased), azimuth: mix(from.azimuth, to.azimuth, eased) });
+      });
+      if (journey === journeys) rig.hold(false);
+    },
+    async hint(names) {
+      if (still.matches) return;
+      const pause = (milliseconds: number) => new Promise((done) => setTimeout(done, milliseconds));
+      for (const name of names) {
+        for (let blink = 0; blink < 2; blink++) {
+          pipeline.outlinePass.hinted = room.names.indexOf(name) + 1;
+          dirty = true;
+          await pause(HINT.on);
+          pipeline.outlinePass.hinted = 0;
+          dirty = true;
+          await pause(HINT.off);
+        }
+      }
+    },
+    rest(value) {
+      asleep = value;
+      dirty = true;
+    },
     dispose() {
       cancelAnimationFrame(frame);
       stopReactions();
@@ -191,7 +238,7 @@ export async function start(canvas: HTMLCanvasElement, container: HTMLElement): 
     frame = requestAnimationFrame(tick);
     for (const step of animations) if (!step(now)) animations.delete(step);
     rig.update();
-    if (!dirty) return;
+    if (!dirty || asleep) return;
     dirty = false;
     /* The walls that show, and the side the daylight comes from, follow the camera. */
     if (room.face(rig.azimuth(), rig.turned)) renderer.shadowMap.needsUpdate = true;

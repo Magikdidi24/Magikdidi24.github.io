@@ -57,12 +57,14 @@ import {
   desktopScreen,
   formulaSheet,
   label,
+  moveTrain,
   nameplate,
   schoolPaper,
   soonPaper,
   specimenCard,
   tableCard,
   tag,
+  TRAIN,
   uptimeScreen,
   whiteboardNotes,
 } from './voxel/paint.ts';
@@ -168,6 +170,10 @@ export interface RoomScene {
   press(name: string, which: number[], depth: number): void;
   /** What the display of the power supply shows: how long the page has been open. */
   showUptime(time: string): void;
+  /** How far the train of the night view runs, from the moment its nose shows to the one its tail has gone. In pixels of the view. */
+  readonly trainRun: number;
+  /** Put that train `far` pixels along its run, or take it off the viaduct with null. */
+  train(far: number | null): void;
   dispose(): void;
 }
 
@@ -228,7 +234,12 @@ function walls(): Record<Wall, BufferGeometry[]> {
   };
 }
 
-export function createScene(): RoomScene {
+/**
+ * Build the room. Sculpting its objects is the long part of the start: the
+ * page is given a frame between two of them, and told through `progress`
+ * how far the work has come, from 0 to 1.
+ */
+export async function createScene(progress?: (share: number) => void): Promise<RoomScene> {
   const scene = new Scene();
   const background = new Color();
   scene.background = background;
@@ -257,14 +268,21 @@ export function createScene(): RoomScene {
       if (geometry.getAttribute('position')) solid(new Mesh(geometry, material), wall);
     }
   }
-  for (const object of placed.filter((o) => !o.decor)) {
+  const own = placed.filter((o) => !o.decor);
+  let breath = performance.now();
+  for (const [i, object] of own.entries()) {
     const mesh = new Mesh(voxelGeometry(object.model, object.voxel, object.id, object.smooth), [lit, glow]);
     mesh.name = object.name;
     mesh.userData.placed = object; // where it stands, for what moves it
     mesh.applyMatrix4(placement(object));
     mesh.visible = !object.hidden;
     solid(mesh, object.wall);
+    if (performance.now() - breath < 24) continue;
+    progress?.((i + 1) / own.length);
+    await new Promise(requestAnimationFrame);
+    breath = performance.now();
   }
+  progress?.(1);
 
   /* Pictures laid just in front of a face: one that looks at +z, or another
      way with a turn about y. The two screens glow; papers are lit like the
@@ -441,6 +459,11 @@ export function createScene(): RoomScene {
     showUptime(time) {
       uptime.map?.dispose();
       uptime.map = uptimeScreen(written.uptime, time);
+    },
+    trainRun: CITY.back + TRAIN.cars * TRAIN.car,
+    train(far) {
+      /* It comes in at the end of the wall that faces the room, and runs towards the corner. */
+      moveTrain(views.night.back, far === null ? null : CITY.side + CITY.back - far);
     },
     get night() {
       return night;

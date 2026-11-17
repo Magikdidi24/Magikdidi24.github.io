@@ -65,6 +65,40 @@ export const JINGLES: Record<string, Note[]> = {
   ],
 };
 
+/**
+ * What the other things of the room sound like when they are clicked, and a
+ * panel as it opens or shuts. Short, and made of the same notes as the rest.
+ */
+export const EFFECTS: Record<string, Note[]> = {
+  /* The dog: two barks, each a rough voice that drops. */
+  bark: [0, 0.22].flatMap((at) => [note(at, 0.13, [460, 190], 'sawtooth', 0.22), note(at, 0.13, [230, 95], 'square', 0.12)]),
+  /* A knuckle on wood, twice. */
+  knock: [0, 0.17].map((at) => note(at, 0.08, [150, 60], 'sine', 0.45)),
+  /* A speaker: four notes on a rough string, each with its fifth, the last one held. */
+  riff: [[0, 82.41, 0.16], [0.18, 82.41, 0.16], [0.36, 98, 0.16], [0.54, 110, 0.9]].flatMap(([at, pitch, length]) => [
+    note(at, length, pitch, 'sawtooth', 0.2),
+    note(at, length, pitch * 1.5, 'sawtooth', 0.12),
+  ]),
+  /* The PC goes down, and comes back. */
+  off: [note(0, 0.4, [440, 70], 'triangle', 0.2)],
+  on: [note(0, 0.3, [110, 440], 'triangle', 0.2), note(0.3, 0.2, 880, 'sine', 0.1)],
+  /* The printer at work: its head goes to and fro. */
+  print: Array.from({ length: 8 }, (_, i) => note(i * 0.11, 0.09, i % 2 ? 196 : 233.08, 'square', 0.06)),
+  /* What slips off the whiteboard, as each thing hits the floor. */
+  drop: [0.85, 0.97, 1.09].map((at, i) => note(at, 0.05, [900 - i * 120, 300], 'triangle', 0.25)),
+  /* A neon tube that fails: its hum, cut. */
+  buzz: [[0, 0.07], [0.18, 0.14], [0.5, 0.42], [1.1, 0.48]].map(([at, length]) => note(at, length, 100, 'sawtooth', 0.07)),
+  /* A locked drawer, rattled. */
+  locked: [0, 0.07, 0.14].map((at) => note(at, 0.05, 92, 'square', 0.14)),
+  /* The warning light: a beep with each of its six flashes. */
+  alarm: Array.from({ length: 6 }, (_, i) => note(i * 0.5, 0.17, 880, 'square', 0.07)),
+  /* The keyboard: a note as each group of keys lights up. */
+  keys: run(0, 0.26, 0.12, [523.25, 659.25, 783.99, 987.77, 1174.66], 'triangle', 0.12),
+  /* A panel opens, and shuts. */
+  open: run(0, 0.07, 0.07, [659.25, 880], 'sine', 0.06),
+  close: run(0, 0.07, 0.07, [880, 659.25], 'sine', 0.06),
+};
+
 /** How long a sound lasts, in seconds. */
 export const lasts = (notes: Note[]): number => Math.max(0, ...notes.map((each) => each.at + each.for));
 
@@ -73,9 +107,16 @@ export const sound = { on: false };
 
 let context: AudioContext | undefined;
 
+/** Wake the sound up from a click: a browser keeps it asleep until one. The button that lets the visitor in calls this. */
+export function unlock(): void {
+  if (!sound.on) return;
+  context ??= new AudioContext();
+  void context.resume();
+}
+
 /** Play the sound of that name if the sound is on. Returns how long it lasts, in seconds, heard or not. */
 export function play(name: string): number {
-  const notes = JINGLES[name] ?? [];
+  const notes = JINGLES[name] ?? EFFECTS[name] ?? [];
   if (!sound.on || notes.length === 0) return lasts(notes);
   context ??= new AudioContext();
   void context.resume(); // a context made before any click starts suspended

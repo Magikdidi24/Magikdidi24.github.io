@@ -5,7 +5,7 @@ import test from 'node:test';
 
 const near = (actual, expected, eps = 1e-6) =>
   assert.ok(Math.abs(actual - expected) <= eps, `expected ${expected}, got ${actual}`);
-import { easeInOut, easeOut, flutter, stepAt, tumble } from '../src/room/interaction/motion.ts';
+import { easeInOut, easeOut, flutter, stepAt, trainAt, tumble } from '../src/room/interaction/motion.ts';
 
 test('stepAt: a movement advances in whole steps', () => {
   assert.equal(stepAt(0, 2, 8), 0);
@@ -94,4 +94,19 @@ test('easeInOut: it leaves slowly, arrives slowly, and is half way at half time'
   near(easeInOut(1), 1);
   assert.ok(easeInOut(0.1) < 0.1 && easeInOut(0.9) > 0.9);
   for (let t = 0; t < 1; t += 0.05) assert.ok(easeInOut(t + 0.05) > easeInOut(t), `it goes on at ${t}`);
+});
+
+// The train of the night view: it crosses the window every so often, in steps of two pixels.
+test('trainAt: a train sets off as the page opens, and comes two pixels at a time', () => {
+  assert.equal(trainAt(0, 206), 0);
+  assert.equal(trainAt(1, 206), 24);
+  for (let seconds = 0; seconds < 8; seconds += 0.07) assert.equal(trainAt(seconds, 206) % 2, 0);
+});
+
+test('trainAt: once its tail has gone the viaduct is empty, until the next one', () => {
+  assert.equal(trainAt(8.6, 206), 206);
+  assert.equal(trainAt(9, 206), null);
+  assert.equal(trainAt(23.9, 206), null);
+  assert.equal(trainAt(24, 206), 0);
+  assert.equal(trainAt(25, 206), 24);
 });
