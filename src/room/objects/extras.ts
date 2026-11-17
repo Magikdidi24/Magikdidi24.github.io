@@ -2,11 +2,12 @@
   The small things of the second list of the brief, each where it would be
   in a bedroom: a light switch by the door and a clock over it, a rubber duck
   on the desk, a density column, a chessboard and an old telephone on the
-  window sill, a toy shipping container on the PC, and an LED matrix on the
-  wall. Five of them stand for a project: src/data/room.ts says which.
+  window sill, a toy shipping container on the PC, an LED matrix on the
+  wall, and a PS Vita left on the bed. Six of them open a window of the
+  desktop: src/data/room.ts says which.
 */
 import { moves, position, square, type Piece } from '../../data/chess.ts';
-import { VoxelModel } from '../voxel/builder.ts';
+import { EMISSIVE, VoxelModel } from '../voxel/builder.ts';
 import { C } from '../voxel/palette.ts';
 import type { RoomObject } from './index.ts';
 import { DOOR } from './door.ts';
@@ -154,4 +155,19 @@ function ledMatrix(): RoomObject {
 /** The lights of the matrix, 16 by 16, two centimetres apart: centre, width and height in metres. */
 export const MATRIX_FACE = { x: MATRIX.x + MATRIX.side / 2, y: MATRIX.y + MATRIX.side / 2, z: 0.025 + 0.002, width: 0.32, height: 0.32 };
 
-export const extras = (): RoomObject[] => [lightSwitch(), clock(), duck(), column(), ...chess(), telephone(), container(), ledMatrix()];
+/**
+ * The PS Vita, left on the duvet beside the dog: a black slab with round
+ * ends, a wide screen that lights up, a cross, four buttons and two sticks,
+ * without its maker's mark. 18 cm.
+ */
+function vita(): RoomObject {
+  const m = new VoxelModel(29, 3, 14);
+  m.box(4, 0, 0, 21, 2, 14, C.ink).ball(4.5, 1, 7, 4.5, 1, 7, C.ink).ball(24.5, 1, 7, 4.5, 1, 7, C.ink);
+  m.box(8, 1, 3, 13, 1, 8, C.cyan | EMISSIVE); // screen
+  m.box(3, 2, 6, 3, 1, 1, C.steel).box(4, 2, 5, 1, 1, 3, C.steel); // cross
+  for (const [x, z] of [[24, 5], [24, 7], [23, 6], [25, 6]]) m.set(x, 2, z, C.silver); // buttons
+  m.set(5, 2, 10, C.graphite).set(23, 2, 10, C.graphite); // sticks
+  return { name: 'vita', voxel: FINER, at: [1.0, 0.5, 1.15], model: m, turn: -25, smooth: true };
+}
+
+export const extras = (): RoomObject[] => [lightSwitch(), clock(), duck(), column(), ...chess(), telephone(), container(), ledMatrix(), vita()];

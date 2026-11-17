@@ -63,6 +63,8 @@ export const JINGLES: Record<string, Note[]> = {
     note(0.95, 0.7, 783.99, 'triangle', 0.18),
     note(0.95, 0.7, 1567.98, 'sine', 0.07),
   ],
+  /* The PS Vita, on the bed: four soft notes that climb, and two that stay. */
+  vita: [...run(0, 0.09, 0.12, [587.33, 739.99, 880, 1174.66], 'sine', 0.16), note(0.36, 0.5, 1479.98, 'triangle', 0.1), note(0.36, 0.5, 739.99, 'sine', 0.08)],
   /* The Nintendo DS: two bells, then a short climb. */
   'handheld-wide': [
     note(0, 0.25, 1318.51, 'sine', 0.16),

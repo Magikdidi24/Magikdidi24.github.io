@@ -52,3 +52,9 @@ test('effects: a panel opens and shuts quietly, with two notes that mirror each 
   assert.deepEqual(pitches(EFFECTS.close), [...pitches(EFFECTS.open)].reverse());
   for (const note of [...EFFECTS.open, ...EFFECTS.close]) assert.ok(note.loud <= 0.1, 'too loud for something heard at every panel');
 });
+
+test('the PS Vita on the bed has a jingle too, and no two jingles are the same', () => {
+  assert.ok(JINGLES.vita?.length > 0);
+  const written = Object.values(JINGLES).map((notes) => JSON.stringify(notes));
+  assert.equal(new Set(written).size, written.length);
+});
