@@ -34,7 +34,7 @@ const rows = openSource.prs.map((p) => [
 ]);
 
 const facts = [
-  { term: 'Projects', detail: 'RuboCop, tree-sitter-ruby' },
+  { term: 'Projects', detail: `RuboCop, tree-sitter-ruby, ${openSource.driver.project}` },
   { term: 'Merged pull requests', detail: `${openSource.prs.length} (RuboCop)` },
   { term: 'Merge dates', detail: 'Dec 2025 to Jan 2026' },
   { term: 'Fork', detail: 'tree-sitter-ruby' },
@@ -105,6 +105,9 @@ end
     <li>A differential check that parses the ruby/spec test suite with both tree-sitter and Prism, Ruby's own parser, and lists where they disagree.</li>
     <li>Build and CI updated for the tree-sitter CLI 0.27.1, and 878 new lines of test cases in the grammar's corpus, which pair a Ruby snippet with the syntax tree the parser must produce.</li>
   </ul>
+
+  <h2 id="gpu-driver">{openSource.driver.project}</h2>
+  <p>{openSource.driver.summary} {openSource.driver.note}</p>
 
   <p slot="closing"><a href={openSource.rubocopPrsUrl}>All my RuboCop pull requests</a> are listed on GitHub.</p>
 </CaseStudy>

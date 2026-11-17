@@ -1,7 +1,7 @@
 ---
 /*
-  Home hero: the name, the lede, the availability sentence with the only
-  solid button on the site, then the photon figure at full .wrap width.
+  Home hero: the name, the lede, the contact actions with the only solid
+  button on the site, then the photon figure at full .wrap width.
   The figure is owned by PhotonFigure.astro; this component only places it.
 */
 import PhotonFigure from '../PhotonFigure.astro';
@@ -14,15 +14,12 @@ const lede = `${person.intro} ${person.focus}`;
 
   <div class="intro">
     <p class="lede">{lede}</p>
-    <div class="cta">
-      <p class="availability">{person.availability.sentence}</p>
-      <div class="actions">
-        <a class="button" href={`mailto:${person.email}`}>Email me</a>
-        <ul class="links" role="list">
-          <li><a class="link" href={person.links.linkedin}>LinkedIn</a></li>
-          <li><a class="link" href={person.links.github}>GitHub</a></li>
-        </ul>
-      </div>
+    <div class="actions">
+      <a class="button" href={`mailto:${person.email}`}>Email me</a>
+      <ul class="links" role="list">
+        <li><a class="link" href={person.links.linkedin}>LinkedIn</a></li>
+        <li><a class="link" href={person.links.github}>GitHub</a></li>
+      </ul>
     </div>
   </div>
 
@@ -53,15 +50,6 @@ const lede = `${person.intro} ${person.focus}`;
     font-size: var(--lede);
     line-height: 1.45;
     letter-spacing: -0.005em;
-  }
-
-  .cta {
-    display: grid;
-    row-gap: var(--space-3);
-  }
-
-  .availability {
-    max-width: 34ch;
   }
 
   /* The two text links wrap together, below the button, on narrow screens. */
@@ -102,7 +90,7 @@ const lede = `${person.intro} ${person.focus}`;
       grid-column: 1 / span 7;
     }
 
-    .cta {
+    .actions {
       grid-column: 8 / -1;
     }
   }

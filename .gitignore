@@ -13,3 +13,6 @@ npm-debug.log*
 
 # OS
 .DS_Store
+
+# Playwright MCP snapshots
+.playwright-mcp/

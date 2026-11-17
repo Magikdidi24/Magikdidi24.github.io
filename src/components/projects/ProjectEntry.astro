@@ -13,14 +13,16 @@ import ResultsTable from './ResultsTable.astro';
 
 export interface Props {
   project: Project;
+  /** False when what holds the project carries its id instead: its window in the 3D room. */
+  anchor?: boolean;
 }
 
-const { project: p } = Astro.props;
+const { project: p, anchor = true } = Astro.props;
 const titleId = `${p.slug}-title`;
 const meta = [p.context, p.year].filter((part) => part && part.trim()).join(', ');
 const figure = p.figure;
 ---
-<section class:list={['project', { 'project--figure': figure }]} id={p.slug} aria-labelledby={titleId}>
+<section class:list={['project', { 'project--figure': figure }]} id={anchor ? p.slug : undefined} aria-labelledby={titleId}>
   <div class="text">
     <h2 id={titleId}>{p.name}</h2>
     {meta && <p class="meta">{meta}</p>}

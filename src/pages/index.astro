@@ -1,37 +1,795 @@
 ---
 /*
-  Home page. Sections in order: hero with the photon figure, selected work,
-  projects, about, contact. The gap between sections is set here once;
-  the footer brings its own top margin.
+  Home page: the 3D room. The static HTML is the name, a menu of the stops of
+  the visit, the link to the text version (/classic/), the panels that the
+  stops open, and a loading line; the room is drawn by src/room/, which is
+  loaded after the first paint. The panels need no 3D: they follow the hash
+  of the page. Without WebGL the visitor is sent to the text version, and
+  without JavaScript the panels read as an ordinary page.
 */
+import '@fontsource/silkscreen/latin-400.css';
 import Base from '../layouts/Base.astro';
-import Hero from '../components/home/Hero.astro';
-import SelectedWork from '../components/home/SelectedWork.astro';
-import Projects from '../components/home/Projects.astro';
-import About from '../components/home/About.astro';
-import Contact from '../components/home/Contact.astro';
+import Compiler from '../components/room/Compiler.astro';
+import Education from '../components/room/Education.astro';
+import OpenSource from '../components/room/OpenSource.astro';
+import Prologin from '../components/room/Prologin.astro';
+import Reach from '../components/room/Reach.astro';
+import Research from '../components/room/Research.astro';
+import SamOS from '../components/room/SamOS.astro';
+import Skills from '../components/room/Skills.astro';
+import Tokyo from '../components/room/Tokyo.astro';
+import { stops } from '../data/room';
 import { person } from '../data/site';
+import { PALETTE } from '../room/voxel/palette';
 
 const title = 'Samuel Berthelot, AI engineering student in Tokyo';
-const description = `${person.intro} ${person.availability.sentence}`;
+const description = `${person.intro} ${person.focus}`;
 if (description.length > 160) {
   throw new Error(`Home meta description is ${description.length} characters; keep it under 160.`);
 }
+const colors = `--room-ink: ${PALETTE.ink}; --room-paper: ${PALETTE.paper}; --room-red: ${PALETTE.red}`;
 ---
-<Base title={title} description={description}>
-  <div class="home">
-    <Hero />
-    <SelectedWork />
-    <Projects />
-    <About />
-    <Contact />
+<Base title={title} description={description} bare>
+  <!-- data-time follows the Night button: the window is a stop of the visit at night only. -->
+  <div class="room" id="room" style={colors} data-time="day">
+    <canvas
+      class="view"
+      role="img"
+      aria-label="A bedroom drawn in 3D pixel art. What it shows is also in the text version of this site."
+    ></canvas>
+    <header class="hud">
+      <h1>{person.name}</h1>
+      <div class="tools">
+        <details class="menu">
+          <summary>Objects</summary>
+          <ul role="list">
+            {stops.map(({ id, label, night }) => <li data-when={night ? 'night' : undefined}><a href={`#${id}`}>{label}</a></li>)}
+          </ul>
+        </details>
+        <!-- Shown once the room is drawn: see the script below. -->
+        <button type="button" id="turn" aria-pressed="false" hidden>Turn around</button>
+        <button type="button" id="night" aria-pressed="false" hidden>Night</button>
+        <button type="button" id="sound" aria-pressed="false" hidden>Sound</button>
+        <button type="button" id="smooth" aria-pressed="false" hidden>Smooth</button>
+        <a href="/classic/">Text version</a>
+      </div>
+    </header>
+    <!-- Covers the room while it is built: a bar that fills, then the button that lets the visitor in. A panel shows over it. -->
+    <div class="loader">
+      <p id="loading" role="status">Loading the room</p>
+      <div class="bar" role="progressbar" aria-labelledby="loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+      <button type="button" id="enter" hidden>Enter</button>
+    </div>
+    <noscript>
+      <p class="fallback">The room is drawn in 3D and needs JavaScript. What its objects open is below, and <a href="/classic/">the text version</a> has the rest.</p>
+    </noscript>
+
+    <!-- One panel for each stop of the visit, in the order of the menu. -->
+    <Research />
+    <Compiler />
+    <OpenSource />
+    <SamOS />
+    <Skills />
+    <Education />
+    <Tokyo />
+    <Prologin />
+    <Reach />
+
+    <!-- Opened by a click in the room (src/room/ui/sheets.ts): a picture shown large, and the calendar. -->
+    <dialog class="sheet" id="zoom">
+      <figure></figure>
+      <form method="dialog"><button>Close</button></form>
+    </dialog>
+    <dialog class="sheet" id="calendar" aria-labelledby="calendar-year">
+      <div class="bar">
+        <button type="button" data-step="-1" aria-label="Previous year">&lt;</button>
+        <p id="calendar-year" aria-live="polite"></p>
+        <button type="button" data-step="1" aria-label="Next year">&gt;</button>
+      </div>
+      <div class="months"></div>
+      <form method="dialog"><button>Close</button></form>
+    </dialog>
   </div>
 </Base>
 
+<script>
+  import { hints, loading, stops } from '../data/room.ts';
+  import { sound, unlock } from '../room/audio.ts';
+  import { setupDemos } from '../room/ui/demos/index.ts';
+  import { setupPanels } from '../room/ui/panels.ts';
+  import { current, go, onRoute } from '../room/ui/route.ts';
+
+  const root = document.getElementById('room') as HTMLElement;
+  const canvas = root.querySelector('canvas') as HTMLCanvasElement;
+  const loader = root.querySelector('.loader') as HTMLElement;
+  const bar = loader.querySelector('.bar') as HTMLElement;
+  const enter = loader.querySelector('#enter') as HTMLButtonElement;
+  const hud = root.querySelector('.hud') as HTMLElement;
+  const menu = root.querySelector('.menu') as HTMLDetailsElement;
+  const textVersion = (root.querySelector('a[href="/classic/"]') as HTMLAnchorElement).href;
+
+  /* The panels follow the hash from now on, room or no room. They start under the HUD: the style sheet needs its height. */
+  const panels = setupPanels(root);
+  setupDemos(root);
+  new ResizeObserver(() => root.style.setProperty('--hud', `${hud.offsetHeight}px`)).observe(hud);
+  onRoute(() => {
+    menu.open = false;
+  });
+
+  /* The post-processing chain needs WebGL2 and half-float render targets. */
+  function supported(): boolean {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) return false;
+    const ok = !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'));
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return ok;
+  }
+
+  const toTextVersion = () => location.replace(textVersion + location.hash);
+
+  /** How far the room is from ready, from 0 to 1: the bar fills in twenty steps. */
+  const progress = (share: number) => {
+    const filled = Math.round(share * 20) / 20;
+    bar.style.setProperty('--share', String(filled));
+    bar.setAttribute('aria-valuenow', String(Math.round(filled * 100)));
+  };
+  /** The share of the bar that the code of the room takes to arrive: the rest is the building of the room. */
+  const CODE = 0.25;
+
+  /* Day or night, and sound or none, are the visitor's choices once made, and so is having seen the room once. Storage can be closed to the page: a choice is then for this visit only. */
+  const NIGHT = 'room-night';
+  const SOUND = 'room-sound';
+  const SEEN = 'room-seen';
+  const chosen = (choice: string): string | null => {
+    try {
+      return localStorage.getItem(choice);
+    } catch {
+      return null;
+    }
+  };
+  const choose = (choice: string, on: boolean) => {
+    try {
+      localStorage.setItem(choice, on ? '1' : '0');
+    } catch {
+      /* Not remembered, then. */
+    }
+  };
+
+  /** Hand the room to the page: its four buttons, and the camera that follows the open panel. */
+  function wire(app: import('../room/main.ts').RoomApp): void {
+    const button = (id: string) => root.querySelector(`#${id}`) as HTMLButtonElement;
+    const [turn, night, loud, smooth] = [button('turn'), button('night'), button('sound'), button('smooth')];
+
+    /* The panels are ink on paper by day and paper on ink by night, like the rest of the site. */
+    const lit = (dark: boolean) => {
+      night.setAttribute('aria-pressed', String(dark));
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      root.dataset.time = dark ? 'night' : 'day';
+    };
+    const saved = chosen(NIGHT);
+    if (saved) app.setNight(saved === '1');
+    lit(app.room.night);
+    night.onclick = () => {
+      app.setNight(!app.room.night);
+      lit(app.room.night);
+      choose(NIGHT, app.room.night);
+      /* What is a stop at night only shuts as the day comes back. */
+      if (!app.room.night && stops.find(({ id }) => id === current().stop)?.night) go(null);
+    };
+    /* The sounds of the room are off until asked for. */
+    const heard = (on: boolean) => {
+      sound.on = on;
+      loud.setAttribute('aria-pressed', String(on));
+    };
+    heard(chosen(SOUND) === '1');
+    loud.onclick = () => {
+      heard(!sound.on);
+      choose(SOUND, sound.on);
+    };
+    turn.onclick = () => void app.turn().then(() => turn.setAttribute('aria-pressed', String(app.rig.behind)));
+    smooth.onclick = () => {
+      const on = smooth.getAttribute('aria-pressed') !== 'true';
+      smooth.setAttribute('aria-pressed', String(on));
+      app.setSmooth(on);
+    };
+    turn.hidden = night.hidden = loud.hidden = smooth.hidden = false;
+
+    /* The camera goes to the stop whose panel is open, clear of that panel, and comes back when it closes. */
+    const frame = (route = current()) => {
+      const stop = stops.find(({ id }) => id === route.stop);
+      /* A stop of the night opened by day, from its address: night falls for it, without being remembered. */
+      if (stop?.night && !app.room.night) {
+        app.setNight(true);
+        lit(true);
+      }
+      const view = stop?.view ?? null;
+      const cover = panels.cover();
+      /* Beside a panel, the buttons of the HUD lie over the top of what is left: three rows of them on a phone. */
+      const top = cover.right || cover.bottom ? hud.offsetHeight : 0;
+      void app.focus(view, { ...cover, top }).then(() => turn.setAttribute('aria-pressed', String(app.rig.behind)));
+    };
+    onRoute(frame);
+    frame();
+
+    /* Under the desktop of projects the room is not seen: once the camera is in the screen, nothing is drawn. */
+    let nap = 0;
+    const rest = (route = current()) => {
+      clearTimeout(nap);
+      app.rest(false);
+      const cover = panels.cover();
+      if (route.stop && !cover.right && !cover.bottom) nap = window.setTimeout(() => app.rest(true), 1200);
+    };
+    onRoute(rest);
+    rest();
+  }
+
+  /**
+   * The room is ready. Who came for a panel has it already, and the room
+   * behind it. The others are let in by a button: the room comes to life as
+   * they enter, and on a first visit three of its things are pointed at.
+   */
+  function arrive(app: import('../room/main.ts').RoomApp): void {
+    if (current().stop) {
+      loader.hidden = true;
+      return;
+    }
+    (loader.querySelector('#loading') as HTMLElement).textContent = loading.ready;
+    bar.hidden = true;
+    enter.hidden = false;
+    enter.focus({ preventScroll: true });
+    enter.onclick = () => {
+      unlock();
+      loader.hidden = true;
+      const first = chosen(SEEN) !== '1';
+      choose(SEEN, true);
+      void app.intro().then(() => (first ? app.hint(hints) : undefined));
+    };
+    /* A panel opened from the menu meanwhile shows the room too. */
+    onRoute(() => {
+      loader.hidden = true;
+    });
+  }
+
+  if (!supported()) {
+    toTextVersion();
+  } else {
+    /* After the first paint, so the name and the links show before three.js loads. */
+    requestAnimationFrame(async () => {
+      try {
+        const { start } = await import('../room/main.ts');
+        progress(CODE);
+        const app = await start(canvas, root, (share) => progress(CODE + (1 - CODE) * share));
+        wire(app);
+        arrive(app);
+      } catch (error) {
+        if (import.meta.env.DEV) throw error;
+        toTextVersion();
+      }
+    });
+  }
+</script>
+
 <style>
-  .home {
+  .room {
+    --hud: 4.25rem; /* the height of the HUD, kept up to date by the script */
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    background: var(--room-ink);
+    color: var(--room-paper);
+    font-family: 'Silkscreen', var(--mono);
+    font-size: 1rem; /* twice the 8px grid of the pixel font */
+    line-height: 1;
+  }
+
+  /* Sized by the pixel pipeline: it can be wider than the room by less than
+     one virtual pixel, so it must not shrink to fit. */
+  .view {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: none;
+  }
+
+  .hud {
+    position: absolute;
+    z-index: 1;
+    inset: 0 0 auto;
     display: flex;
-    flex-direction: column;
-    row-gap: var(--section-gap);
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    pointer-events: none;
+  }
+
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  h1,
+  .hud a,
+  .hud button,
+  .hud summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 0;
+    background: var(--room-ink);
+    color: inherit;
+    font: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1;
+    pointer-events: auto;
+  }
+
+  .hud button,
+  .hud summary {
+    cursor: pointer;
+  }
+
+  .hud [hidden] {
+    display: none;
+  }
+
+  /* A button that is on: the room seen from behind, the night, smooth edges. */
+  .hud [aria-pressed='true'],
+  .menu[open] summary {
+    background: var(--room-paper);
+    color: var(--room-ink);
+  }
+
+  /* The menu of the stops of the visit: a list of links that drops under its button. */
+  .menu {
+    position: relative;
+  }
+
+  .menu summary {
+    list-style: none;
+  }
+
+  .menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .menu ul {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 100%;
+    max-height: calc(100dvh - var(--hud)); /* a long list on a low screen scrolls */
+    margin: var(--space-1) 0 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+    pointer-events: auto;
+  }
+
+  .menu a {
+    display: flex;
+    white-space: nowrap;
+  }
+
+  /* The loader covers the room: a line of text, a bar that fills, then the button that lets the visitor in. */
+  .loader {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background: var(--room-ink);
+    text-align: center;
+  }
+
+  .loader[hidden] {
+    display: none;
+  }
+
+  .bar {
+    width: min(18rem, 70vw);
+    height: 1.25rem;
+    padding: 2px;
+    border: 2px solid var(--room-paper);
+  }
+
+  .bar span {
+    display: block;
+    width: calc(var(--share, 0) * 100%);
+    height: 100%;
+    background: var(--room-paper);
+  }
+
+  .bar[hidden] {
+    display: none;
+  }
+
+  #enter {
+    min-width: 8rem;
+    min-height: 2.75rem;
+    padding: 0 var(--space-5);
+    border: 2px solid var(--room-paper);
+    background: var(--room-paper);
+    color: var(--room-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  #enter[hidden] {
+    display: none;
+  }
+
+  #enter:focus-visible {
+    outline: 2px solid var(--room-paper);
+    outline-offset: 3px;
+  }
+
+  /* One centred line of text, kept as a plain block so a link stays inline. */
+  .fallback {
+    position: absolute;
+    inset: 50% var(--space-5) auto;
+    transform: translateY(-50%);
+    text-align: center;
+  }
+
+  .fallback {
+    font-family: var(--font);
+    line-height: var(--leading-body);
+  }
+
+  .hud :focus-visible,
+  .sheet :focus-visible {
+    outline-color: var(--room-paper);
+  }
+
+  /* A few words over an object of the room, put there by a click, and the name of the one under the pointer (src/room/interaction/reactions.ts). */
+  .room > :global(.bubble),
+  .room > :global(.label) {
+    position: absolute;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .room > :global(.bubble) {
+    padding: var(--space-2) var(--space-3);
+    border: 2px solid var(--room-ink);
+    background: var(--room-paper);
+    color: var(--room-ink);
+    transform: translate(-50%, calc(-100% - 0.5rem));
+  }
+
+  /* A picture in a bubble: the music note of a speaker. */
+  .room > :global(.bubble svg) {
+    display: block;
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: currentColor;
+    shape-rendering: crispEdges;
+  }
+
+  /* What belongs to the night is not listed by day. */
+  .room[data-time='day'] :global([data-when='night']) {
+    display: none;
+  }
+
+  .room > :global(.label) {
+    padding: var(--space-2);
+    background: var(--room-ink);
+    white-space: nowrap;
+    transform: translate(1rem, 1rem);
+  }
+
+  .room > :global(.label[hidden]) {
+    display: none;
+  }
+
+  /* A panel: what a stop of the visit opens (src/components/room/). A column on the right of the room, under the HUD. */
+  .room :global(.panel) {
+    position: absolute;
+    inset: var(--hud) 0 0 auto;
+    display: none;
+    width: min(27rem, 100%);
+    overflow-y: auto;
+    padding: var(--space-5);
+    border-left: 2px solid var(--room-ink);
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: var(--text-base);
+    line-height: var(--leading-body);
+  }
+
+  /* Open: the script says which. Until it runs, the hash of the page does. */
+  .room :global(.panel[data-open]),
+  .room:not(.routed) :global(.panel:target) {
+    display: block;
+  }
+
+  /* The desktop of projects covers the room: dark, in the pixel font. */
+  .room :global(.panel.samos) {
+    inset: var(--hud) 0 0;
+    width: auto;
+    border-left: 0;
+    background: var(--room-ink);
+    color: var(--room-paper);
+    font-family: 'Silkscreen', var(--mono);
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  /* An open window covers the desktop: the desktop does not scroll under it. */
+  .room :global(.panel.samos:has(.window:not([hidden]))) {
+    overflow: hidden;
+  }
+
+  /* On a narrow screen a panel is a sheet at the foot of the room. */
+  @media (max-width: 47.99rem) {
+    .room :global(.panel) {
+      inset: auto 0 0;
+      width: auto;
+      max-height: 56vh;
+      border-top: 2px solid var(--room-ink);
+      border-left: 0;
+    }
+
+    .room :global(.panel.samos) {
+      inset: var(--hud) 0 0;
+      max-height: none;
+      border-top: 0;
+    }
+  }
+
+  /* A sheet over the room. What a script puts in it is not in this template, hence :global. */
+  .sheet {
+    max-width: 96vw;
+    max-height: 96vh;
+    padding: var(--space-3);
+    border: 2px solid var(--room-paper);
+    background: var(--room-ink);
+    color: var(--room-paper);
+    font: inherit;
+  }
+
+  .sheet::backdrop {
+    background: rgb(26 20 35 / 0.8);
+  }
+
+  /* A sheet pops out of what was clicked: it grows from that point of the room, which the script gives it, to the middle of the page. */
+  @keyframes pop {
+    from {
+      opacity: 0.3;
+      transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.05) rotate(-12deg);
+    }
+
+    60% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes dim {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes ring {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* A panel comes in from the side it stays on; the desktop starts once the camera is in the screen. */
+  @keyframes slide {
+    from {
+      transform: translate(var(--slide-x, 100%), var(--slide-y, 0));
+    }
+  }
+
+  @keyframes boot {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sheet[open] {
+      animation: pop 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+    }
+
+    .sheet[open]::backdrop {
+      animation: dim 0.3s ease-out;
+    }
+
+    .room > :global(.bubble) {
+      animation: pop 0.2s steps(4);
+    }
+
+    .room :global(.panel[data-open]) {
+      animation: slide 0.3s steps(6);
+    }
+
+    .room :global(.panel.samos[data-open]) {
+      animation: boot 0.25s 0.6s steps(5) backwards; /* once the camera is on the screen */
+    }
+
+    /* The ring is drawn once the calendar is open. */
+    .months :global(.marked path) {
+      stroke-dashoffset: 100;
+      animation: ring 0.6s 0.5s ease-out forwards;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) and (max-width: 47.99rem) {
+    .room :global(.panel[data-open]) {
+      --slide-x: 0;
+      --slide-y: 100%;
+    }
+  }
+
+  .sheet figure {
+    margin: 0;
+  }
+
+  .sheet :global(img) {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 72vh;
+  }
+
+  /* A canvas of the room, enlarged by a whole number: sized by the script. */
+  .sheet :global(img.pixels) {
+    max-width: none;
+    max-height: none;
+    image-rendering: pixelated;
+  }
+
+  .sheet form,
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .sheet form {
+    justify-content: flex-end;
+    margin-top: var(--space-3);
+  }
+
+  .bar {
+    margin-bottom: var(--space-3);
+  }
+
+  .sheet button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 2px solid var(--room-paper);
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .months {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-4);
+    width: min(88vw, 54rem);
+  }
+
+  .months :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .months :global(caption) {
+    padding-bottom: var(--space-2);
+    text-align: left;
+  }
+
+  .months :global(th),
+  .months :global(td) {
+    width: calc(100% / 7);
+    padding: 0.25rem 0;
+    font-weight: 400;
+    text-align: center;
+  }
+
+  .months :global(th) {
+    opacity: 0.6;
+  }
+
+  .months :global([aria-current]) {
+    outline: 2px solid var(--room-paper);
+    outline-offset: -2px;
+  }
+
+  /* The day that is circled: a ring drawn by hand, in red marker, wider than its cell as a real one would be. */
+  .months :global(.marked) {
+    position: relative;
+  }
+
+  .months :global(.marked svg) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2.75rem;
+    max-width: none; /* the site keeps pictures inside their box */
+    height: 2.75rem;
+    overflow: visible;
+    transform: translate(-50%, -50%);
+  }
+
+  /* The month that is circled: the ring takes the width of its name, and what it is for is written under it. */
+  .months :global(caption .marked) {
+    display: inline-block;
+  }
+
+  .months :global(caption .marked svg) {
+    width: calc(100% + 1.5rem);
+    height: 2.25rem;
+  }
+
+  .months :global(caption .note) {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--room-red);
+  }
+
+  .months :global(.marked path) {
+    fill: none;
+    stroke: var(--room-red);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
+  }
+
+  /* Without JavaScript there is no room: the name, the menu and the panels, one under the other, as a page. */
+  @media (scripting: none) {
+    .room,
+    .hud,
+    .fallback,
+    .room :global(.panel),
+    .room :global(.panel.samos) {
+      position: static;
+    }
+
+    .room {
+      overflow: visible;
+    }
+
+    .view,
+    .loader {
+      display: none;
+    }
+
+    .fallback {
+      padding: var(--space-5);
+      transform: none;
+    }
+
+    .room :global(.panel),
+    .room :global(.panel.samos) {
+      display: block;
+      width: auto;
+      max-height: none;
+      border: 0;
+    }
+
+    /* No hour without the room: what belongs to the night is listed too. */
+    .room[data-time='day'] :global([data-when='night']) {
+      display: revert;
+    }
   }
 </style>

@@ -1,0 +1,20 @@
+---
+/*
+  The panel of the pegboard: the open source contributions, from site.ts, as
+  the text version lists them.
+*/
+import Panel from './Panel.astro';
+import PullRequestList from '../home/PullRequestList.astro';
+import { stops } from '../../data/room';
+import { openSource } from '../../data/site';
+
+const stop = stops.find(({ id }) => id === 'open-source')!;
+const { driver, fork } = openSource;
+---
+<Panel id={stop.id} title={stop.label}>
+  <p>{openSource.summary}</p>
+  <PullRequestList />
+  <p>{fork.summary} <a href={fork.url}>The fork on GitHub</a>.</p>
+  <p>{driver.project} ({driver.language}): {driver.summary} {driver.note}</p>
+  <p><a class="go" href={`/work/${openSource.slug}/`}>Read about the contributions</a></p>
+</Panel>

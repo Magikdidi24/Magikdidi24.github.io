@@ -13,14 +13,24 @@ export const person = {
     site: 'https://magikdidi24.github.io',
     source: 'https://github.com/Magikdidi24/Magikdidi24.github.io',
   },
+  /** Under the Contact heading, in the text version and in the room. */
+  contactNote: 'Email is the fastest way to reach me, and I reply in English or French.',
   /** One line, used in the hero and in meta descriptions. */
   intro: 'AI engineering student at EPITA, on exchange in Tokyo.',
   focus: 'I reconstruct images from very little data, and I work on compilers and developer tools.',
-  availability: {
-    sentence: 'Looking for a 6-month AI engineering internship from March 2027.',
-    start: 'March 2027',
-    duration: '6 months',
-    areas: ['computer vision', 'multimodal or generative models', 'ML tooling'],
+  /** His dog, curled up on the bed of the 3D room. */
+  dog: 'Elfy',
+  /** His birthday, without the year: circled on the calendar of the 3D room. */
+  birthday: { month: 9, day: 23 },
+  /** The CV that the printer of the 3D room hands out. Its copy in public/ has no phone number. */
+  cv: '/Samuel_Berthelot_Resume.pdf' as string | null,
+  /* After the exchange: the end-of-studies internship, found.
+     TODO(Samuel): company and role, once they can be announced. */
+  nextStep: {
+    start: '2027-03',
+    sentence: 'Mar 2027: end-of-studies internship, more soon',
+    company: null as string | null,
+    role: null as string | null,
   },
 } as const;
 
@@ -63,6 +73,9 @@ export const experience = [
   },
 ] as const;
 
+/* What he has done at Prologin so far, as he gave it. Shown in the 3D room. */
+export const prologin = { record: 'Wrote 3 problems, reviewed more than 5.' } as const;
+
 export const education = [
   {
     id: 'sit',
@@ -78,7 +91,7 @@ export const education = [
     org: 'EPITA',
     place: 'France',
     period: { start: '2024', end: '2027', label: '2024 to 2027' },
-    summary: 'Artificial intelligence major (SCIAG).',
+    summary: 'Artificial intelligence major (SCIA-G).',
   },
   {
     id: 'cpge',
@@ -90,17 +103,33 @@ export const education = [
   },
 ] as const;
 
+/* The baccalauréat, as its diploma reads, and the town he sat it in, which he
+   gave. Shown in the 3D room only. The lycée is not named: he did not give it. */
+export const baccalaureate = {
+  title: 'Baccalauréat général',
+  session: '2022',
+  place: 'Le Mans',
+  academy: 'Académie de Nantes',
+  specialities: ['Mathematics', 'Digital and computer sciences (NSI)'],
+  honours: 'Mention Bien',
+  section: 'European section (English)',
+} as const;
+
+/* What the classes préparatoires gave him: no diploma, the two years
+   validated. Said in the 3D room, where their frame hangs among the diplomas. */
+export const preparatory = { outcome: 'Both years completed: the classes préparatoires award no diploma.' } as const;
+
 export const languages = [
   { name: 'French', level: 'Native' },
-  { name: 'English', level: 'Professional working proficiency (TOEIC Listening and Reading 860/990, May 2026)' },
+  { name: 'English', level: 'Professional working proficiency (TOEIC Listening and Reading 860/990, Feb 2026)' },
   { name: 'Japanese', level: 'Elementary, studying for the JLPT N5' },
 ] as const;
 
 export const skills = [
-  { group: 'Languages', items: ['Python', 'C', 'C++', 'Rust', 'Ruby', 'Go', 'Java', 'SQL', 'Bash'] },
+  { group: 'Languages', items: ['Python', 'C', 'C++', 'Rust', 'Ruby', 'Java', 'SQL', 'Bash'] },
   { group: 'Machine learning and numerics', items: ['PyTorch', 'NumPy', 'Hugging Face Transformers', 'Jupyter'] },
   { group: 'Methods', items: ['Inverse problems', 'convex optimization', 'image reconstruction', 'parsing and static analysis'] },
-  { group: 'Tools', items: ['Git', 'Docker', 'LaTeX'] },
+  { group: 'Tools', items: ['Git', 'Docker'] },
 ] as const;
 
 /* Research at LRE. Public level of detail only: the code, report and slides
@@ -170,6 +199,13 @@ export const openSource = {
     { repo: 'rubocop/rubocop', number: 14818, url: 'https://github.com/rubocop/rubocop/pull/14818', status: 'merged', date: 'Jan 2026', topic: 'Fixes a Layout/IndentationWidth regression in RuboCop 1.84.0' },
   ] as { repo: string; number: number; url: string; status: PullRequestStatus; date: string; topic: string }[],
   rubocopPrsUrl: 'https://github.com/rubocop/rubocop/pulls?q=author%3AMagikdidi24',
+  /* From his CV. The pull request is on a private repository: there is no link to give. */
+  driver: {
+    project: 'NVIDIA open-gpu-kernel-modules',
+    language: 'C',
+    summary: 'Fixed image duplication on split-head displays, enabling 5K at 120 Hz on the HTC Vive Pro 2.',
+    note: 'The pull request is on a private repository.',
+  },
   fork: {
     name: 'tree-sitter-ruby',
     url: 'https://github.com/Magikdidi24/tree-sitter-ruby',
@@ -184,6 +220,6 @@ export const coursework = [
   { name: '42sh', stack: ['C'], summary: 'A POSIX shell.' },
   { name: 'MyMalloc', stack: ['C'], summary: 'A malloc implementation.' },
   { name: 'MyFind', stack: ['C'], summary: 'A reimplementation of the find command.' },
-  { name: 'IDVOC', stack: ['Go', 'Docker'], summary: 'Microservices in Go, run with Docker.' },
+  { name: 'IDVOC', stack: ['Docker'], summary: 'Microservices, run with Docker.' },
   { name: 'JWS', stack: ['Java', 'Quarkus'], summary: 'A REST backend built with Quarkus.' },
 ] as const;

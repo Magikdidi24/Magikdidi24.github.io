@@ -1,0 +1,133 @@
+---
+/*
+  One of the small C programs, to run in its window of the desktop of
+  projects: what the site says of it, then its picture, the keys it reads as
+  buttons (a phone has no keyboard), and what it prints. The script is
+  src/room/ui/demos/program.ts.
+*/
+import type { SmallProject } from '../../../data/projects';
+import { demos } from '../../../data/room';
+
+export interface Props {
+  item: SmallProject;
+  /** The name of its file in public/room/demos, the keys it reads, and the side of a cell of its grid if it reads the mouse. */
+  file: string;
+  keys: string[];
+  cell?: number;
+}
+
+const { item, file, keys, cell } = Astro.props;
+const words = demos.program;
+const id = `${file}-program`;
+---
+<section class="demo" data-demo="program" data-wasm={`/room/demos/${file}.wasm`} data-cell={cell} data-words={JSON.stringify({ ...words, loading: demos.loading, failed: demos.failed })} aria-labelledby={id}>
+  <h2 id={id}>{item.name}</h2>
+  <p class="meta">{[...item.stack, item.year].join(', ')}</p>
+  <p>{item.summary}</p>
+  <p class="hint">{words.hint}</p>
+  <canvas width="640" height="480" tabindex="0" aria-label={words.picture}></canvas>
+  <div class="controls">
+    <button type="button" data-run>{words.run}</button>
+    {keys.length > 0 && (
+      <div class="keys" role="group" aria-label={words.keys}>
+        {keys.map((key) => (
+          <button type="button" data-key={key}>{words.keyNames[key] ?? key.toUpperCase()}</button>
+        ))}
+      </div>
+    )}
+  </div>
+  <p class="state" role="status"></p>
+  <pre class="terminal" aria-label={words.terminal}></pre>
+  <p><a href={item.repo}>{words.code}</a></p>
+</section>
+
+<style>
+  h2 {
+    font-size: var(--text-lg, 1.75rem);
+  }
+
+  .meta,
+  .hint {
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
+  .hint {
+    margin-top: var(--space-3);
+  }
+
+  /* As large as its window lets it be, whole, and in its own proportions. */
+  canvas {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 50vh; /* its buttons stay in sight under it */
+    margin-top: var(--space-3);
+    border: 2px solid var(--ink);
+    background: #000; /* shown smaller than it is drawn: smoothed, or its thin lines would come and go */
+    touch-action: none;
+  }
+
+  .controls,
+  .keys {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .controls {
+    margin-top: var(--space-3);
+  }
+
+  button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--rule-strong);
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  button[data-run] {
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+
+  .state {
+    min-height: 1.5em;
+    margin-top: var(--space-2);
+    font-weight: 600;
+  }
+
+  /* Its terminal: the last lines it printed. Nothing shows while it has printed nothing. */
+  .terminal {
+    margin-block: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--vacuum);
+    color: var(--on-vacuum);
+    font-family: var(--mono);
+    font-size: var(--text-sm);
+    white-space: pre-wrap;
+  }
+
+  .terminal:empty {
+    display: none;
+  }
+
+  /* Without JavaScript the program cannot run: what the site says of it stays. */
+  @media (scripting: none) {
+    .hint,
+    canvas,
+    .controls,
+    .state,
+    .terminal {
+      display: none;
+    }
+  }
+</style>

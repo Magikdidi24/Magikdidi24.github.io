@@ -12,7 +12,7 @@ import { person } from '../../data/site';
 
 const [user, domain] = person.email.split('@');
 ---
-<Section id="contact" title="Contact" intro="Email is the fastest way to reach me, and I reply in English or French.">
+<Section id="contact" title="Contact" intro={person.contactNote}>
   <div class="address">
     <p class="email">
       <a href={`mailto:${person.email}`}>{user}<wbr />@{domain}</a>

@@ -1,0 +1,68 @@
+---
+/*
+  A panel of the room page: what a stop of the visit opens. Its id is the
+  hash that opens it (src/room/ui/route.ts). It is plain HTML, there before
+  any script runs: a column on the right of the room, a sheet at its foot on
+  a narrow screen, and a section of an ordinary page without JavaScript.
+*/
+export interface Props {
+  id: string;
+  title: string;
+}
+const { id, title } = Astro.props;
+---
+<section class="panel" id={id} aria-labelledby={`${id}-title`} tabindex="-1">
+  <header>
+    <h2 id={`${id}-title`}>{title}</h2>
+    <button type="button" class="button button--quiet" data-close>Close</button>
+  </header>
+  <div class="flow"><slot /></div>
+</section>
+
+<style>
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+  }
+
+  h2 {
+    font-size: var(--text-lg);
+  }
+
+  /* What a panel holds, one thing under the other: paragraphs, small headings, lists of facts. */
+  .flow > :global(* + *) {
+    margin-top: var(--space-4);
+  }
+
+  .flow :global(h3) {
+    font-size: var(--text-md);
+  }
+
+  .flow > :global(* + h3) {
+    margin-top: var(--space-6);
+  }
+
+  /* Plain lists: a component that brings a list styles it itself. */
+  .flow :global(ul:not([role])) {
+    padding-left: 1.25em;
+  }
+
+  .flow :global(ul:not([role]) > li + li) {
+    margin-top: var(--space-2);
+  }
+
+  .flow :global(.go) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  @media (scripting: none) {
+    button {
+      display: none;
+    }
+  }
+</style>

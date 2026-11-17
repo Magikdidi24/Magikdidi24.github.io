@@ -1,0 +1,22 @@
+---
+/*
+  The panel of the window by night, when it looks out on Tokyo: the exchange
+  semester there and the Japanese he is learning, from site.ts. By day the
+  window shows Paris and opens nothing: a click only names the city.
+*/
+import Panel from './Panel.astro';
+import { stops } from '../../data/room';
+import { education, languages } from '../../data/site';
+
+const stop = stops.find(({ id }) => id === 'tokyo')!;
+const exchange = education.find(({ id }) => id === 'sit')!;
+const japanese = languages.find(({ name }) => name === 'Japanese')!;
+---
+<Panel id={stop.id} title={stop.label}>
+  <h3>{exchange.title}</h3>
+  <p class="meta">{exchange.org}, {exchange.place}, {exchange.period.label}</p>
+  <p>{exchange.summary}</p>
+  <h3>{japanese.name}</h3>
+  <p>{japanese.level}.</p>
+  <p class="meta">The window looks out on Paris by day and on Tokyo by night.</p>
+</Panel>

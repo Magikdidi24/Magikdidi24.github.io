@@ -24,11 +24,11 @@ const home = new URL('/', site).href;
 // not a URL that GitHub Pages serves.
 const canonical = noindex ? undefined : new URL(Astro.url.pathname, site).href;
 
-// Social preview image. The default card is generated into public/og.png.
+// Social preview image. The default card, public/og.png, is a capture of the 3D room of the home page.
 const OG_WIDTH = 1200;
 const OG_HEIGHT = 630;
 const ogImage = new URL(image ?? '/og.png', site).href;
-const ogImageAlt = image ? title : `${person.name}, ${person.intro} Beside it, simulated photon counts and their reconstruction.`;
+const ogImageAlt = image ? title : `The home page of ${person.name}: a bedroom drawn in 3D pixel art, with a bed, a desk and its screens, and shelves on the wall.`;
 
 /*
   JSON-LD Person, home page only. Schools come from `education`: a school

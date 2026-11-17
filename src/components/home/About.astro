@@ -25,13 +25,6 @@ const where = (e: Entry): string => [e.org, e.place].filter((part) => part.trim(
 /* The skills group "Languages" sits right after the spoken languages, so
    it is shown as "Programming languages". */
 const groupLabel = (group: string): string => (group === 'Languages' ? 'Programming languages' : group);
-
-/* "6 months" becomes "6-month"; areas read "a, b, or c". */
-const { availability } = person;
-const durationAdjective = availability.duration.replace(/\s+months?$/, '-month');
-const areas = [...availability.areas];
-const areaList =
-  areas.length > 1 ? `${areas.slice(0, -1).join(', ')}, or ${areas[areas.length - 1]}` : (areas[0] ?? '');
 ---
 <Section id="about" title="About">
   <div class="about">
@@ -44,9 +37,6 @@ const areaList =
         Since {person.inTokyoSince} I have been in Tokyo for an exchange semester at Shibaura Institute of
         Technology, and I am learning Japanese. I also write and review contest problems for Prologin, the
         non-profit behind France's national programming contest for young people.
-      </p>
-      <p>
-        I am looking for a {durationAdjective} AI engineering internship from {availability.start}, in {areaList}.
       </p>
     </div>
 
