@@ -9,9 +9,12 @@ const nav = [
   { href: '/classic/#contact', label: 'Contact' },
   { href: '/', label: '3D room' },
 ];
+
+/* The text version has the name as its title, right under this bar: once is enough there. */
+const named = !Astro.url.pathname.startsWith('/classic');
 ---
 <header class="site-header wrap">
-  <a class="site-name" href="/">{person.name}</a>
+  {named && <a class="site-name" href="/">{person.name}</a>}
   <nav aria-label="Main">
     <ul>
       {nav.map((item) => (
@@ -49,6 +52,11 @@ const nav = [
     gap: var(--space-2) var(--space-4);
     padding: 0;
     list-style: none;
+  }
+
+  /* Without the name before it, the menu stays on the side it has on the other pages. */
+  nav:only-child {
+    margin-left: auto;
   }
 
   nav a {
